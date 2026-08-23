@@ -1,0 +1,600 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <description>Enterprise Collaborative Workflow Lifecycle System UI</description>
+  <groupId>com.dodaso.ecosystem.elcm.ui</groupId>
+  <artifactId>elcm-ui</artifactId>
+  <modelVersion>4.0.0</modelVersion>
+  <version>${revision}</version>
+  <packaging>war</packaging>
+
+  <parent>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <groupId>org.springframework.boot</groupId>
+    <relativePath/>
+    <version>3.4.2</version>
+  </parent>
+
+  <properties>
+    <build.number>SNAPSHOT</build.number>
+    <java.version>21</java.version>
+<!--    <joinfaces.version>5.3.4</joinfaces.version>-->
+    <joinfaces.version>5.5.3</joinfaces.version>
+    <revision>1.0.0-SNAPSHOT</revision>
+  </properties>
+
+  <profiles>
+    <profile>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <id>local</id>
+      <properties>
+        <activatedProperties>local</activatedProperties>
+      </properties>
+    </profile>
+    <profile>
+      <id>adev</id>
+      <properties>
+        <activatedProperties>adev</activatedProperties>
+      </properties>
+    </profile>
+    <profile>
+      <id>bdev</id>
+      <properties>
+        <activatedProperties>bdev</activatedProperties>
+      </properties>
+    </profile>
+    <profile>
+      <id>dit</id>
+      <properties>
+        <activatedProperties>dit</activatedProperties>
+      </properties>
+    </profile>
+    <profile>
+      <id>sit</id>
+      <properties>
+        <activatedProperties>sit</activatedProperties>
+      </properties>
+    </profile>
+    <profile>
+      <id>uat</id>
+      <properties>
+        <activatedProperties>uat</activatedProperties>
+      </properties>
+    </profile>
+    <profile>
+      <id>prod</id>
+      <properties>
+        <activatedProperties>prod</activatedProperties>
+      </properties>
+    </profile>
+  </profiles>
+
+  <!-- Byoung: 10/9/24    <repositories>
+        <repository>
+            <id>dodaso-maven-repo-snapshot</id>
+            <url>s3://dodaso-maven-repo/snapshot</url>
+        </repository>
+        <repository>
+            <id>dodaso-maven-repo-release</id>
+            <url>s3://dodaso-maven-repo/release</url>
+        </repository>
+    </repositories>-->
+
+  <repositories>
+    <repository>
+      <id>jitpack.io</id>
+      <url>https://jitpack.io</url>
+    </repository>
+  </repositories>
+
+  <build>
+    <extensions>
+      <extension>
+        <artifactId>s3-storage-wagon</artifactId>
+        <groupId>com.gkatzioura.maven.cloud</groupId>
+        <version>2.0</version>
+      </extension>
+    </extensions>
+    <plugins>
+      <!--<plugin>
+        <groupId>org.joinfaces</groupId>
+        <artifactId>joinfaces-maven-plugin</artifactId>
+      </plugin>-->
+      <plugin>
+        <artifactId>maven-resources-plugin</artifactId>
+        <configuration>
+          <!-- Don't filter binary files -->
+          <nonFilteredFileExtensions>
+            <nonFilteredFileExtension>docx</nonFilteredFileExtension>
+            <nonFilteredFileExtension>xlsx</nonFilteredFileExtension>
+            <nonFilteredFileExtension>pptx</nonFilteredFileExtension>
+            <nonFilteredFileExtension>p12</nonFilteredFileExtension>
+          </nonFilteredFileExtensions>
+        </configuration>
+        <executions>
+          <execution>
+            <configuration>
+              <outputDirectory>${basedir}/target/classes</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${basedir}/src/main/resources</directory>
+                  <filtering>false</filtering>
+                  <includes>
+                    <include>dodaso_keystore.p12</include>
+                    <include>dodaso_truststore.p12</include>
+                    <include>*.docx</include>
+                    <include>*.pptx</include>
+                    <include>*.xlsx</include>
+                  </includes>
+                </resource>
+              </resources>
+            </configuration>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <id>copy-resource-one</id>
+            <phase>generate-sources</phase>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <configuration>
+              <skip>true</skip>
+            </configuration>
+            <goals>
+              <goal>repackage</goal>
+            </goals>
+            <id>repackage</id>
+          </execution>
+        </executions>
+        <groupId>org.springframework.boot</groupId>
+      </plugin>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>21</source>
+          <target>21</target>
+        </configuration>
+        <groupId>org.apache.maven.plugins</groupId>
+      </plugin>
+      <plugin>
+        <artifactId>maven-war-plugin</artifactId>
+        <configuration>
+          <skip>false</skip>
+          <!--<archive>
+            <manifest>
+              <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+            </manifest>
+            <manifestEntries>
+              <Specification-Title>${project.name}</Specification-Title>
+              <Implementation-Version>${build.number}</Implementation-Version>
+            </manifestEntries>
+          </archive>-->
+        </configuration>
+        <executions>
+          <execution>
+            <id>default-war</id>
+            <phase>none</phase>
+          </execution>
+          <execution>
+            <goals>
+              <goal>exploded</goal>
+            </goals>
+            <id>war-exploded</id>
+            <phase>package</phase>
+          </execution>
+        </executions>
+        <groupId>org.apache.maven.plugins</groupId>
+      </plugin>
+      <plugin>
+        <artifactId>maven-install-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>default-install</id>
+            <phase>none</phase>
+          </execution>
+        </executions>
+        <groupId>org.apache.maven.plugins</groupId>
+      </plugin>
+      <!--            <plugin>-->
+      <!--                <groupId>org.codehaus.mojo</groupId>-->
+      <!--                <artifactId>aspectj-maven-plugin</artifactId>-->
+      <!--                <version>1.14.0</version>-->
+      <!--                <configuration>-->
+      <!--                    <source>17</source>-->
+      <!--                    <target>17</target>-->
+      <!--                    <proc>none</proc>-->
+      <!--                    <complianceLevel>17</complianceLevel>-->
+      <!--                    <forceAjcCompile>true</forceAjcCompile>-->
+      <!--                    <showWeaveInfo>true</showWeaveInfo>-->
+      <!--                    <sources/>-->
+      <!--                    <weaveDirectories>-->
+      <!--                        <weaveDirectory>-->
+      <!--
+      ${project.build.directory}/classes/com/dodaso/ecosystem/elcm/ui/bean-->
+      <!--                        </weaveDirectory>-->
+      <!--                        <weaveDirectory>-->
+      <!--
+      ${project.build.directory}/classes/com/dodaso/ecosystem/elcm/ui/helper-->
+      <!--                        </weaveDirectory>-->
+      <!--                    </weaveDirectories>-->
+      <!--                </configuration>-->
+      <!--                <executions>-->
+      <!--                    <execution>-->
+      <!--                        <goals>-->
+      <!--                            <goal>compile</goal>-->
+      <!--                        </goals>-->
+      <!--                    </execution>-->
+      <!--                </executions>-->
+      <!--                <dependencies>-->
+      <!--                    <dependency>-->
+      <!--                        <groupId>org.aspectj</groupId>-->
+      <!--                        <artifactId>aspectjtools</artifactId>-->
+      <!--                        <version>1.9.19</version>-->
+      <!--                    </dependency>-->
+      <!--                </dependencies>-->
+      <!--            </plugin>-->
+    </plugins>
+    <!--<pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.joinfaces</groupId>
+          <artifactId>joinfaces-maven-plugin</artifactId>
+          Byoung: 10/11/24 <version>5.0.0</version>
+          <version>5.1.12</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>classpath-scan</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>-->
+    <resources>
+      <resource>
+        <directory>${basedir}/src/main/resources</directory>
+        <excludes>
+          <exclude>dodaso_keystore.p12</exclude>
+          <exclude>dodaso_truststore.p12</exclude>
+        </excludes>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+  </build>
+
+  <dependencies>
+    <dependency>
+      <artifactId>spring-boot-starter-web</artifactId>
+      <groupId>org.springframework.boot</groupId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-web</artifactId>
+    </dependency>
+    <dependency>
+      <artifactId>spring-boot-starter-oauth2-client</artifactId>
+      <groupId>org.springframework.boot</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+      <groupId>org.springframework.boot</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+      <exclusions>
+        <exclusion>
+          <artifactId>commons-logging</artifactId>
+          <groupId>commons-logging</groupId>
+        </exclusion>
+      </exclusions>
+      <groupId>org.springframework.cloud</groupId>
+      <version>4.2.0</version>
+    </dependency>
+    <dependency>
+      <artifactId>jsf-spring-boot-starter</artifactId>
+      <groupId>org.joinfaces</groupId>
+      <version>${joinfaces.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>primefaces-spring-boot-starter</artifactId>
+      <groupId>org.joinfaces</groupId>
+      <version>${joinfaces.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>security-spring-boot-starter</artifactId>
+      <groupId>org.joinfaces</groupId>
+      <version>${joinfaces.version}</version>
+    </dependency>
+    <dependency>
+      <artifactId>font-awesome</artifactId>
+      <groupId>org.webjars</groupId>
+      <version>6.3.0</version>
+    </dependency>
+    <dependency>
+      <artifactId>rewrite-servlet</artifactId>
+      <groupId>org.ocpsoft.rewrite</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>rewrite-integration-spring</artifactId>
+      <groupId>org.ocpsoft.rewrite</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>primeflex</artifactId>
+      <groupId>org.webjars.npm</groupId>
+      <version>3.3.1</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/software.xdev/chartjs-java-model -->
+    <dependency>
+      <groupId>software.xdev</groupId>
+      <artifactId>chartjs-java-model</artifactId>
+      <version>2.8.1</version>
+    </dependency>
+    <dependency>
+      <artifactId>jakarta.enterprise.cdi-api</artifactId>
+      <groupId>jakarta.enterprise</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
+      <groupId>jakarta.servlet.jsp.jstl</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>commons-fileupload</artifactId>
+      <groupId>commons-fileupload</groupId>
+      <version>1.5</version>
+    </dependency>
+    <dependency>
+      <artifactId>commons-io</artifactId>
+      <groupId>commons-io</groupId>
+      <version>2.14.0</version>
+    </dependency>
+    <dependency>
+      <artifactId>commons-cli</artifactId>
+      <groupId>commons-cli</groupId>
+      <version>1.5.0</version>
+    </dependency>
+    <dependency>
+      <artifactId>aspectjrt</artifactId>
+      <groupId>org.aspectj</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>aspectjweaver</artifactId>
+      <groupId>org.aspectj</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>aspectjtools</artifactId>
+      <groupId>org.aspectj</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <exclusions>
+        <exclusion>
+          <artifactId>junit-vintage-engine</artifactId>
+          <groupId>org.junit.vintage</groupId>
+        </exclusion>
+      </exclusions>
+      <groupId>org.springframework.boot</groupId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <artifactId>junit</artifactId>
+      <groupId>junit</groupId>
+      <scope>test</scope>
+    </dependency>
+    <!--        <dependency>-->
+    <!--            <groupId>org.easetech</groupId>-->
+    <!--            <artifactId>easytest-core</artifactId>-->
+    <!--            <version>1.4.0</version>-->
+    <!--            <exclusions>-->
+    <!--                <exclusion>-->
+    <!--                    <groupId>org.slf4j</groupId>-->
+    <!--                    <artifactId>slf4j-log4j12</artifactId>-->
+    <!--                </exclusion>-->
+    <!--            </exclusions>-->
+    <!--        </dependency>-->
+    <dependency>
+      <artifactId>log4j-api</artifactId>
+      <groupId>org.apache.logging.log4j</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>sheetfit</artifactId>
+      <groupId>com.airhacks</groupId>
+      <version>0.0.2</version>
+    </dependency>
+    <dependency>
+      <artifactId>httpclient5</artifactId>
+      <groupId>org.apache.httpcomponents.client5</groupId>
+    </dependency>
+    <dependency>
+      <groupId>com.azure</groupId>
+      <artifactId>azure-core-http-jdk-httpclient</artifactId>
+      <version>1.0.0-beta.18</version>
+    </dependency>
+    <dependency>
+      <artifactId>azure-storage-blob</artifactId>
+      <groupId>com.azure</groupId>
+      <version>12.30.0</version>
+    </dependency>
+    <dependency>
+      <artifactId>maven-resources-plugin</artifactId>
+      <groupId>org.apache.maven.plugins</groupId>
+      <version>3.3.1</version>
+    </dependency>
+    <!-- Testing Framework -->
+    <!--        <dependency>-->
+    <!--            <groupId>javax.xml.bind</groupId>-->
+    <!--            <artifactId>jaxb-api</artifactId>-->
+    <!--            <scope>test</scope>-->
+    <!--        </dependency>-->
+    <!--        <dependency>-->
+    <!--            <groupId>javax.activation</groupId>-->
+    <!--            <artifactId>activation</artifactId>-->
+    <!--            <version>1.1.1</version>-->
+    <!--            <scope>test</scope>-->
+    <!--        </dependency>-->
+    <!--        <dependency>-->
+    <!--            <groupId>com.sun.xml.bind</groupId>-->
+    <!--            <artifactId>jaxb-core</artifactId>-->
+    <!--            <version>4.0.1</version>-->
+    <!--            <scope>test</scope>-->
+    <!--        </dependency>-->
+    <!--        <dependency>-->
+    <!--            <groupId>com.sun.xml.bind</groupId>-->
+    <!--            <artifactId>jaxb-impl</artifactId>-->
+    <!--            <version>4.0.1</version>-->
+    <!--            <scope>test</scope>-->
+    <!--        </dependency>-->
+
+    <dependency>
+      <artifactId>hibernate-core</artifactId>
+      <exclusions>
+        <!-- without exclusion of jandex in hibernate a no such method
+        error is raised -->
+        <!-- with    exclusion an explicit dependency to jandex is needed
+        (see below)  -->
+        <!-- note that jandex is referenced with groupId io.smallrye
+        actually          -->
+        <exclusion>
+          <artifactId>jandex</artifactId>
+          <groupId>org.jboss</groupId>
+        </exclusion>
+      </exclusions>
+      <groupId>org.hibernate.orm</groupId>
+    </dependency>
+    <dependency>
+      <artifactId>hypersistence-utils-hibernate-55</artifactId>
+      <groupId>io.hypersistence</groupId>
+      <version>3.6.1</version>
+    </dependency>
+    <dependency>
+      <artifactId>owasp-java-html-sanitizer</artifactId>
+      <groupId>com.googlecode.owasp-java-html-sanitizer</groupId>
+      <version>20240325.1</version>
+    </dependency>
+    <dependency>
+      <artifactId>baseline-common</artifactId>
+      <groupId>com.dodaso.ecosystem.baseline.common</groupId>
+      <version>${revision}</version>
+    </dependency>
+<!--    <dependency>-->
+<!--      <artifactId>elcm-data-model</artifactId>-->
+<!--      <groupId>com.dodaso.ecosystem.elcm.data.model</groupId>-->
+<!--      <version>${revision}</version>-->
+<!--    </dependency>-->
+    <!--
+    <dependency>
+      <artifactId>iams-data-model</artifactId>
+      <groupId>com.dodaso.ecosystem.iams.data.model</groupId>
+      <version>${revision}</version>
+    </dependency>
+    -->
+    <dependency>
+      <artifactId>ears-data-model</artifactId>
+      <groupId>com.dodaso.ecosystem.ears.data.model</groupId>
+      <version>${revision}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-websocket</artifactId>
+    </dependency>
+    <!-- Apache POI for Office files -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.4.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-scratchpad</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+
+    <!-- Required POI dependencies for logging -->
+    <dependency>
+      <groupId>commons-logging</groupId>
+      <artifactId>commons-logging</artifactId>
+      <version>1.2</version>
+    </dependency>
+
+    <!-- XML handling for POI -->
+    <dependency>
+      <groupId>org.apache.xmlbeans</groupId>
+      <artifactId>xmlbeans</artifactId>
+      <version>5.1.1</version>
+    </dependency>
+
+    <!-- Commons Collections for POI -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-collections4</artifactId>
+      <version>4.4</version>
+    </dependency>
+
+    <!-- Commons Compress for POI -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-compress</artifactId>
+      <version>1.26.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.jodconverter</groupId>
+      <artifactId>jodconverter-spring-boot-starter</artifactId>
+      <version>4.4.7</version>
+    </dependency>
+
+    <!-- Office conversion -->
+    <dependency>
+      <groupId>org.jodconverter</groupId>
+      <artifactId>jodconverter-local</artifactId>
+      <version>4.4.7</version>
+    </dependency>
+
+    <!-- PDF rendering -->
+    <dependency>
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>pdfbox</artifactId>
+      <version>2.0.30</version>
+    </dependency>
+
+    <!-- Image IO for common formats is in JDK; add TwelveMonkeys if you want more -->
+    <!-- <dependency> com.twelvemonkeys.imageio:imageio-jpeg etc. </dependency> -->
+
+    <!-- Caffeine cache -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+      <version>3.1.8</version>
+    </dependency>
+
+  </dependencies>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <artifactId>joinfaces-dependencies</artifactId>
+        <groupId>org.joinfaces</groupId>
+        <scope>import</scope>
+        <type>pom</type>
+        <version>${joinfaces.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+</project>
