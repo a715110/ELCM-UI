@@ -1,0 +1,119 @@
+@charset "ISO-8859-1";
+
+/** global search field size. Original size 240px got changed to 480px */
+.layout-topbar-colored .layout-topbar .layout-topbar-wrapper .layout-topbar-right .layout-topbar-actions > li.search-item > form > .search-input-wrapper input {
+  width: 480px;
+}
+
+div.field.grid {
+  margin-bottom: 7px;
+}
+
+/*******************************************************************************
+override theme.css.xhtml
+Fix the alignment of the button label, which is slightly shifted to the right
+padding:.5rem 1rem .5rem 2rem --> padding:.5rem 1rem .5rem 1rem
+********************************************************************************/
+body .ui-button.ui-button-text-icon-left .ui-button-text {
+  padding:.5rem 1rem .5rem 2rem;
+}
+
+/* Hide default black asterisk */
+.ui-outputlabel-rfi {
+  display: none !important;
+}
+
+/* Style for required field labels */
+.required-field::after {
+  content: " *";
+  color: #d32f2f;
+  font-weight: bold;
+  margin-left: 0.25rem; /* space between label text and asterisk */
+}
+
+/* Lighter placeholder text for PrimeFaces inputs (AutoComplete, InputText, InputTextarea, etc.) */
+body .ui-inputfield::placeholder,
+body .ui-autocomplete-input::placeholder,
+body input.ui-inputfield::placeholder,
+body textarea.ui-inputfield::placeholder {
+  color: rgba(107, 114, 128, 0.45); /* lighter */
+  opacity: 1;                       /* keep consistent across browsers */
+}
+
+/* Optional: older WebKit fallback */
+body .ui-inputfield::-webkit-input-placeholder,
+body .ui-autocomplete-input::-webkit-input-placeholder {
+  color: rgba(107, 114, 128, 0.45);
+  opacity: 1;
+}
+
+/* Optional: if you also want the p:textEditor (Quill) placeholder lighter */
+body .ql-editor.ql-blank::before {
+  color: rgba(107, 114, 128, 0.45);
+  opacity: 1;
+}
+
+/* Thumbnail loading animation for async Office files */
+
+.thumbnail-loading {
+  position: relative;
+  opacity: 0.7;
+}
+
+.thumbnail-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.4) 50%,
+      transparent 100%
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Alternative: Pulsing animation */
+.thumbnail-loading.pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Small processing indicator badge */
+.attachment-preview {
+  position: relative;
+}
+
+.thumbnail-loading + .processing-badge,
+.attachment-preview:has(.thumbnail-loading)::before {
+  content: '?';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  z-index: 10;
+}

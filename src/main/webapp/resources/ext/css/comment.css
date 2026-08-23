@@ -1,0 +1,272 @@
+/* Enhanced comment container */
+ .enhanced-comment-container {
+   border: 1px solid #dee2e6;
+   border-radius: 8px;
+   overflow: hidden;
+   background: white;
+   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+   margin-bottom: 1rem;
+ }
+
+.comment-header {
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 500;
+  color: #495057;
+}
+
+/* Enhanced toolbar styling */
+.enhanced-comment-container .ql-toolbar {
+  border-bottom: 1px solid #dee2e6;
+  background: #fafbfc;
+  padding: 8px 12px;
+}
+
+.enhanced-comment-container .ql-editor {
+  min-height: 120px;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 16px;
+}
+
+/* Enhanced attach button */
+.enhanced-attach-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: 1px solid #dee2e6;
+  color: #495057;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.enhanced-attach-btn:hover {
+  background: #e9ecef;
+  border-color: #007bff;
+  color: #007bff;
+  transform: translateY(-1px);
+}
+
+.attach-text {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Drag and drop overlay */
+.editor-drop-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 123, 255, 0.05);
+  border: 2px dashed #007bff;
+  border-radius: 8px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.editor-drop-overlay.active {
+  display: flex;
+}
+
+.drop-message {
+  background: white;
+  padding: 24px;
+  border-radius: 8px;
+  text-align: center;
+  color: #007bff;
+  font-weight: 500;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* Attachments container */
+.attachments-container {
+  border-top: 1px solid #dee2e6;
+  background: #f8f9fa;
+  display: none;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.attachments-container.has-files {
+  display: block;
+}
+
+.attachments-header {
+  padding: 8px 16px;
+  background: #e9ecef;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #495057;
+}
+
+.attachments-count {
+  background: #007bff;
+  color: white;
+  border-radius: 10px;
+  padding: 2px 6px;
+  font-size: 11px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: white;
+  border-bottom: 1px solid #f1f3f4;
+  animation: slideIn 0.3s ease;
+  transition: background-color 0.2s;
+}
+
+.attachment-item:hover {
+  background: #f8f9fa;
+}
+
+.attachment-item:last-child {
+  border-bottom: none;
+}
+
+.attachment-icon {
+  width: 36px;
+  height: 36px;
+  background: #007bff;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.attachment-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.attachment-name {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.attachment-size {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.attachment-remove {
+  padding: 6px;
+  border: none;
+  background: none;
+  color: #dc3545;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.attachment-remove:hover {
+  background: #f8d7da;
+}
+
+/* Progress indicator */
+.upload-progress {
+  height: 3px;
+  background: #e9ecef;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.upload-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #007bff, #0056b3);
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+/* Comment actions */
+.comment-actions {
+  padding: 12px 16px;
+  background: #fafbfc;
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-info {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.cancel-btn {
+  background: #6c757d !important;
+  border-color: #6c757d !important;
+}
+
+.submit-btn {
+  background: #007bff !important;
+  border-color: #007bff !important;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .enhanced-comment-container .ql-toolbar {
+    padding: 6px 8px;
+  }
+
+  .enhanced-attach-btn .attach-text {
+    display: none;
+  }
+
+  .comment-actions {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .action-buttons {
+    justify-content: center;
+  }
+}

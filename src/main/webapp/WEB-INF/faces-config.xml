@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<faces-config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.0"
+  xmlns="http://java.sun.com/xml/ns/javaee"
+  xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-facesconfig_2_0.xsd">
+
+  <application>
+    <action-listener>
+      org.primefaces.application.DialogActionListener
+    </action-listener>
+
+    <el-resolver>
+      org.springframework.web.jsf.el.SpringBeanFacesELResolver
+    </el-resolver>
+
+    <navigation-handler>
+      org.primefaces.application.DialogNavigationHandler
+    </navigation-handler>
+
+    <view-handler>
+      org.primefaces.application.DialogViewHandler
+    </view-handler>
+  </application>
+
+  <component>
+    <component-type>org.primefaces.component.RainMenu</component-type>
+    <component-class>com.dodaso.ecosystem.elcm.ui.primefaces.RainMenu</component-class>
+  </component>
+
+  <lifecycle>
+    <phase-listener>com.dodaso.ecosystem.elcm.ui.config.RequestInterceptPhaseListener
+    </phase-listener>
+  </lifecycle>
+
+  <name>primefaces_rain</name>
+
+  <render-kit>
+    <renderer>
+      <component-family>org.primefaces.component</component-family>
+      <renderer-type>org.primefaces.component.RainMenuRenderer</renderer-type>
+      <renderer-class>com.dodaso.ecosystem.elcm.ui.primefaces.RainMenuRenderer</renderer-class>
+    </renderer>
+  </render-kit>
+
+</faces-config>

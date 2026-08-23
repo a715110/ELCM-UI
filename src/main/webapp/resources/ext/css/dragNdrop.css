@@ -1,0 +1,102 @@
+.comment-attachments a {
+  display: inline-block !important;
+  margin-right: 12px !important;
+  color: #007bff !important;
+  text-decoration: none !important;
+  font-size: 14px !important;
+  padding: 2px 4px !important;
+  border-radius: 4px !important;
+  transition: all 0.2s ease !important;
+}
+
+.comment-attachments a:hover {
+  background-color: rgba(0, 123, 255, 0.1) !important;
+  transform: translateY(-1px) !important;
+}
+
+.comment-attachments a:last-child {
+  margin-right: 0 !important;
+}
+
+.comment-attachments a .pi-download {
+  margin-right: 4px !important;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.attachment-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.attachment-preview {
+  /*width: 300px;*/
+  height: 250px;
+  /*min-width: 300px;*/
+  /*min-height: 200px;*/
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.attachment-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.attachment-icon {
+  font-size: 2rem;
+  color: #6b7280;
+}
+
+.attachment-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.attachment-name {
+  font-weight: 500;
+  color: #374151;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-size {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.attachment-remove {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.attachment-remove:hover {
+  color: #dc2626;
+}

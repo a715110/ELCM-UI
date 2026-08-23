@@ -1,0 +1,214 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                template="/WEB-INF/template.xhtml">
+  <!--
+      Namespaces corrected to the PrimeFaces 15 / Jakarta Faces 4.0 style
+      (jakarta.faces.*, "primefaces") per your instruction - this now
+      differs from template.xhtml, which is still on the old
+      http://java.sun.com/jsf/html style. See chat for why that mismatch
+      is flagged as a risk, not silently fixed here too.
+
+      This file only fills the "content" region template.xhtml exposes
+      via <ui:insert name="content"/> - the sidebar/topbar/breadcrumb
+      chrome visible in the reference screenshot is NOT rendered by this
+      file and isn't currently active in template.xhtml either (see chat).
+
+      REFACTORED (2026-08-15): the single dashboardBean is replaced with
+      three section beans (pipelineMetricsBean, stageDocumentsBean,
+      contractPackagesBean), each backed by its own Spring service. See
+      the bean-per-section design discussion in chat. DashboardBean.java
+      is no longer used by this page and should be deleted from the
+      project.
+  -->
+  <ui:define name="title">Dashboard</ui:define>
+
+  <ui:define name="head">
+    <style>
+      /* Colors below match theme-override.css's warm-neutral + forest-green
+         palette - this inline block predates that file and originally had
+         its own unrelated #667eea (blue-violet) icon color left over from
+         an early mockup, which is what first made the color harmony look
+         off. Now consistent with the rest of the app rather than a
+         separate hardcoded palette. */
+      .metric-cards { display: flex; flex-wrap: wrap; gap: 1.25rem; margin: 1.5rem 0; }
+      .metric-card {
+        flex: 1 1 200px;
+        background: #FDFCFA;
+        border: 1px solid #D6D2C7;
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+      .metric-card .pi { font-size: 1.5rem; color: #166534; }  /* matches --elcm-accent-text in theme-override.css -- kept in sync manually since this inline block predates that file */
+      .metric-card .metric-value { font-size: 1.75rem; font-weight: 700; color: #2B2A26; line-height: 1; }
+      .metric-card .metric-label { font-size: 0.85rem; color: #6B6A63; margin-top: 0.25rem; }
+
+      .dashboard-section { margin: 2rem 0; }
+      .dashboard-section h2 { font-size: 1.15rem; margin-bottom: 0.25rem; }
+      .dashboard-section .section-subtitle { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+    </style>
+  </ui:define>
+
+  <ui:define name="content">
+
+    <h1>Document Pipeline</h1>
+    <p class="section-subtitle">Monitor and manage staged documents before submission to processing.</p>
+
+    <!-- ==================== TOP METRICS ==================== -->
+    <div class="metric-cards">
+      <div class="metric-card">
+        <i class="pi pi-upload" aria-hidden="true"/>
+        <div>
+          <div class="metric-value">
+            <h:outputText value="#{pipelineMetricsBean.uploadingCount}"/>
+          </div>
+          <div class="metric-label">Uploading</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <i class="pi pi-sync" aria-hidden="true"/>
+        <div>
+          <div class="metric-value">
+            <h:outputText value="#{pipelineMetricsBean.validatingCount}"/>
+          </div>
+          <div class="metric-label">Validating</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <i class="pi pi-check-circle" aria-hidden="true"/>
+        <div>
+          <div class="metric-value">
+            <h:outputText value="#{pipelineMetricsBean.validCount}"/>
+          </div>
+          <div class="metric-label">Valid</div>
+        </div>
+      </div>
+      <div class="metric-card">
+        <i class="pi pi-send" aria-hidden="true"/>
+        <div>
+          <div class="metric-value">
+            <h:outputText value="#{pipelineMetricsBean.submittedCount}"/>
+          </div>
+          <div class="metric-label">Submitted</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== STAGE DOCUMENTS ==================== -->
+    <div class="dashboard-section">
+      <h2>Stage Documents (#{stageDocumentsBean.stagedDocuments.size()})</h2>
+      <p class="section-subtitle">Documents uploaded and awaiting grouping into a contract package.</p>
+
+      <h:form id="stageDocumentsForm">
+        <p:dataTable id="stageDocumentsTable"
+                     var="doc"
+                     value="#{stageDocumentsBean.stagedDocuments}"
+                     selection="#{stageDocumentsBean.selectedDocuments}"
+                     rowKey="#{doc.fileName}"
+                     emptyMessage="No staged documents.">
+
+          <p:column selectionMode="multiple" style="width:3rem" exportable="false"/>
+
+          <p:column headerText="File Name">
+            <h:outputText value="#{doc.fileName}"/>
+          </p:column>
+
+          <p:column headerText="Type">
+            <p:tag value="#{doc.type}"/>
+          </p:column>
+
+          <p:column headerText="Workspace">
+            <p:tag value="#{doc.workspace}"/>
+          </p:column>
+
+          <p:column headerText="Record">
+            <h:outputText value="#{doc.record}"/>
+          </p:column>
+
+          <p:column headerText="Assignee">
+            <h:outputText value="#{doc.assignee}"/>
+          </p:column>
+
+          <p:column headerText="Uploaded">
+            <h:outputText value="#{doc.uploadedAt}"/>
+          </p:column>
+
+          <p:column headerText="Actions" style="width:6rem" exportable="false">
+            <p:commandButton icon="pi pi-eye" styleClass="rounded-button ui-button-text" title="View"/>
+            <p:commandButton icon="pi pi-trash" styleClass="rounded-button ui-button-text" title="Delete"/>
+          </p:column>
+
+        </p:dataTable>
+
+        <div style="margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+          <span>Showing #{stageDocumentsBean.stagedDocuments.size()} of #{stageDocumentsBean.stagedDocuments.size()} documents</span>
+          <p:commandButton value="Review &amp; Group" icon="pi pi-arrow-right" iconPos="right"/>
+        </div>
+      </h:form>
+    </div>
+
+    <!-- ==================== CONTRACT PACKAGES ==================== -->
+    <div class="dashboard-section">
+      <h2>Contract Packages (#{contractPackagesBean.contractPackages.size()})</h2>
+      <p class="section-subtitle">Group staged documents into packages, then submit for processing.</p>
+
+      <h:form id="contractPackagesForm">
+        <p:dataTable id="contractPackagesTable"
+                     var="pkg"
+                     value="#{contractPackagesBean.contractPackages}"
+                     rowKey="#{pkg.packageCode}"
+                     emptyMessage="No contract packages.">
+
+          <p:column headerText="Batch ID">
+            <h:outputText value="#{pkg.batchId}"/>
+          </p:column>
+
+          <p:column headerText="Package ID">
+            <h:outputText value="#{pkg.packageCode}"/>
+          </p:column>
+
+          <p:column headerText="Docs">
+            <h:outputText value="#{pkg.docCount}"/>
+          </p:column>
+
+          <p:column headerText="Target Record">
+            <h:outputText value="#{pkg.targetRecord}"/>
+          </p:column>
+
+          <p:column headerText="Workspace">
+            <p:tag value="#{pkg.workspace}"/>
+          </p:column>
+
+          <p:column headerText="Assignee">
+            <h:outputText value="#{pkg.assignee}"/>
+          </p:column>
+
+          <p:column headerText="Roles">
+            <h:outputText value="#{pkg.roles}"/>
+          </p:column>
+
+          <p:column headerText="Status">
+            <!-- severity="success" hardcoded for now since Assembly is the
+                 only mock status value - once real statuses exist (Failed,
+                 Pending, etc.), this should map severity from pkg.status
+                 rather than assume every status is success. -->
+            <p:tag value="#{pkg.status}" severity="success"/>
+          </p:column>
+
+          <p:column headerText="Actions" exportable="false">
+            <p:commandButton value="Open" styleClass="ui-button-secondary"/>
+            <p:commandButton value="Reassign" icon="pi pi-user-edit" styleClass="ui-button-secondary"/>
+            <p:commandButton value="Submit for Extraction"/>
+          </p:column>
+
+        </p:dataTable>
+      </h:form>
+    </div>
+
+  </ui:define>
+</ui:composition>

@@ -1,0 +1,51 @@
+{
+  "_from": "primeflex",
+  "_id": "primeflex@1.3.1",
+  "_inBundle": false,
+  "_integrity": "sha512-APU4DNof9nvQ6/6XxdQ8ACjADktsNpO5RjDf6h5B46OcegAL9vaslKepVt8CpJc/5bYZEAwA5hz9mAUhxBgJWA==",
+  "_location": "/primeflex",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "primeflex",
+    "name": "primeflex",
+    "escapedName": "primeflex",
+    "rawSpec": "",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "#USER",
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/primeflex/-/primeflex-1.3.1.tgz",
+  "_shasum": "60eee9d636112b79addd85c173e8637cc9898557",
+  "_spec": "primeflex",
+  "_where": "c:\\Temp\\temp\\primeflex",
+  "author": {
+    "name": "PrimeTek"
+  },
+  "bugs": {
+    "url": "https://github.com/primefaces/primeflex/issues"
+  },
+  "bundleDependencies": false,
+  "deprecated": false,
+  "description": "PrimeFlex is a lightweight flex based responsive layout utility optimized for mobile phones, tablets and desktops",
+  "homepage": "https://github.com/primefaces/primeflex#readme",
+  "keywords": [
+    "grid",
+    "responsive",
+    "flex"
+  ],
+  "license": "MIT",
+  "name": "primeflex",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/primefaces/primeflex.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "version": "1.3.1"
+}

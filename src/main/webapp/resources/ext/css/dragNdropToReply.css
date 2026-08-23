@@ -1,0 +1,172 @@
+/* REPLY DIALOG ALIGNMENT FIXES */
+
+/* Fix the main container positioning */
+#replyCommentContainer.enhanced-comment-container {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 1rem;
+}
+
+/* CRITICAL FIX: Ensure proper flex alignment */
+.reply-avatar-section {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start; /* Changed from flex-start to ensure proper alignment */
+  padding: 16px 16px 0 16px;
+  position: relative; /* Add positioning context */
+}
+
+/* Avatar positioning fix */
+.reply-avatar {
+  flex-shrink: 0;
+  width: 40px; /* Set explicit width */
+  height: 40px; /* Set explicit height */
+  margin-top: 0; /* Remove margin-top that was causing misalignment */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure avatar image is properly sized */
+.reply-avatar .ui-avatar {
+  width: 40px !important;
+  height: 40px !important;
+}
+
+.reply-avatar .ui-avatar img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+
+/* Editor wrapper positioning fix */
+.reply-editor-wrapper {
+  flex: 1;
+  position: relative;
+  min-height: 40px; /* Ensure minimum height matches avatar */
+  display: flex;
+  flex-direction: column;
+}
+
+/* CRITICAL: Fix the Quill editor container alignment */
+#replyCommentContainer .ui-editor {
+  width: 100%;
+  margin: 0; /* Remove any default margins */
+}
+
+#replyCommentContainer .ui-editor .ql-container {
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-family: inherit;
+  margin: 0; /* Ensure no margins */
+}
+
+#replyCommentContainer .ui-editor .ql-editor {
+  min-height: 100px;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 12px;
+  margin: 0; /* Remove any margins that might cause misalignment */
+}
+
+/* Focus states */
+#replyCommentContainer .ql-editor:focus {
+  outline: none;
+}
+
+#replyCommentContainer .ql-container:focus-within {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+}
+
+/* Container positioning fix - IMPORTANT */
+#replyCommentContainer > div:first-child {
+  position: relative;
+  padding-bottom: 16px;
+  width: 100%; /* Ensure full width */
+}
+
+/* Fix any PrimeFaces specific styling conflicts */
+#replyCommentDlg .ui-dialog-content .ui-editor {
+  margin-bottom: 0 !important;
+}
+
+#replyCommentDlg .ui-dialog-content .reply-avatar-section {
+  align-items: flex-start !important; /* Force alignment */
+}
+
+/* Ensure the text editor takes full available width */
+.reply-editor-wrapper .ui-editor {
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Fix for any inherited padding/margin issues */
+#replyCommentDlg .enhanced-comment-container * {
+  box-sizing: border-box;
+}
+
+/* Drop overlay positioning - relative to editor wrapper */
+.reply-editor-wrapper .editor-drop-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 123, 255, 0.05);
+  border: 2px dashed #007bff;
+  border-radius: 8px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.reply-editor-wrapper .editor-drop-overlay.active {
+  display: flex;
+}
+
+.reply-editor-wrapper .drop-message {
+  background: white;
+  padding: 24px;
+  border-radius: 8px;
+  text-align: center;
+  color: #007bff;
+  font-weight: 500;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* RESPONSIVE FIXES */
+@media (max-width: 768px) {
+  .reply-avatar-section {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .reply-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .reply-avatar .ui-avatar {
+    width: 32px !important;
+    height: 32px !important;
+  }
+}
+
+/* DEBUG: Temporary border to visualize alignment - REMOVE AFTER TESTING */
+/*
+.reply-avatar-section {
+  border: 2px solid red !important;
+}
+.reply-avatar {
+  border: 2px solid blue !important;
+}
+.reply-editor-wrapper {
+  border: 2px solid green !important;
+}
+*/

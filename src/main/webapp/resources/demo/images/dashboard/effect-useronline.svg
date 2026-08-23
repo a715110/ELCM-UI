@@ -1,0 +1,7 @@
+<svg height="56" viewBox="0 0 56 56" width="56" xmlns="http://www.w3.org/2000/svg">
+  <g fill="#134592" fill-rule="evenodd" opacity=".5" transform="translate(0 -40)">
+    <circle cx="48" cy="48" opacity=".1" r="48"/>
+    <circle cx="48" cy="48" opacity=".2" r="36"/>
+    <circle cx="48" cy="48" opacity=".3" r="24"/>
+  </g>
+</svg>

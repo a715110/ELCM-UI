@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="ELCM icon">
+  <rect x="1.5" y="1.5" width="61" height="61" rx="13" fill="#EAF6EC" stroke="#D6D2C7" stroke-width="1.5"/>
+  <path d="M18 14 H38 L46 22 V50 H18 Z" fill="none" stroke="#166534" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M38 14 V22 H46 Z" fill="#166534"/>
+  <line x1="23" y1="30" x2="41" y2="30" stroke="#166534" stroke-width="2.4" stroke-linecap="round"/>
+  <line x1="23" y1="36" x2="41" y2="36" stroke="#166534" stroke-width="2.4" stroke-linecap="round"/>
+  <line x1="23" y1="42" x2="33" y2="42" stroke="#166534" stroke-width="2.4" stroke-linecap="round"/>
+  <circle cx="46" cy="46" r="12" fill="#EAF6EC" stroke="#166534" stroke-width="3"/>
+  <path d="M40.5 46 L44.5 50 L52 42" fill="none" stroke="#166534" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

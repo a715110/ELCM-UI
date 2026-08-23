@@ -1,0 +1,8 @@
+# Shared "B" development environment. Placeholder -- fill in as real config
+# gets introduced.
+server:
+  port: 8080
+
+logging:
+  level:
+    root: INFO

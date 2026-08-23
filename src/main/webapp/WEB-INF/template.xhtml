@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:p="http://primefaces.org/ui"
+      lang="en">
+<h:head>
+    <f:facet name="first">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+        <meta name="viewport"
+              content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
+        <meta name="apple-mobile-web-app-capable" content="yes"/>
+        <link rel="icon" href="#{request.contextPath}/resources/elcm-custom/images/elcm-favicon-180.png"
+              type="image/x-icon"/>
+    </f:facet>
+    <title><ui:insert name="title">Enterprise Contract Lease Management</ui:insert></title>
+    <h:outputScript name="js/layout.js" library="rain-layout"/>
+    <h:outputScript name="js/prism.js" library="rain-layout"/>
+    <!-- ADDED (2026-08-15): this was missing entirely - not commented out,
+         just never present. Without it every PrimeFaces component
+         (buttons, inputs, tables, tags - everything dashboard.xhtml uses)
+         renders with zero component styling, separately from the
+         layout/topbar CSS below. library resolves via
+         RainPreferences.getTheme() (componentTheme + "-" + darkMode,
+         "cyan-light" by default) - confirmed that folder exists in
+         resources.zip as primefaces-rain-cyan-light/theme.css. -->
+    <h:outputStylesheet name="theme.css" library="primefaces-rain-#{rainPreferences.theme}"/>
+    <ui:insert name="head"/>
+</h:head>
+
+<h:body styleClass="#{rainPreferences.inputStyleClass}">
+    <!--    <h:form id="dmForm">-->
+    <!--        <p:remoteCommand-->
+    <!--          name="sendDmRC"-->
+    <!--          actionListener="#{directMessage.sendDirectMessage}"-->
+    <!--          process="@this"-->
+    <!--          onstart="window.dmUi &amp;&amp; window.dmUi.onStart &amp;&amp; window.dmUi.onStart()"-->
+    <!--          oncomplete="window.dmUi &amp;&amp; window.dmUi.onComplete &amp;&amp; window.dmUi.onComplete(xhr, status, args)"-->
+    <!--          />-->
+    <!--    </h:form>-->
+    <div class="layout-wrapper layout-topbar-#{rainPreferences.topbarTheme} layout-menu-#{rainPreferences.menuTheme} #{rainPreferences.menuMode}">
+        <ui:include src="./topbar.xhtml"/>
+        <ui:include src="./menu.xhtml"/>
+        <!--        <ui:include src="./rightpanel.xhtml"/>-->
+        <!--        <ui:include src="./config.xhtml"/>-->
+
+        <div class="layout-main">
+            <!-- <ui:include src="./breadcrumb.xhtml"/> -->
+            <div class="layout-content">
+                <ui:insert name="content"/>
+            </div>
+            <!--            <ui:include src="./footer.xhtml"/>-->
+        </div>
+
+        <!--        <p:ajaxStatus style="width:32px;height:32px;position:fixed;right:7px;bottom:7px">-->
+        <!--            <f:facet name="start">-->
+        <!--                <i class="pi pi-spin pi-spinner layout-ajax-loader-icon" aria-hidden="true"/>-->
+        <!--            </f:facet>-->
+
+        <!--            <f:facet name="complete">-->
+        <!--                <h:outputText value=""/>-->
+        <!--            </f:facet>-->
+        <!--        </p:ajaxStatus>-->
+        <!--        <div class="layout-mask modal-in"/>-->
+    </div>
+
+    <!-- Initialize Session Timeout Manager -->
+    <script type="text/javascript">
+        //<![CDATA[
+
+        //]]>
+    </script>
+    <h:outputStylesheet name="css/primeicons.css" library="rain-layout"/>
+    <!-- library reverted to primeflex-3.3.1 (the original value) now that
+         resources.zip confirms that folder genuinely exists - last turn's
+         "fix" to rain-layout was correct given what was visible then, but
+         is no longer the right call. See chat. -->
+    <h:outputStylesheet name="css/primeflex.min.css" library="primeflex-3.3.1"/>
+    <h:outputStylesheet name="css/#{rainPreferences.layout}.css" library="rain-layout"/>
+    <h:outputStylesheet name="css/demo-#{rainPreferences.darkMode}.css" library="demo"/>
+    <h:outputStylesheet name="css/ecws.css" library="ext"/>
+    <h:outputStylesheet name="css/activity.css" library="ext"/>
+    <h:outputStylesheet name="css/quick-menu.css" library="ext" />
+    <!-- Custom ELCM brand override - warm neutral + sparingly-used forest
+         green accent, chosen 2026-08-16. Loaded last so it cascades over
+         everything above without needing !important anywhere. See
+         theme-override.css for the full rationale and which base-preset
+         rules each override replaces. -->
+    <h:outputStylesheet name="css/theme-override.css" library="elcm-custom"/>
+</h:body>
+</html>

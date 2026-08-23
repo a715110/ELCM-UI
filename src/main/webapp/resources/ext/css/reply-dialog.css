@@ -1,0 +1,149 @@
+<!-- Custom CSS for modern styling of reply dialog  -->
+ .modern-dialog .ui-dialog-content {
+   padding: 0 !important;
+   background: #ffffff;
+ }
+
+.modern-dialog .ui-dialog-titlebar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 1rem 1.5rem;
+  font-weight: 600;
+  border-radius: 8px 8px 0 0;
+}
+
+.reply-dialog-content {
+  padding: 1.5rem;
+  background: #fafafa;
+}
+
+.reply-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.reply-header h4 {
+  margin: 0;
+  color: #374151;
+  font-weight: 600;
+  font-size: 1.125rem;
+}
+
+.reply-input-section {
+  background: white;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  margin-bottom: 1.5rem;
+}
+
+.reply-avatar-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.reply-avatar {
+  flex-shrink: 0;
+}
+
+.reply-editor-container {
+  flex: 1;
+  min-height: 120px;
+}
+
+.reply-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.reply-btn-cancel {
+  background: #f3f4f6 !important;
+  color: #6b7280 !important;
+  border: 1px solid #d1d5db !important;
+  padding: 0.625rem 1.25rem !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+}
+
+.reply-btn-cancel:hover {
+  background: #e5e7eb !important;
+  color: #4b5563 !important;
+}
+
+.reply-btn-submit {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  color: white !important;
+  border: none !important;
+  padding: 0.625rem 1.5rem !important;
+  border-radius: 6px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3) !important;
+}
+
+.reply-btn-submit:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4) !important;
+}
+
+.reply-btn-submit:active {
+  transform: translateY(0) !important;
+}
+
+/* Avatar styling */
+.reply-avatar .ui-avatar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  border: 2px solid white !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Text editor enhancements */
+.reply-editor-container .ui-editor-container {
+  border-radius: 8px !important;
+  border: 1px solid #d1d5db !important;
+  transition: border-color 0.2s ease !important;
+}
+
+.reply-editor-container .ui-editor-container:focus-within {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+.reply-editor-container .ql-editor {
+  min-height: 80px !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .modern-dialog {
+    width: 95% !important;
+    margin: 1rem !important;
+  }
+
+  .reply-dialog-content {
+    padding: 1rem;
+  }
+
+  .reply-actions {
+    flex-direction: column-reverse;
+  }
+
+  .reply-btn-cancel,
+  .reply-btn-submit {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}

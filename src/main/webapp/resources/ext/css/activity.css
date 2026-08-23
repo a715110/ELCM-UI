@@ -1,0 +1,635 @@
+/* ============================================
+   Activity Timeline - Full Width Design
+   ============================================ */
+
+/* Main Container - Full Width */
+.activity-timeline-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+  min-height: 400px;
+}
+
+/* Loading State */
+.activity-loading {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #6c757d;
+}
+
+.activity-loading i {
+  color: #17a2b8;
+  margin-bottom: 1rem;
+}
+
+.activity-loading p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* Timeline List - Full Width */
+.activity-timeline {
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
+/* Timeline Item - Full Width */
+.activity-timeline-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s ease;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.activity-timeline-item:last-child {
+  border-bottom: none;
+}
+
+.activity-timeline-item:hover {
+  background-color: #fafafa;
+}
+
+/* Read/Unread States */
+.activity-timeline-item.unread {
+  background-color: #f8f9ff;
+}
+
+.activity-timeline-item.unread .activity-time-stamp {
+  font-weight: 600;
+  color: #495057;
+}
+
+.activity-timeline-item.read {
+  opacity: 0.8;
+}
+
+/* Time Stamp (Left Side) */
+.activity-time-stamp {
+  flex: 0 0 100px;
+  text-align: left;
+  font-size: 0.85rem;
+  color: #6c757d;
+  padding-top: 0.25rem;
+  line-height: 1.4;
+}
+
+/* Content Wrapper (Right Side) */
+.activity-content-wrapper {
+  flex: 1;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+/* Avatar/Icon Circle */
+.activity-avatar {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  color: #ffffff;
+  background-color: #6c757d;
+  flex-shrink: 0;
+}
+
+/* Avatar Colors by Priority */
+.activity-avatar.priority-high {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+}
+
+.activity-avatar.priority-medium {
+  background: linear-gradient(135deg, #ffa726 0%, #ff9800 100%);
+  box-shadow: 0 2px 8px rgba(255, 167, 38, 0.3);
+}
+
+.activity-avatar.priority-low {
+  background: linear-gradient(135deg, #66bb6a 0%, #4caf50 100%);
+  box-shadow: 0 2px 8px rgba(102, 187, 106, 0.3);
+}
+
+/* Activity Content */
+.activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Meta Tags Container (Source + Priority) */
+.activity-meta-tags {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Source Badge */
+.activity-source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Source Badge Colors */
+.activity-source-badge.source-task {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.activity-source-badge.source-workflow {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.activity-source-badge.source-file {
+  background-color: #fff3e0;
+  color: #f57c00;
+}
+
+.activity-source-badge.source-comment {
+  background-color: #e8f5e9;
+  color: #388e3c;
+}
+
+.activity-source-badge.source-document {
+  background-color: #fce4ec;
+  color: #c2185b;
+}
+
+.activity-source-badge.source-approval {
+  background-color: #e0f2f1;
+  color: #00796b;
+}
+
+.activity-source-badge.source-notification {
+  background-color: #fff9c4;
+  color: #f57f17;
+}
+
+.activity-source-badge.source-other {
+  background-color: #eceff1;
+  color: #546e7a;
+}
+
+/* Priority Badge */
+.activity-priority-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.activity-priority-badge.priority-high {
+  background-color: #ffe5e5;
+  color: #ff5252;
+}
+
+.activity-priority-badge.priority-medium {
+  background-color: #fff3e0;
+  color: #ff9800;
+}
+
+.activity-priority-badge.priority-low {
+  background-color: #e8f5e9;
+  color: #4caf50;
+}
+
+/* Activity Title (Subject) */
+.activity-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.35rem;
+  line-height: 1.4;
+  color: #212529;
+}
+
+/* Activity Link */
+.activity-link {
+  color: inherit;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.activity-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+/* Activity Message (Body) */
+.activity-message {
+  color: #6c757d;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-top: 0.25rem;
+  word-wrap: break-word;
+}
+
+/* Quick Actions */
+.activity-quick-actions {
+  margin-top: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.activity-timeline-item:hover .activity-quick-actions {
+  opacity: 1;
+}
+
+.activity-quick-actions .p-button {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+}
+
+/* Empty State */
+.activity-empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #6c757d;
+}
+
+.activity-empty-state i {
+  font-size: 3.5rem;
+  color: #dee2e6;
+  margin-bottom: 1rem;
+}
+
+.activity-empty-state p {
+  margin: 0.5rem 0;
+  font-size: 1rem;
+}
+
+.activity-empty-state .empty-state-hint {
+  font-size: 0.9rem;
+  color: #adb5bd;
+}
+
+/* Refresh Button Container - Full Width */
+.activity-refresh-container {
+  padding: 1.5rem;
+  text-align: center;
+  border-top: 1px solid #f0f0f0;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Refresh Button */
+.activity-refresh-button {
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%) !important;
+  border: none !important;
+  color: #ffffff !important;
+  padding: 0.75rem 3rem !important;
+  font-size: 0.95rem !important;
+  font-weight: 500 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 2px 6px rgba(23, 162, 184, 0.3) !important;
+  transition: all 0.3s ease !important;
+  min-width: 200px;
+}
+
+.activity-refresh-button:hover {
+  background: linear-gradient(135deg, #138496 0%, #117a8b 100%) !important;
+  box-shadow: 0 4px 12px rgba(23, 162, 184, 0.4) !important;
+  transform: translateY(-1px);
+}
+
+.activity-refresh-button:active {
+  transform: translateY(0);
+}
+
+.activity-refresh-button .pi {
+  margin-right: 0.5rem;
+}
+
+/* ============================================
+   Activity Details Dialog
+   ============================================ */
+
+.activity-details-dialog .ui-dialog-content {
+  padding: 1.5rem !important;
+}
+
+.activity-details-content {
+  padding: 0;
+}
+
+/* Detail Badges */
+.detail-badges {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.detail-source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-source-badge i {
+  font-size: 0.9rem;
+}
+
+.detail-source-badge.source-task {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.detail-source-badge.source-workflow {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.detail-source-badge.source-file {
+  background-color: #fff3e0;
+  color: #f57c00;
+}
+
+.detail-source-badge.source-comment {
+  background-color: #e8f5e9;
+  color: #388e3c;
+}
+
+.detail-source-badge.source-document {
+  background-color: #fce4ec;
+  color: #c2185b;
+}
+
+.detail-source-badge.source-approval {
+  background-color: #e0f2f1;
+  color: #00796b;
+}
+
+.detail-source-badge.source-notification {
+  background-color: #fff9c4;
+  color: #f57f17;
+}
+
+.detail-source-badge.source-other {
+  background-color: #eceff1;
+  color: #546e7a;
+}
+
+.detail-priority-badge {
+  display: inline-block;
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-priority-badge.priority-high {
+  background-color: #ffe5e5;
+  color: #ff5252;
+}
+
+.detail-priority-badge.priority-medium {
+  background-color: #fff3e0;
+  color: #ff9800;
+}
+
+.detail-priority-badge.priority-low {
+  background-color: #e8f5e9;
+  color: #4caf50;
+}
+
+.detail-subject {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #212529;
+  line-height: 1.4;
+}
+
+.detail-body {
+  color: #495057;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border-left: 3px solid #dee2e6;
+}
+
+.detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.detail-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.detail-meta-item i {
+  color: #17a2b8;
+  font-size: 1rem;
+}
+
+.detail-meta-item span {
+  color: #495057;
+}
+
+.detail-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.detail-status .status-label {
+  font-weight: 600;
+  color: #495057;
+}
+
+.detail-status .status-badge {
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge.status-delivered {
+  background-color: #e8f5e9;
+  color: #4caf50;
+}
+
+.status-badge.status-pending {
+  background-color: #fff3e0;
+  color: #ff9800;
+}
+
+.status-badge.status-in-progress {
+  background-color: #e3f2fd;
+  color: #2196f3;
+}
+
+.status-badge.status-failed {
+  background-color: #ffebee;
+  color: #f44336;
+}
+
+.status-badge.status-cancelled {
+  background-color: #f5f5f5;
+  color: #9e9e9e;
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+
+@media (max-width: 768px) {
+  .activity-timeline-item {
+    padding: 1rem;
+    gap: 0.75rem;
+  }
+
+  .activity-time-stamp {
+    flex: 0 0 70px;
+    font-size: 0.75rem;
+  }
+
+  .activity-avatar {
+    width: 35px;
+    height: 35px;
+    font-size: 1rem;
+  }
+
+  .activity-title {
+    font-size: 0.9rem;
+  }
+
+  .activity-message {
+    font-size: 0.85rem;
+  }
+
+  .activity-source-badge,
+  .activity-priority-badge {
+    font-size: 0.65rem;
+    padding: 0.1rem 0.4rem;
+  }
+
+  .activity-refresh-button {
+    padding: 0.65rem 2rem !important;
+    font-size: 0.9rem !important;
+    min-width: 150px;
+  }
+
+  .activity-refresh-container {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .activity-timeline-item {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .activity-time-stamp {
+    flex: 0 0 60px;
+    font-size: 0.7rem;
+  }
+
+  .activity-content-wrapper {
+    gap: 0.5rem;
+  }
+
+  .activity-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.9rem;
+  }
+
+  .activity-meta-tags {
+    gap: 0.3rem;
+  }
+
+  .activity-refresh-button {
+    padding: 0.6rem 1.5rem !important;
+    font-size: 0.85rem !important;
+    min-width: 120px;
+  }
+}
+
+/* ============================================
+   Animation
+   ============================================ */
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.activity-timeline-item {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* ============================================
+   Remove any inherited padding/margin
+   ============================================ */
+
+.activity-timeline-container * {
+  box-sizing: border-box;
+}
+
+/* Override PrimeFaces panel padding if activity is in a panel */
+.ui-panel-content .activity-timeline-container {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Override tab content padding */
+.ui-tabs-panel .activity-timeline-container {
+  margin: 0 !important;
+  padding: 0 !important;
+}

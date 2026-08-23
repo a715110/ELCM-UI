@@ -1,0 +1,22 @@
+# Base config shared by every profile. Profile-specific overrides live in
+# application-{profile}.yml (local, adev, bdev, dit, sit, uat, prod), matching
+# the Maven profiles in pom.xml.
+#
+# '@activatedProperties@' is resolved by Maven resource filtering (pom.xml
+# <resources><filtering>true</filtering>) using the "@" delimiter that
+# spring-boot-starter-parent configures by default (chosen specifically so it
+# doesn't collide with Spring's own ${...} placeholder syntax elsewhere in
+# this file).
+spring:
+  application:
+    name: elcm-ui
+  profiles:
+    active: '@activatedProperties@'
+
+server:
+  port: 443
+
+logging:
+  level:
+    root: INFO
+    com.dodaso.ecosystem.elcm: DEBUG

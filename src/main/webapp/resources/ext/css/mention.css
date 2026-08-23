@@ -1,0 +1,131 @@
+/* KEEP - Used in XHTML */
+.comment-action-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+  padding: 5px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.comment-action-button:hover {
+  background-color: #f3f4f6;
+  transform: translateY(-1px);
+}
+
+/* KEEP - Used for count display */
+.count-display {
+  font-size: 0.875rem;
+  min-width: 20px;
+  text-align: center;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+/* KEEP - Used for user mentions in comments */
+.ql-editor span[style*="background"],
+.ql-editor strong[style*="background"] {
+  background-color: rgb(227, 242, 253) !important;
+  color: rgb(25, 118, 210) !important;
+  padding: 3px 8px !important;
+  border-radius: 12px !important;
+  margin: 0 2px !important;
+  display: inline-block !important;
+  border: 1px solid #bbdefb !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+  transition: all 0.2s ease !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+}
+
+.ql-editor span[style*="background"]:hover,
+.ql-editor strong[style*="background"]:hover {
+  background-color: #bbdefb !important;
+  color: rgb(25, 118, 210) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 6px rgba(25, 118, 210, 0.3) !important;
+}
+
+/* KEEP - Enhanced button states */
+.comment-action-button[style*="#3b82f6"] {
+  color: #3b82f6 !important;
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+.comment-action-button[style*="#3b82f6"]:hover {
+  background-color: rgba(59, 130, 246, 0.15);
+  transform: translateY(-1px) scale(1.05);
+}
+
+.comment-action-button[style*="#ef4444"] {
+  color: #ef4444 !important;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.comment-action-button[style*="#ef4444"]:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  transform: translateY(-1px) scale(1.05);
+}
+
+/* KEEP - Icon animations */
+.pi-thumbs-up,
+.pi-thumbs-down {
+  transition: all 0.2s ease;
+}
+
+.comment-action-button:hover .pi-thumbs-up,
+.comment-action-button:hover .pi-thumbs-down {
+  transform: scale(1.1);
+}
+
+/* KEEP - Click feedback */
+.comment-action-button:active {
+  animation: buttonClick 0.15s ease;
+}
+
+@keyframes buttonClick {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* KEEP - Success messages */
+.ui-messages-info {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* User Display Popup */
+.clickable-user-name {
+  cursor: pointer !important;
+  color: #3b82f6 !important;
+  font-weight: 500 !important;
+  padding: 2px 4px !important;
+  border-radius: 4px !important;
+  transition: all 0.2s ease !important;
+}
+
+.clickable-user-name:hover {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  transform: translateY(-1px) !important;
+}

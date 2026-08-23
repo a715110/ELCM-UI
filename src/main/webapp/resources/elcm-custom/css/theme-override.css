@@ -1,0 +1,240 @@
+/*
+    ELCM custom theme override -- warm neutral base + saturated forest
+    green accent, used sparingly (only primary actions / success status).
+
+    Layered on top of the chateau-green base preset (RainPreferences now
+    sets topbarTheme=light AND menuTheme=light) rather than replacing it --
+    every selector below was confirmed against the real rule in
+    resources/rain-layout/css/layout-chateau-green-light.css or
+    resources/primefaces-rain-chateau-green-light/theme.css before being
+    overridden here, so this changes color values only; hover/focus/active
+    state behavior, spacing, and transitions all still come from the base
+    preset.
+
+    Loaded last in template.xhtml (after primeicons/primeflex/layout theme/
+    component theme/demo/ext) so cascade order lets these rules win without
+    needing !important anywhere -- EXCEPT the .p-tag-success rule further
+    down, which does use !important. That one's not competing with a file
+    in this load order at all; it's competing with PrimeFaces' own
+    "saga" theme, auto-loaded separately via primefaces.THEME in
+    ElcmUiApplication.java. Since that load order isn't controlled by this
+    file, !important is the deliberate exception there -- see the comment
+    on that rule for the full explanation.
+
+    --elcm-accent-bg / --elcm-accent-text are the single source of truth
+    for the accent -- primary buttons and the success tag (e.g. "Assembly")
+    both reference them rather than repeating hex values, so they're
+    guaranteed to match by definition. REVISED (2026-08-17, second pass):
+    buttons use the same pale bg + dark text combination the Assembly tag
+    already uses ("soft pill" style), not a solid dark fill -- the first
+    pass had this inverted (dark fill, pale text). Variable names changed
+    from --elcm-accent/--elcm-accent-on to --elcm-accent-bg/
+    --elcm-accent-text to make the fill-vs-text roles unambiguous this
+    time.
+*/
+
+/*
+    REVISED (2026-08-17, second pass): buttons should use the Assembly
+    tag's BACKGROUND (#EAF6EC, pale green) as their fill, with the tag's
+    TEXT color (#166534) as the button text/icon color on top of that pale
+    fill -- not the inverted solid-dark-fill/pale-text scheme from the
+    first pass. Both values are pixel-sampled from the real rendered tag,
+    not guessed. Hover/active states deepen the pale fill slightly rather
+    than jumping to a fully saturated green, keeping the soft/pill look
+    at every interaction state instead of just at rest.
+*/
+:root {
+  --elcm-accent-bg: #EAF6EC;
+  --elcm-accent-bg-hover: #D1EEDA;
+  --elcm-accent-bg-active: #B8E6C8;
+  --elcm-accent-border: #86EFAC;
+  --elcm-accent-text: #166534;
+  --elcm-accent-focus-ring: #86EFAC;
+}
+
+/* ---- Warm neutral surfaces (replacing the base preset's cool white/gray) ---- */
+
+.layout-topbar-light .layout-topbar {
+  background-color: #FDFCFA;
+  border-bottom: 1px solid #D6D2C7;
+}
+
+body {
+  background-color: #F7F5F0;
+  color: #2B2A26;
+}
+
+/* ---- Accent: saturated forest green, primary actions only ---- */
+
+/* REVISED (2026-08-17, third pass): border removed per request ("remove
+   the outline") -- using transparent rather than deleting the border
+   property outright, so the button's box size doesn't shift by 1px when
+   the visible border disappears. The focus-visible box-shadow ring below
+   is intentionally NOT removed -- that's a keyboard-accessibility
+   indicator, not a decorative border, and a different thing than what
+   was asked about. Flag if that should go too. */
+body .ui-button {
+  background: var(--elcm-accent-bg);
+  border: 1px solid transparent;
+  color: var(--elcm-accent-text);
+}
+
+body .ui-button.ui-state-hover {
+  background: var(--elcm-accent-bg-hover);
+  border-color: transparent;
+  color: var(--elcm-accent-text);
+}
+
+body .ui-button.ui-state-focus {
+  box-shadow: 0 0 0 0.2em var(--elcm-accent-focus-ring);
+}
+
+body .ui-button.ui-state-active,
+body .ui-button.ui-state-down {
+  background: var(--elcm-accent-bg-active);
+  border-color: transparent;
+  color: var(--elcm-accent-text);
+}
+
+/* Secondary buttons ("Open", "Reassign") stay neutral warm-gray, not the
+   base preset's cool blue-gray (#7B90B0) -- the accent is reserved for
+   primary actions only. */
+body .ui-button.ui-button-secondary,
+body .ui-splitbutton.ui-button-secondary > .ui-button {
+  background: #6B6A63;
+  border: 1px solid #6B6A63;
+  color: #ffffff;
+}
+
+body .ui-button.ui-button-secondary.ui-state-hover,
+body .ui-button.ui-button-secondary:not(:disabled):hover,
+body .ui-splitbutton.ui-button-secondary > .ui-button.ui-state-hover,
+body .ui-splitbutton.ui-button-secondary > .ui-button:not(:disabled):hover {
+  background: #55544E;
+  border-color: #55544E;
+  color: #ffffff;
+}
+
+/* Tags default to neutral (workspace/type labels like "Retail", "Office",
+   "PDF" shouldn't carry the accent color) -- p:tag's severity="success"
+   is the sparingly-used exception, for actual status/success meaning
+   (see dashboard.xhtml's package status column). Without an explicit
+   severity, PrimeFaces falls back to plain .ui-tag, which is why this
+   selector alone determines the color for every currently-untagged
+   severity in the app. */
+body .ui-tag {
+  background: #F0EEE7;
+  color: #6B6A63;
+}
+
+body .ui-tag.ui-tag-success {
+  background: var(--elcm-accent-bg);
+  color: var(--elcm-accent-text);
+}
+
+/*
+    ADDED (2026-08-17): pixel-sampling the actual rendered Assembly tag
+    showed background #EAF6EC / text #166534 -- NOT the #15803D-on-pale
+    combination the rule above specifies. That means .ui-tag-success was
+    never actually matching the real element.
+
+    Likely cause: ElcmUiApplication.java's ServletContextInitializer sets
+    primefaces.THEME to "saga" (a stock PrimeFaces theme) -- the dynamic
+    "rain-#{rainPreferences.theme}" alternative is commented out there,
+    which makes sense once you look closely: EL expressions aren't
+    evaluated inside a raw Java string passed to setInitParameter, so that
+    line wouldn't have worked as written even if uncommented. With saga
+    active, PrimeFaces auto-loads its OWN theme.css via its resource
+    handler, separately from the rain-layout files this stylesheet is
+    built to override. Saga is one of PrimeFaces' modern (10+) themes,
+    which render components with "p-" prefixed classes (p-tag, p-button)
+    rather than the legacy "ui-" classes the rain-layout/chateau-green
+    files use. p:commandButton apparently still carries a legacy ui-button
+    class alongside the modern one (that's the known PrimeFaces backward-
+    compat pattern, and it's why the button override above DOES work,
+    confirmed by pixel-sampling too) -- p:tag evidently doesn't carry the
+    same legacy alias, so .ui-tag-success never matched anything real.
+
+    Adding the modern-class equivalent below as a second, parallel rule
+    covers the gap. Exact class names (p-tag / p-tag-success) are standard
+    PrimeFaces 10+ convention, not confirmed against saga's actual bundled
+    CSS -- that file ships inside the primefaces JAR, not in the resources
+    already available to inspect. If this still doesn't take effect,
+    inspecting the real rendered class list on the Assembly tag (browser
+    dev tools) would confirm the exact class names faster than more
+    guessing here.
+*/
+body .p-tag.p-tag-success {
+  background: var(--elcm-accent-bg) !important;
+  color: var(--elcm-accent-text) !important;
+}
+
+
+/* ---- Sidebar menu: warm neutral, accent only on active/hover ---- */
+
+.layout-menu-light .menu-wrapper {
+  background-color: #FDFCFA;
+  border-right: 1px solid #D6D2C7;
+}
+
+.layout-menu-light .menu-wrapper .layout-menu-container .layout-profile .layout-profile-button {
+  color: #2B2A26;
+}
+
+.layout-menu-light .menu-wrapper .layout-menu-container .layout-profile .layout-profile-button .image-name .layout-profile-userinfo .layout-profile-mail {
+  color: #6B6A63;
+}
+
+.layout-menu-light .menu-wrapper .layout-menu-container .layout-profile ul li a {
+  color: #2B2A26;
+}
+
+.layout-menu-light .menu-wrapper .layout-menu-container .layout-profile ul li a:hover {
+  background-color: #F0EEE7;
+}
+
+.layout-menu-light .menu-wrapper .layout-menu-container .layout-profile .layout-profile-icons a i {
+  color: var(--elcm-accent-text);
+}
+
+/* Section labels (e.g. "DOCUMENT PIPELINE", "SUPERADMIN") -- accent color,
+   this is the one place in the sidebar the accent shows outside of active/
+   hover states, matching how the original dim theme also used the accent
+   here (.layout-menuitem-text) rather than a neutral color. */
+.layout-menu-light .menu-wrapper .layout-menu-container .layout-menu > li > div .layout-menuitem-text {
+  color: var(--elcm-accent-text);
+}
+
+.layout-menu-light .menu-wrapper .layout-menu-container .layout-menu > li a {
+  color: #2B2A26;
+}
+
+.layout-menu-light .menu-wrapper .layout-menu-container .layout-menu > li a:hover {
+  background-color: #F0EEE7;
+}
+
+.layout-menu-light .menu-wrapper .layout-menu-container .layout-menu > li.active-menuitem > a {
+  color: var(--elcm-accent-text);
+}
+
+.layout-menu-light .menu-wrapper .layout-menu-container .layout-menu > li > ul li a {
+  color: #2B2A26;
+}
+
+.layout-menu-light .menu-wrapper .layout-menu-container .layout-menu > li > ul li a:hover {
+  background-color: #F0EEE7;
+}
+
+.layout-menu-light .menu-wrapper .layout-menu-container .layout-menu > li > ul li.active-menuitem > a {
+  color: var(--elcm-accent-text);
+}
+
+/* ---- Topbar dropdowns (notifications, messages, profile) ---- */
+/* .ui-overlaypanel's base is already close to neutral (white bg, cool-gray
+   text) -- just warming the tint for consistency, not a structural change
+   like the sidebar/topbar needed. */
+
+body .ui-overlaypanel {
+  background: #FDFCFA;
+  color: #2B2A26;
+}

@@ -1,0 +1,9 @@
+# Production. Placeholder -- fill in as real config gets introduced.
+# (When this becomes real, double-check nothing sensitive -- credentials,
+# internal hostnames -- gets committed here in plaintext.)
+server:
+  port: 8080
+
+logging:
+  level:
+    root: WARN

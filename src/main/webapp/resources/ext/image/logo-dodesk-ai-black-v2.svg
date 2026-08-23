@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="320" height="64" viewBox="0 0 320 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>doDesk AI</title>
+  <desc>Logo for doDesk AI: AI-enabled lease and task management.</desc>
+
+  <!-- Emblem (double-ring circle) -->
+  <g transform="translate(8,8)" stroke="#24364A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="24" cy="24" r="22" fill="none"/>
+    <circle cx="24" cy="24" r="19" fill="none"/>
+    <path d="M18 14 h10 a2 2 0 0 1 2 2 v12 a2 2 0 0 1-2 2 h-12 a2 2 0 0 1-2-2 v-10 z" fill="none"/>
+    <path d="M26 14 v6 h6" fill="none"/>
+    <path d="M18 25 l3 3 l6-6" fill="none"/>
+    <circle cx="34" cy="30" r="1.2" fill="#24364A"/>
+    <circle cx="30" cy="34" r="1.2" fill="#24364A"/>
+    <path d="M28 32 l2 2 l2-2" fill="none"/>
+  </g>
+
+  <g fill="#24364A">
+    <text x="72" y="42" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+          font-size="28" font-weight="800" letter-spacing="0.3">DODESK</text>
+  </g>
+
+  <g>
+    <rect x="232" y="22" rx="10" ry="10" width="56" height="24"
+          stroke="#24364A" stroke-width="2" fill="#24364A"/>
+    <text x="249" y="40" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif"
+          font-size="16" font-weight="800" fill="#FFFFFF">AI</text>
+  </g>
+</svg>
