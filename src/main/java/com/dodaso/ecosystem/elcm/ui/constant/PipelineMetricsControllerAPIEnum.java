@@ -4,7 +4,7 @@ import lombok.Getter;
 
 @Getter 
 public enum PipelineMetricsControllerAPIEnum {
-    getMetrics("/api/v1/pipeline/metrics/getMetrics");
+    getMetrics("/api/v1/pipeline/metrics");
 
     final String endPoint;
 
