@@ -1,4 +1,4 @@
-package com.dodaso.ecosystem.elcm.ui;
+package com.dodaso.ecosystem;
 
 import com.dodaso.ecosystem.baseline.common.security.JwtAuthTokenFilter;
 import org.springframework.beans.factory.annotation.Value;

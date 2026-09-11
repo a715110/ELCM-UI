@@ -584,6 +584,24 @@
       <version>3.1.8</version>
     </dependency>
 
+    <dependency>
+      <artifactId>baseline-common</artifactId>
+      <groupId>com.dodaso.ecosystem.baseline.common</groupId>
+      <version>${revision}</version>
+    </dependency>
+
+    <dependency>
+      <artifactId>iams-data-model</artifactId>
+      <groupId>com.dodaso.ecosystem.iams.data.model</groupId>
+      <version>${revision}</version>
+    </dependency>
+    
+    <dependency>
+      <artifactId>ears-data-model</artifactId>
+      <groupId>com.dodaso.ecosystem.ears.data.model</groupId>
+      <version>${revision}</version>
+    </dependency>
+
   </dependencies>
   <dependencyManagement>
     <dependencies>

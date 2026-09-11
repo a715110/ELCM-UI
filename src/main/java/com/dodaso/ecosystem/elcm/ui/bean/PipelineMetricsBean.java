@@ -1,11 +1,16 @@
 package com.dodaso.ecosystem.elcm.ui.bean;
 
-import com.dodaso.ecosystem.elcm.ui.service.pipeline.PipelineMetricsService;
+import org.springframework.core.ParameterizedTypeReference;
+
+import com.dodaso.ecosystem.baseline.common.constant.ServiceDiscoveryEnum;
+import com.dodaso.ecosystem.elcm.ui.constant.PipelineMetricsControllerAPIEnum;
+
 import jakarta.annotation.PostConstruct;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Named;
-import java.io.Serializable;
-import lombok.RequiredArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Backing bean for the four top metric cards on dashboard.xhtml
@@ -22,10 +27,12 @@ import lombok.RequiredArgsConstructor;
  */
 @Named
 @ViewScoped
-@RequiredArgsConstructor
-public class PipelineMetricsBean implements Serializable {
+@Getter 
+@Setter 
+@Slf4j
+public class PipelineMetricsBean extends BaseBean {
 
-    private final PipelineMetricsService pipelineMetricsService;
+    //private final PipelineMetricsService pipelineMetricsService;
 
     private int uploadingCount;
     private int validatingCount;
@@ -33,12 +40,16 @@ public class PipelineMetricsBean implements Serializable {
     private int submittedCount;
 
     @PostConstruct
-    void init() {
-        PipelineMetricsService.PipelineMetrics metrics = pipelineMetricsService.getMetrics();
-        this.uploadingCount = metrics.uploading();
-        this.validatingCount = metrics.validating();
-        this.validCount = metrics.valid();
-        this.submittedCount = metrics.submitted();
+    void init() throws Exception {
+        //PipelineMetricsService.PipelineMetrics metrics = pipelineMetricsService.getMetrics();
+        //this.uploadingCount = metrics.uploading();
+        //this.validatingCount = metrics.validating();
+        //this.validCount = metrics.valid();
+        //this.submittedCount = metrics.submitted();
+        restServiceClient.get(
+          ServiceDiscoveryEnum.elcm_service.getServiceDiscoveryName(),
+          PipelineMetricsControllerAPIEnum.getMetrics.getEndPoint(), new ParameterizedTypeReference<>() {
+          });
     }
 
     public int getUploadingCount() { return uploadingCount; }

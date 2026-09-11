@@ -27,7 +27,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @RequiredArgsConstructor
-public class StageDocumentsBean implements Serializable {
+public class StageDocumentsBean extends BaseBean {
 
     private final StageDocumentService stageDocumentService;
 
