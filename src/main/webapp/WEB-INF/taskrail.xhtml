@@ -1,0 +1,68 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:f="http://java.sun.com/jsf/core"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui">
+
+    <!--
+        Task Rail: hover-to-expand icon panel docked to the right edge of the
+        viewport, giving access to ECWS collaboration-task functions from any
+        page. Collapsed state shows only icons + badge counts; hovering (or
+        tapping, on touch) expands it to show labels/descriptions, in the
+        style of Smartsheet's right-side panel rail.
+
+        Deliberately independent of the existing .layout-rightpanel /
+        .layout-rightpanel-button click-toggle mechanism already wired up in
+        layout.js (see rightpanel.xhtml in ADEV-ECWS-UI) that is a
+        full-height slide-in drawer toggled by a topbar button; this is a
+        persistently-docked, hover-driven rail. The two can coexist.
+
+        Backing bean: com.dodaso.ecosystem.elcm.ui.bean.TaskRailBean
+        (SessionScoped; see class Javadoc for data-source TODOs).
+    -->
+    <h:form id="taskRailForm" prependId="false">
+        <div id="taskRail"
+             class="task-rail #{taskRailBean.pinned ? 'task-rail-pinned' : ''}">
+
+            <!-- Collapsed handle: always visible, sits flush with the edge -->
+            <div class="task-rail-handle" aria-label="ECWS Task Menu">
+                <i class="pi pi-briefcase task-rail-handle-icon"/>
+                <ui:fragment rendered="#{taskRailBean.totalBadgeCount gt 0}">
+                    <span class="task-rail-handle-badge">#{taskRailBean.totalBadgeCount}</span>
+                </ui:fragment>
+            </div>
+
+            <!-- Expanded panel: revealed via CSS on hover of #taskRail,
+                 or permanently if pinned -->
+            <div class="task-rail-panel" role="menu" aria-label="ECWS Task Functions">
+                <div class="task-rail-panel-header">
+                    <span class="task-rail-title">ECWS Tasks</span>
+                    <p:commandLink actionListener="#{taskRailBean.togglePinned}"
+                                   update="taskRailForm"
+                                   styleClass="task-rail-pin-btn"
+                                   title="#{taskRailBean.pinned ? 'Unpin panel' : 'Keep panel open'}">
+                        <i class="pi #{taskRailBean.pinned ? 'pi-lock' : 'pi-lock-open'}"/>
+                    </p:commandLink>
+                </div>
+
+                <ul class="task-rail-items">
+                    <ui:repeat var="item" value="#{taskRailBean.railItems}">
+                        <li class="task-rail-item">
+                            <h:link outcome="#{item.outcome}" styleClass="task-rail-item-link">
+                                <i class="#{item.icon} task-rail-item-icon"/>
+                                <span class="task-rail-item-body">
+                                    <span class="task-rail-item-label">#{item.label}</span>
+                                    <span class="task-rail-item-desc">#{item.description}</span>
+                                </span>
+                                <ui:fragment rendered="#{item.badgeCount gt 0}">
+                                    <span class="task-rail-item-badge">#{item.badgeCount}</span>
+                                </ui:fragment>
+                            </h:link>
+                        </li>
+                    </ui:repeat>
+                </ul>
+            </div>
+        </div>
+    </h:form>
+
+</ui:composition>

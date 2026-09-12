@@ -1,0 +1,239 @@
+/* ============================================================
+   Task Rail — hover-expand right-edge panel (ECWS task access)
+   Docked independently of .layout-rightpanel (see taskrail.xhtml)
+   ============================================================ */
+
+:root {
+  --task-rail-collapsed-w: 48px;
+  --task-rail-expanded-w: 300px;
+  --task-rail-bg: #ffffff;
+  --task-rail-border: rgba(0, 0, 0, 0.08);
+  --task-rail-handle-bg: var(--elcm-accent, #2f5d50); /* falls back if elcm-custom var absent */
+  --task-rail-handle-fg: #ffffff;
+  --task-rail-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --task-rail-z: 1050; /* above layout-content, below PrimeFaces dialogs (~1100+) */
+}
+
+#taskRailForm {
+  /* IMPORTANT: do NOT give this wrapper `position` (fixed/relative/etc.) or
+     any transform/filter/opacity<1 -- any of those makes it establish its
+     own stacking context, which then traps .task-rail's z-index inside it
+     and compares the *wrapper* (not the rail) against the rest of the page
+     by DOM order instead of z-index. Since this form is included high up
+     in template.xhtml (before layout-main), that let the Stage Documents
+     table's action-button icons, appended later in the DOM, paint on top
+     of the expanded panel. `display: contents` removes the wrapper from
+     the render tree entirely -- .task-rail becomes a direct stacking
+     participant of <body> and its z-index is compared globally, while the
+     wrapper still contributes no layout box (so it doesn't affect page
+     flow either). */
+  display: contents;
+}
+
+.task-rail {
+  position: fixed;
+  top: 45%;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: var(--task-rail-z);
+  isolation: isolate; /* guarantee children never escape this stacking context */
+  display: flex;
+  align-items: flex-start;
+  width: var(--task-rail-collapsed-w);
+  transition: width 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- Collapsed handle ---------- */
+.task-rail-handle {
+  position: relative;
+  width: var(--task-rail-collapsed-w);
+  height: 56px;
+  flex-shrink: 0;
+  background: var(--task-rail-handle-bg);
+  color: var(--task-rail-handle-fg);
+  border-radius: 8px 0 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--task-rail-shadow);
+  cursor: pointer;
+}
+
+.task-rail-handle-icon {
+  font-size: 1.15rem;
+}
+
+.task-rail-handle-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #e2574c;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* ---------- Expanded panel ---------- */
+.task-rail-panel {
+  width: 0;
+  overflow: hidden;
+  background: var(--task-rail-bg);
+  border: 1px solid var(--task-rail-border);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  box-shadow: var(--task-rail-shadow);
+  max-height: 70vh;
+  overflow-y: auto;
+  transition: width 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.12s ease;
+  opacity: 0;
+}
+
+/* Reveal on hover of the whole rail, or when pinned */
+.task-rail:hover .task-rail-panel,
+.task-rail-pinned .task-rail-panel {
+  width: calc(var(--task-rail-expanded-w) - var(--task-rail-collapsed-w));
+  opacity: 1;
+}
+
+.task-rail:hover,
+.task-rail-pinned {
+  width: var(--task-rail-expanded-w);
+}
+
+.task-rail-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--task-rail-border);
+}
+
+.task-rail-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #555;
+  white-space: nowrap;
+}
+
+.task-rail-pin-btn {
+  cursor: pointer;
+  color: #888;
+}
+.task-rail-pin-btn:hover {
+  color: var(--task-rail-handle-bg);
+}
+
+.task-rail-items {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+}
+
+.task-rail-item-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  text-decoration: none;
+  color: #333;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.task-rail-item-link:hover {
+  background: rgba(47, 93, 80, 0.08);
+}
+
+.task-rail-item-icon {
+  font-size: 1rem;
+  width: 18px;
+  text-align: center;
+  color: var(--task-rail-handle-bg);
+  flex-shrink: 0;
+}
+
+.task-rail-item-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.task-rail-item-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.task-rail-item-desc {
+  font-size: 0.7rem;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-rail-item-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #e2574c;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ---------- Small-viewport fallback ----------
+   Below ~768px, hover is unreliable (touch) -- the rail is opened by tap
+   instead, via the .task-rail-open class toggled in task-rail.js. */
+@media (max-width: 768px) {
+  .task-rail:hover .task-rail-panel {
+    width: 0;
+    opacity: 0;
+  }
+  .task-rail:hover {
+    width: var(--task-rail-collapsed-w);
+  }
+  .task-rail.task-rail-open .task-rail-panel {
+    width: calc(100vw - var(--task-rail-collapsed-w));
+    max-width: 320px;
+    opacity: 1;
+  }
+  .task-rail.task-rail-open {
+    width: 100vw;
+    max-width: calc(320px + var(--task-rail-collapsed-w));
+  }
+}
+
+/* ---------- Dark mode ----------
+   Rain theme toggles dark mode via body/layout classes rather than
+   prefers-color-scheme; override tokens when that class is present. */
+.layout-menu-dark .task-rail-panel,
+.layout-topbar-dark .task-rail-panel {
+  --task-rail-bg: #1e2235;
+  --task-rail-border: rgba(255, 255, 255, 0.08);
+}
+.layout-menu-dark .task-rail-title,
+.layout-topbar-dark .task-rail-title {
+  color: rgba(255, 255, 255, 0.6);
+}
+.layout-menu-dark .task-rail-item-link,
+.layout-topbar-dark .task-rail-item-link {
+  color: #d8dae8;
+}
+.layout-menu-dark .task-rail-item-desc,
+.layout-topbar-dark .task-rail-item-desc {
+  color: rgba(255, 255, 255, 0.35);
+}
