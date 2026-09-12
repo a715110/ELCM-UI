@@ -1,0 +1,257 @@
+/* ============================================================
+   Upload Files dialog — screen design only (see uploadfilesdialog.xhtml)
+   ============================================================ */
+
+.upload-files-dialog.ui-dialog {
+  width: 900px;
+  max-width: 95vw;
+  border-radius: 10px;
+  overflow: hidden;
+  padding: 0;
+}
+.upload-files-dialog .ui-dialog-content {
+  padding: 0 !important;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Header ---------- */
+.ufd-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 1px solid #E5E2D9;
+}
+.ufd-title { font-size: 1.15rem; font-weight: 700; margin: 0; }
+.ufd-subtitle { font-size: 0.85rem; color: #6B6A63; margin: 0.15rem 0 0; }
+.ufd-close-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #6B6A63;
+  font-size: 1rem;
+  padding: 0.25rem;
+  line-height: 1;
+}
+.ufd-close-btn:hover { color: #2B2A26; }
+
+/* ---------- Body: two-column layout ---------- */
+.ufd-body {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+.ufd-left {
+  padding: 1.25rem 1.5rem;
+  border-right: 1px solid #E5E2D9;
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+}
+.ufd-right {
+  padding: 1.25rem 1.5rem;
+}
+
+/* ---------- Accept banner ---------- */
+.ufd-accept-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #F3F2ED;
+  border: 1px solid #E5E2D9;
+  border-radius: 8px;
+  padding: 0.65rem 0.9rem;
+  font-size: 0.82rem;
+  color: #55544D;
+  margin-bottom: 1rem;
+}
+.ufd-accept-banner .pi { color: #6B6A63; }
+
+/* ---------- Dropzone ---------- */
+.ufd-dropzone {
+  border: 2px dashed #C9C5B8;
+  border-radius: 8px;
+  background: #FAFAF7;
+  padding: 2.25rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.ufd-dropzone:hover,
+.ufd-dropzone.ufd-dropzone-dragover {
+  border-color: #2563EB;
+  background: #F0F5FE;
+}
+.ufd-dropzone-icon { font-size: 1.8rem; color: #8B8A82; display: block; margin-bottom: 0.6rem; }
+.ufd-dropzone-title { font-weight: 600; color: #2B2A26; }
+.ufd-dropzone-sub { font-size: 0.8rem; color: #8B8A82; margin-top: 0.2rem; }
+
+/* ---------- File list / empty state ---------- */
+.ufd-file-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.5rem;
+}
+.ufd-empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8B8A82;
+  font-size: 0.9rem;
+}
+.ufd-file-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #E5E2D9;
+  border-radius: 6px;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+.ufd-file-row .pi-file { color: #6B6A63; }
+.ufd-file-row .ufd-file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ufd-file-row .ufd-file-remove { cursor: pointer; color: #8B8A82; }
+.ufd-file-row .ufd-file-remove:hover { color: #C0392B; }
+
+/* ---------- Right column: Target Context ---------- */
+.ufd-right-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid #E5E2D9;
+  margin-bottom: 1rem;
+}
+.ufd-right-header .pi { color: #2563EB; }
+
+.ufd-field-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #55544D;
+  margin: 1rem 0 0.4rem;
+}
+.ufd-required { color: #C0392B; }
+.ufd-field-note,
+.ufd-optional {
+  font-weight: 400;
+  text-transform: none;
+  color: #8B8A82;
+  letter-spacing: normal;
+  margin-left: 0.3rem;
+}
+
+.ufd-workspace-select {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #D6D2C7;
+  border-radius: 8px;
+  padding: 0.55rem 0.8rem;
+  cursor: pointer;
+  background: #FDFCFA;
+}
+.ufd-workspace-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #2563EB;
+  flex-shrink: 0;
+}
+.ufd-workspace-name { font-weight: 700; }
+.ufd-workspace-desc { color: #8B8A82; font-size: 0.85rem; flex: 1; }
+.ufd-workspace-chevron { color: #8B8A82; }
+
+.ufd-helper-text {
+  font-size: 0.78rem;
+  color: #8B8A82;
+  margin: 0.4rem 0 0;
+  line-height: 1.4;
+}
+
+/* ---------- Destination cards ---------- */
+.ufd-destination-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.ufd-dest-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid #E5E2D9;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.ufd-dest-card:hover { border-color: #C9C5B8; }
+.ufd-dest-card.ufd-dest-selected {
+  border-color: #2563EB;
+  box-shadow: 0 0 0 1px #2563EB;
+}
+.ufd-dest-icon {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: #F0EFEA;
+  color: #55544D;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.ufd-dest-card.ufd-dest-selected .ufd-dest-icon { background: #DCE8FD; color: #2563EB; }
+.ufd-dest-title { font-weight: 700; font-size: 0.88rem; }
+.ufd-dest-desc { font-size: 0.78rem; color: #8B8A82; margin-top: 0.1rem; }
+
+.ufd-routing-divider {
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #E5E2D9;
+}
+
+.ufd-textarea {
+  width: 100%;
+  border: 1px solid #D6D2C7;
+  border-radius: 8px;
+  background: #FDFCFA;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.ufd-assign-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #D6D2C7;
+  border-radius: 8px;
+  padding: 0.55rem 0.8rem;
+  background: #FDFCFA;
+  color: #8B8A82;
+  cursor: pointer;
+}
+
+/* ---------- Footer ---------- */
+.ufd-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #E5E2D9;
+}
+
+@media (max-width: 768px) {
+  .ufd-body { grid-template-columns: 1fr; }
+  .ufd-left { border-right: none; border-bottom: 1px solid #E5E2D9; }
+}

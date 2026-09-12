@@ -91,6 +91,8 @@
       .metric-card .pi { color: #2563EB; } /* default: blue */
       .metric-card .pi-check-circle { color: #166534; } /* Valid stays green */
     </style>
+    <h:outputStylesheet name="css/upload-files-dialog.css" library="ext"/>
+    <h:outputScript name="js/upload-files-dialog.js" library="ext"/>
   </ui:define>
 
   <ui:define name="content">
@@ -100,11 +102,14 @@
         <h1>Document Pipeline</h1>
         <p class="section-subtitle">Monitor and manage staged documents before submission to processing.</p>
       </div>
-      <!-- Upload action only wiring the actual upload flow (p:fileUpload,
-           target workspace/record picker, etc.) is a separate piece of work;
-           this is just the button/placement per the mockup. -->
-      <p:commandButton value="Upload Files" icon="pi pi-cloud-upload" styleClass="ui-button-primary"/>
+      <!-- onclick returns false so PrimeFaces' normal ajax submit never
+           fires opening a static dialog doesn't need a bean action.
+           See WEB-INF/uploadfilesdialog.xhtml (screen design only for now). -->
+      <p:commandButton value="Upload Files" icon="pi pi-cloud-upload" styleClass="ui-button-primary"
+                        onclick="PF('uploadFilesDialog').show(); return false;"/>
     </div>
+
+    <ui:include src="/WEB-INF/uploadfilesdialog.xhtml"/>
 
     <!-- ==================== TOP METRICS ==================== -->
     <div class="metric-cards">

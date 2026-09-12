@@ -1,0 +1,132 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:f="http://java.sun.com/jsf/core"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui">
+
+    <!--
+        Upload Files dialog - SCREEN DESIGN ONLY, per instruction. No
+        backing bean: file list, workspace assignment, destination choice,
+        comments and "assign to" are all client-side/static for now. All of
+        that gets wired to a real bean/service in a later pass once the
+        pages are visually settled.
+
+        Opened from dashboard.xhtml's "Upload Files" button via
+        PF('uploadFilesDialog').show() (see the onclick there) - no ajax
+        postback needed to open it, so no bean action required for that
+        either.
+    -->
+    <p:dialog widgetVar="uploadFilesDialog"
+              modal="true"
+              resizable="false"
+              closable="false"
+              draggable="false"
+              showHeader="false"
+              onShow="ufdOnDialogShow();"
+              styleClass="upload-files-dialog"
+              appendTo="@(body)">
+
+        <div class="ufd-header">
+            <div>
+                <h2 class="ufd-title">Upload Files</h2>
+                <p class="ufd-subtitle">Add documents to the pipeline and set their destination.</p>
+            </div>
+            <button type="button" class="ufd-close-btn" onclick="PF('uploadFilesDialog').hide();" aria-label="Close">
+                <i class="pi pi-times"/>
+            </button>
+        </div>
+
+        <div class="ufd-body">
+
+            <!-- ==================== LEFT: file drop area ==================== -->
+            <div class="ufd-left">
+                <div class="ufd-accept-banner">
+                    <i class="pi pi-info-circle"/>
+                    <span>Accepted: PDF, DOCX, JPG, JPEG, PNG, TIFF &#8212; max 100 MB per file</span>
+                </div>
+
+                <div id="ufdDropzone" class="ufd-dropzone">
+                    <i class="pi pi-cloud-upload ufd-dropzone-icon"/>
+                    <div class="ufd-dropzone-title">Drag files here or click to browse</div>
+                    <div class="ufd-dropzone-sub">Multi-select supported</div>
+                </div>
+                <!-- Hidden native input driving the dropzone; no upload
+                     action wired - this only lets the mockup interaction
+                     (file list + counter) work client-side for now. -->
+                <input type="file" id="ufdFileInput" multiple="multiple" style="display:none;"/>
+
+                <div id="ufdFileList" class="ufd-file-list">
+                    <div class="ufd-empty-state">No files added yet</div>
+                </div>
+            </div>
+
+            <!-- ==================== RIGHT: target context ==================== -->
+            <div class="ufd-right">
+                <div class="ufd-right-header">
+                    <i class="pi pi-tag"/>
+                    <span>Target Context</span>
+                </div>
+
+                <div class="ufd-field-label">
+                    WORKSPACE <span class="ufd-required">*</span>
+                    <span class="ufd-field-note">(assigned workspace)</span>
+                </div>
+                <div class="ufd-workspace-select">
+                    <span class="ufd-workspace-dot"/>
+                    <span class="ufd-workspace-name">Retail</span>
+                    <span class="ufd-workspace-desc">Retail Portfolio</span>
+                    <i class="pi pi-chevron-down ufd-workspace-chevron"/>
+                </div>
+                <p class="ufd-helper-text">
+                    All files assigned to <strong>Retail</strong> workspace. Assigned at onboarding &#8212; change to override.
+                </p>
+
+                <div class="ufd-field-label">WHERE SHOULD THESE DOCUMENTS GO?</div>
+                <div class="ufd-destination-cards" role="radiogroup" aria-label="Document destination">
+                    <div class="ufd-dest-card" data-dest="new" role="radio" aria-checked="false" tabindex="0">
+                        <div class="ufd-dest-icon"><i class="pi pi-plus"/></div>
+                        <div>
+                            <div class="ufd-dest-title">New Record</div>
+                            <div class="ufd-dest-desc">For a newly executed contract not yet in this system</div>
+                        </div>
+                    </div>
+                    <div class="ufd-dest-card" data-dest="existing" role="radio" aria-checked="false" tabindex="0">
+                        <div class="ufd-dest-icon"><i class="pi pi-search"/></div>
+                        <div>
+                            <div class="ufd-dest-title">Existing Record</div>
+                            <div class="ufd-dest-desc">Add to a current contract record in this system: an amendment, exhibit, document...etc.</div>
+                        </div>
+                    </div>
+                    <div class="ufd-dest-card" data-dest="unsure" role="radio" aria-checked="false" tabindex="0">
+                        <div class="ufd-dest-icon"><i class="pi pi-question"/></div>
+                        <div>
+                            <div class="ufd-dest-title">Not sure &#8212; leave instructions</div>
+                            <div class="ufd-dest-desc">A Preparer will find the right record and may contact you</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ufd-routing-divider">Routing Context</div>
+
+                <div class="ufd-field-label">COMMENTS / INSTRUCTIONS <span class="ufd-optional">(OPTIONAL)</span></div>
+                <textarea id="ufdComments" class="ufd-textarea" rows="3"
+                          placeholder="Describe what these documents are and any context that helps the person processing them..."/>
+
+                <div class="ufd-field-label">ASSIGN TO <span class="ufd-optional">(OPTIONAL)</span></div>
+                <div class="ufd-assign-select">
+                    <span class="ufd-assign-placeholder">&#160;</span>
+                    <i class="pi pi-chevron-down"/>
+                </div>
+            </div>
+        </div>
+
+        <div class="ufd-footer">
+            <p:commandButton type="button" value="Cancel" styleClass="ui-button-secondary"
+                              onclick="PF('uploadFilesDialog').hide();"/>
+            <p:commandButton type="button" id="ufdAddToPipelineBtn" value="Add to Pipeline (0)"
+                              icon="pi pi-cloud-upload" disabled="true"/>
+        </div>
+
+    </p:dialog>
+
+</ui:composition>
