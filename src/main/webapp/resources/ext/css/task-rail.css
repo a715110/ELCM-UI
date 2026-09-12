@@ -4,7 +4,8 @@
    ============================================================ */
 
 :root {
-  --task-rail-collapsed-w: 48px;
+  /* Byoung: tweak --task-rail-collapsed-w: 48px; */
+  --task-rail-collapsed-w: 40px;
   --task-rail-expanded-w: 300px;
   --task-rail-bg: #ffffff;
   --task-rail-border: rgba(0, 0, 0, 0.08);
@@ -32,7 +33,7 @@
 
 .task-rail {
   position: fixed;
-  top: 45%;
+  top: 50%;
   right: 0;
   transform: translateY(-50%);
   z-index: var(--task-rail-z);
@@ -47,7 +48,8 @@
 .task-rail-handle {
   position: relative;
   width: var(--task-rail-collapsed-w);
-  height: 56px;
+  /* Byoung: tweak - height: 56px; */
+  height: 46px;
   flex-shrink: 0;
   background: var(--task-rail-handle-bg);
   color: var(--task-rail-handle-fg);

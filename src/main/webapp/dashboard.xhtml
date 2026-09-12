@@ -51,13 +51,60 @@
       .dashboard-section { margin: 2rem 0; }
       .dashboard-section h2 { font-size: 1.15rem; margin-bottom: 0.25rem; }
       .dashboard-section .section-subtitle { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+
+      /* ---- Card/fieldset container for each dashboard section ----
+         Mockup wraps Stage Documents (and, for consistency, Contract
+         Packages) in a bordered white card rather than a bare div. */
+      .dashboard-card {
+        background: #FFFFFF;
+        border: 1px solid #E5E2D9;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin: 2rem 0;
+      }
+      .dashboard-card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-bottom: 0.25rem;
+      }
+      .dashboard-card-header h2 { font-size: 1.15rem; margin: 0; }
+      .dashboard-card-header .pi-info-circle {
+        color: #8B8A82;
+        font-size: 0.95rem;
+        cursor: help;
+      }
+
+      /* ---- Page header "Upload Files" button placement ---- */
+      .page-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.25rem;
+      }
+      .page-header-row h1 { margin: 0; }
+
+      /* ---- Metric cards: icon above the number, not beside it, and each
+         icon keeps its own semantic color rather than one hardcoded green
+         for all four (matches the mockup's blue/blue/green/blue set). ---- */
+      .metric-card { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+      .metric-card .pi { color: #2563EB; } /* default: blue */
+      .metric-card .pi-check-circle { color: #166534; } /* Valid stays green */
     </style>
   </ui:define>
 
   <ui:define name="content">
 
-    <h1>Document Pipeline</h1>
-    <p class="section-subtitle">Monitor and manage staged documents before submission to processing.</p>
+    <div class="page-header-row">
+      <div>
+        <h1>Document Pipeline</h1>
+        <p class="section-subtitle">Monitor and manage staged documents before submission to processing.</p>
+      </div>
+      <!-- Upload action only wiring the actual upload flow (p:fileUpload,
+           target workspace/record picker, etc.) is a separate piece of work;
+           this is just the button/placement per the mockup. -->
+      <p:commandButton value="Upload Files" icon="pi pi-cloud-upload" styleClass="ui-button-primary"/>
+    </div>
 
     <!-- ==================== TOP METRICS ==================== -->
     <div class="metric-cards">
@@ -100,9 +147,20 @@
     </div>
 
     <!-- ==================== STAGE DOCUMENTS ==================== -->
-    <div class="dashboard-section">
-      <h2>Stage Documents (#{stageDocumentsBean.stagedDocuments.size()})</h2>
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <h2>Stage Documents (#{stageDocumentsBean.stagedDocuments.size()})</h2>
+        <i class="pi pi-info-circle" title="Documents land here after upload and stay until grouped into a contract package."/>
+      </div>
       <p class="section-subtitle">Documents uploaded and awaiting grouping into a contract package.</p>
+
+      <!-- TODO (needs your input before wiring): mockup shows a per-section
+           search box here, a category filter-chip row (All/Retail/Office/
+           Operations/Equipment with counts), and a Preparer filter-chip row
+           (All/per-preparer avatar chip/Unassigned). Holding off on these
+           until we agree what backs them  e.g. does StageDocumentDTO gain
+           a `preparerName` field, and are the chip counts computed here or
+           returned pre-aggregated by StageDocumentService? -->
 
       <h:form id="stageDocumentsForm">
         <p:dataTable id="stageDocumentsTable"
@@ -147,14 +205,23 @@
 
         <div style="margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
           <span>Showing #{stageDocumentsBean.stagedDocuments.size()} of #{stageDocumentsBean.stagedDocuments.size()} documents</span>
-          <p:commandButton value="Review &amp; Group" icon="pi pi-arrow-right" iconPos="right"/>
+          <!-- Renamed to match mockup ("Create Document Set", not "Review &
+               Group") and disabled when nothing is selected, matching the
+               greyed-out state shown there. Assumes stageDocumentsBean
+               exposes selectedDocuments as a List that's empty by default 
+               confirm the getter name if this doesn't compile as-is. -->
+          <p:commandButton value="Create Document Set" icon="pi pi-arrow-right" iconPos="right"
+                            disabled="#{empty stageDocumentsBean.selectedDocuments}"/>
         </div>
       </h:form>
     </div>
 
     <!-- ==================== CONTRACT PACKAGES ==================== -->
-    <div class="dashboard-section">
-      <h2>Contract Packages (#{contractPackagesBean.contractPackages.size()})</h2>
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <h2>Contract Packages (#{contractPackagesBean.contractPackages.size()})</h2>
+        <i class="pi pi-info-circle" title="Packages group staged documents together before they're submitted for extraction."/>
+      </div>
       <p class="section-subtitle">Group staged documents into packages, then submit for processing.</p>
 
       <h:form id="contractPackagesForm">
