@@ -195,6 +195,23 @@
   flex-shrink: 0;
 }
 
+/* ---------- Not-yet-available items ("Coming soon") ---------- */
+.task-rail-item-link-disabled {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  color: #aaa;
+  cursor: default;
+  white-space: nowrap;
+}
+.task-rail-item-link-disabled .task-rail-item-icon {
+  color: #bbb;
+}
+.task-rail-item-link-disabled .task-rail-item-desc {
+  font-style: italic;
+}
+
 /* ---------- Small-viewport fallback ----------
    Below ~768px, hover is unreliable (touch) -- the rail is opened by tap
    instead, via the .task-rail-open class toggled in task-rail.js. */

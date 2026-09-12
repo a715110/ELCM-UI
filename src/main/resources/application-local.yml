@@ -133,6 +133,14 @@ azure:
     account-name: CHANGE_ME   # confirm: share ECWS's account, or provision a new one?
     account-key: CHANGE_ME    # set via AZURE_STORAGE_ACCOUNT_KEY env var -- DO NOT commit
 
+# Base URL for the ECWS application, used by the Task Rail (WEB-INF/taskrail.xhtml)
+# to build cross-app links that open ECWS pages in a new browser tab. Both apps
+# proxy through the same local nginx host (see /elcm + /ecws path routing set up
+# earlier), so this is same-origin locally -- update per environment as ECWS/ELCM
+# land on real hostnames (adev/bdev/dit/sit/uat/prod profiles below).
+ecws:
+  base-url: https://localhost/ecws
+
 # General file upload (not thumbnail-specific). Path below was ECWS's
 # Windows dev-machine path -- change it for your own elcm-ui checkout.
 app:

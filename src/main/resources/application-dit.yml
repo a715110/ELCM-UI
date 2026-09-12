@@ -6,3 +6,7 @@ server:
 logging:
   level:
     root: INFO
+
+# TODO: set the real ECWS base URL for the dit environment (see application-local.yml for what this is used for)
+ecws:
+  base-url: CHANGE_ME
