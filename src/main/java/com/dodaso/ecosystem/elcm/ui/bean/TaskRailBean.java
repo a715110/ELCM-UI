@@ -11,10 +11,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import com.dodaso.ecosystem.baseline.common.security.AuthenticationUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
- * Backing bean for the right-edge "Task Rail" (WEB-INF/taskrail.xhtml). the
+ * Backing bean for the right-edge "Task Rail" (WEB-INF/taskrail.xhtml) -- the
  * hover-to-expand icon panel included from template.xhtml on every page,
  * giving one-click access to ECWS collaboration-task functions from anywhere
  * in ELCM (mirrors the collapsed-icon-rail pattern used by Smartsheet and
@@ -22,21 +25,21 @@ import org.springframework.beans.factory.annotation.Value;
  *
  * ECWS is a separate application from ELCM (separate WAR/context-path, see
  * the nginx /ecws vs /elcm path routing set up earlier), so rail items don't
- * navigate via JSF outcomes. they resolve to absolute ECWS URLs
+ * navigate via JSF outcomes -- they resolve to absolute ECWS URLs
  * (ecwsBaseUrl + route) and open in a new browser tab (see
  * target="_blank" in taskrail.xhtml). ecwsBaseUrl comes from the
  * `ecws.base-url` property (application-local.yml locally; each
  * adev/bdev/dit/sit/uat/prod profile has a CHANGE_ME placeholder for its
- * real ECWS host. see the TODO added to each).
+ * real ECWS host -- see the TODO added to each).
  *
  * Only routes that have actually been confirmed against a real ECWS page
  * are wired up (route != null); everything else renders disabled in the UI
- * rather than as a dead/guessed link. see TaskRailItem.isAvailable() and
+ * rather than as a dead/guessed link -- see TaskRailItem.isAvailable() and
  * taskrail.xhtml. As more ECWS routes are confirmed, add them to init()
  * below.
  *
  * ALL badge counts here are hardcoded placeholder data, not from a real
- * service. there is no persistence layer wired up yet (see DashboardBean's
+ * service -- there is no persistence layer wired up yet (see DashboardBean's
  * MINIMUM-JARS note). Replace with a real query against CollaborationTaskDTO
  * / EventLogDTO (see BaseBean) once the ECWS task service is available from
  * this UI.
@@ -54,10 +57,21 @@ import org.springframework.beans.factory.annotation.Value;
 @Slf4j
 public class TaskRailBean implements Serializable {
 
-  /** e.g. "https://localhost/ecws" locally.see ecws.base-url in
+  /** e.g. "https://localhost/ecws" locally -- see ecws.base-url in
    * application-*.yml. No trailing slash. */
   @Value("${ecws.base-url}")
   private String ecwsBaseUrl;
+
+  // Same bean UserHelper.getUserDTOContainer() already uses to get the
+  // logged-in user's ID without an extra IAMS REST round-trip -- reuse it
+  // here rather than calling userHelper.getActiveUserProfile() (that method
+  // makes a REST call, which is unnecessary just to build a URL param).
+  @Autowired
+  private AuthenticationUtil authenticationUtil;
+
+  /** The current user's login ID, passed to ECWS as a query param so it
+   * knows who's asking without a separate login/lookup on that side. */
+  private String loginId;
 
   private List<TaskRailItem> railItems;
 
@@ -67,6 +81,8 @@ public class TaskRailBean implements Serializable {
 
   @PostConstruct
   private void init() {
+    loginId = authenticationUtil.getUsername();
+
     railItems = new ArrayList<>();
 
     // CONFIRMED: dashboard.xhtml is served at /ecws/dashboard (rewrite-clean
@@ -130,11 +146,21 @@ public class TaskRailBean implements Serializable {
   }
 
   /** Absolute ECWS URL for the given item, or null if it has no confirmed
-   * route yet (taskrail.xhtml renders those disabled rather than linking). */
+   * route yet (taskrail.xhtml renders those disabled rather than linking).
+   * Appends loginId as a query param so ECWS knows which user is arriving
+   * without a separate lookup. UriComponentsBuilder handles encoding and
+   * makes it a one-line addition to pass further params later (e.g.
+   * sourceApp=elcm, a specific record ID for a deep link, etc.) --
+   * just chain another .queryParam(...) call below. */
   public String getEcwsUrl(final TaskRailItem item) {
     if (item == null || item.getRoute() == null) {
       return null;
     }
-    return ecwsBaseUrl + item.getRoute();
+    return UriComponentsBuilder
+        .fromUriString(ecwsBaseUrl + item.getRoute())
+        .queryParamIfPresent("loginId", java.util.Optional.ofNullable(loginId))
+        .build()
+        .encode()
+        .toUriString();
   }
 }

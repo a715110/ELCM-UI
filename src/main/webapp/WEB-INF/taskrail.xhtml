@@ -13,7 +13,7 @@
 
         Deliberately independent of the existing .layout-rightpanel /
         .layout-rightpanel-button click-toggle mechanism already wired up in
-        layout.js (see rightpanel.xhtml in ADEV-ECWS-UI) . that is a
+        layout.js (see rightpanel.xhtml in ADEV-ECWS-UI) that is a
         full-height slide-in drawer toggled by a topbar button; this is a
         persistently-docked, hover-driven rail. The two can coexist.
 
@@ -49,7 +49,7 @@
                     <ui:repeat var="item" value="#{taskRailBean.railItems}">
                         <li class="task-rail-item #{item.available ? '' : 'task-rail-item-disabled'}">
                             <ui:fragment rendered="#{item.available}">
-                                <!-- ECWS is a separate app (see nginx /ecws vs /elcm routing) 
+                                <!-- ECWS is a separate app (see nginx /ecws vs /elcm routing)
                                      an absolute cross-app URL opened in a new tab, not a JSF
                                      outcome/h:link. rel="noopener noreferrer" per new-tab best
                                      practice (prevents the new tab from getting a handle back
