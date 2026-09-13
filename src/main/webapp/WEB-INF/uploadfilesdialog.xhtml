@@ -5,16 +5,18 @@
                 xmlns:p="http://primefaces.org/ui">
 
     <!--
-        Upload Files dialog - SCREEN DESIGN ONLY, per instruction. No
-        backing bean: file list, workspace assignment, destination choice,
-        comments and "assign to" are all client-side/static for now. All of
-        that gets wired to a real bean/service in a later pass once the
-        pages are visually settled.
+        Upload Files dialog. File transport is now real: p:fileUpload
+        (advanced/multiple mode) posts each picked file to
+        UploadFilesBean.handleFileUpload() when "Add to Pipeline" is
+        clicked. Workspace assignment, destination choice, comments, and
+        "assign to" are still static/unbound markup - wiring those to
+        UploadFilesBean's existing fields, and connecting the upload to
+        an actual Azure transfer + Stage Documents refresh, are later
+        passes (see UploadFilesBean's Javadoc for current scope).
 
         Opened from dashboard.xhtml's "Upload Files" button via
         PF('uploadFilesDialog').show() (see the onclick there) - no ajax
-        postback needed to open it, so no bean action required for that
-        either.
+        postback needed just to open it.
     -->
     <p:dialog widgetVar="uploadFilesDialog"
               modal="true"
@@ -25,6 +27,15 @@
               onShow="ufdOnDialogShow();"
               styleClass="upload-files-dialog"
               appendTo="@(body)">
+
+      <!-- Added now that p:fileUpload/p:commandButton need a real form to
+           ajax-submit through - there was none before since everything
+           was static markup. appendTo="@(body)" on the dialog already
+           moves this whole subtree to be a direct child of <body> at
+           render time, so this form doesn't nest inside or conflict with
+           any other form on the page (template.xhtml's own form is
+           commented out and unused). -->
+      <h:form id="uploadFilesDialogForm" enctype="multipart/form-data">
 
         <div class="ufd-header">
             <div>
@@ -45,19 +56,33 @@
                     <span>Accepted: PDF, DOCX, JPG, JPEG, PNG, TIFF &#8212; max 100 MB per file</span>
                 </div>
 
-                <div id="ufdDropzone" class="ufd-dropzone">
-                    <i class="pi pi-cloud-upload ufd-dropzone-icon"/>
-                    <div class="ufd-dropzone-title">Drag files here or click to browse</div>
-                    <div class="ufd-dropzone-sub">Multi-select supported</div>
-                </div>
-                <!-- Hidden native input driving the dropzone; no upload
-                     action wired - this only lets the mockup interaction
-                     (file list + counter) work client-side for now. -->
-                <input type="file" id="ufdFileInput" multiple="multiple" style="display:none;"/>
+                <!-- Real transport as of this pass: advanced/multiple mode,
+                     auto="false" so files queue client-side (drag/drop or
+                     click-to-browse, both built in) and are only actually
+                     sent when "Add to Pipeline" calls
+                     PF('ufdFileUploadWidget').upload() - each file arrives
+                     as its own ajax call, invoking
+                     UploadFilesBean.handleFileUpload() once per file.
 
-                <div id="ufdFileList" class="ufd-file-list">
-                    <div class="ufd-empty-state">No files added yet</div>
-                </div>
+                     styleClass only lightly reskins this to sit inside the
+                     card look (see upload-files-dialog.css's
+                     .ufd-p-fileupload rules) - it still renders
+                     PrimeFaces' own dropzone/file-list markup rather than
+                     a pixel-match of the original mockup dropzone; full
+                     visual reconciliation is a follow-up, not part of
+                     this increment. -->
+                <p:fileUpload id="ufdFileUpload"
+                              widgetVar="ufdFileUploadWidget"
+                              styleClass="ufd-p-fileupload"
+                              mode="advanced"
+                              multiple="true"
+                              auto="false"
+                              dragDrop="true"
+                              listener="#{uploadFilesBean.handleFileUpload}"
+                              process="@this"
+                              update="@none">
+                              <p:validateFile fileLimit="50" sizeLimit="104857600" allowTypes="/(\.|\/)(pdf|docx?|jpe?g|png|tiff?)$/" />
+                </p:fileUpload>
             </div>
 
             <!-- ==================== RIGHT: target context ==================== -->
@@ -123,10 +148,21 @@
         <div class="ufd-footer">
             <p:commandButton type="button" value="Cancel" styleClass="ui-button-secondary"
                               onclick="PF('uploadFilesDialog').hide();"/>
-            <p:commandButton type="button" id="ufdAddToPipelineBtn" value="Add to Pipeline (0)"
-                              icon="pi pi-cloud-upload" disabled="true"/>
+            <!-- Triggers the queued files' upload (see p:fileUpload above,
+                 auto="false"). Each file arrives at
+                 UploadFilesBean.handleFileUpload() as its own ajax call.
+                 Deliberately NOT calling uploadFilesBean.addToPipeline()
+                 yet - that action still only reaches the placeholder
+                 UploadFilesService.submitToPipeline() no-op and is
+                 unrelated to the uploaded files list; wiring the two
+                 together (Azure transfer + Stage Documents refresh) is the
+                 next task per chat, not part of this increment. -->
+            <p:commandButton type="button" id="ufdAddToPipelineBtn" value="Add to Pipeline"
+                              icon="pi pi-cloud-upload"
+                              onclick="PF('ufdFileUploadWidget').upload();"/>
         </div>
 
+      </h:form>
     </p:dialog>
 
 </ui:composition>

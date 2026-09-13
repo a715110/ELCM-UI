@@ -10,3 +10,12 @@ logging:
 # TODO: set the real ECWS base URL for the adev environment (see application-local.yml for what this is used for)
 ecws:
   base-url: CHANGE_ME
+
+spring:
+  servlet:
+    multipart:
+      # Same reasoning as application-local.yml -- must be >= the "max 100 MB
+      # per file" limit shown in uploadfilesdialog.xhtml or uploads silently
+      # 413 before reaching UploadFilesBean.
+      max-file-size: 100MB
+      max-request-size: 600MB

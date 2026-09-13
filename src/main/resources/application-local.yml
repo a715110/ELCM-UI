@@ -27,6 +27,16 @@ spring:
     lazy-initialization: true
   jpa:
     open-in-view: false  # inert until Spring Data JPA is added to pom.xml
+  servlet:
+    multipart:
+      # Matches the "max 100 MB per file" text in uploadfilesdialog.xhtml's
+      # accept banner -- Spring Boot's own default (1MB file / 10MB request)
+      # would otherwise silently reject anything past that before
+      # UploadFilesBean.handleFileUpload() ever sees it. max-request-size
+      # is set higher than a single file's cap since "multiple" mode can
+      # post several files in one request.
+      max-file-size: 100MB
+      max-request-size: 600MB
   security:
     oauth2:
       client:

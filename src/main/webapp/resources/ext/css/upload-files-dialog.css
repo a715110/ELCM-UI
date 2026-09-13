@@ -255,3 +255,21 @@
   .ufd-body { grid-template-columns: 1fr; }
   .ufd-left { border-right: none; border-bottom: 1px solid #E5E2D9; }
 }
+
+/* ---------- p:fileUpload (advanced mode) light reskin ----------
+   Not a pixel-match of the original mockup dropzone -- see the comment on
+   <p:fileUpload> in uploadfilesdialog.xhtml for why. This only: (a) hides
+   the auto-generated Upload/Cancel toolbar buttons, since "Add to
+   Pipeline" now drives the actual upload programmatically and those would
+   be redundant/confusing, and (b) nudges the drop area's border/spacing
+   to roughly match this card's palette instead of the default PrimeFaces
+   theme. */
+.ufd-p-fileupload .ui-fileupload-buttonbar .ui-fileupload-upload,
+.ufd-p-fileupload .ui-fileupload-buttonbar .ui-fileupload-cancel {
+  display: none;
+}
+.ufd-p-fileupload .ui-fileupload-content {
+  border: 2px dashed #C9C5B8;
+  border-radius: 8px;
+  background: #FAFAF7;
+}
