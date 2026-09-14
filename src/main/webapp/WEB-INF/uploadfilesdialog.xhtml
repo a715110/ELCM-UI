@@ -5,14 +5,18 @@
                 xmlns:p="http://primefaces.org/ui">
 
     <!--
-        Upload Files dialog. File transport is now real: p:fileUpload
-        (advanced/multiple mode) posts each picked file to
+        Upload Files dialog. File transport: p:fileUpload (advanced/
+        multiple mode) posts each queued file to
         UploadFilesBean.handleFileUpload() when "Add to Pipeline" is
-        clicked. Workspace assignment, destination choice, comments, and
+        clicked (see that button's onclick). Once every queued file has
+        actually finished uploading, p:fileUpload's oncomplete fires the
+        commitToPipeline() remote command, which invokes
+        UploadFilesBean.addToPipeline() - this is what actually calls
+        through to common-service's FileStorageController.upload() (see
+        that bean for the Azure-transfer flow and its current placeholder
+        ownerId). Workspace assignment, destination choice, comments, and
         "assign to" are still static/unbound markup - wiring those to
-        UploadFilesBean's existing fields, and connecting the upload to
-        an actual Azure transfer + Stage Documents refresh, are later
-        passes (see UploadFilesBean's Javadoc for current scope).
+        UploadFilesBean's existing fields is a later pass.
 
         Opened from dashboard.xhtml's "Upload Files" button via
         PF('uploadFilesDialog').show() (see the onclick there) - no ajax
@@ -36,6 +40,19 @@
            any other form on the page (template.xhtml's own form is
            commented out and unused). -->
       <h:form id="uploadFilesDialogForm" enctype="multipart/form-data">
+
+        <!-- Bridges the async file-upload sequence to the bean action.
+             PF('ufdFileUploadWidget').upload() below is asynchronous (one
+             ajax call per queued file, each invoking handleFileUpload) -
+             calling addToPipeline() directly from the button's own click
+             would race ahead of those calls and run against an incomplete
+             uploadedFiles list. p:fileUpload's oncomplete callback only
+             fires once every queued file has actually finished uploading,
+             so that's what triggers this instead (see the button's onclick
+             and p:fileUpload's oncomplete below). -->
+        <p:remoteCommand name="commitToPipeline" action="#{uploadFilesBean.addToPipeline}"
+                          process="@this" update="@none"
+                          oncomplete="PF('uploadFilesDialog').hide();"/>
 
         <div class="ufd-header">
             <div>
@@ -80,7 +97,8 @@
                               dragDrop="true"
                               listener="#{uploadFilesBean.handleFileUpload}"
                               process="@this"
-                              update="@none">
+                              update="@none"
+                              oncomplete="commitToPipeline();">
                               <p:validateFile fileLimit="50" sizeLimit="104857600" allowTypes="/(\.|\/)(pdf|docx?|jpe?g|png|tiff?)$/" />
                 </p:fileUpload>
             </div>
@@ -148,18 +166,19 @@
         <div class="ufd-footer">
             <p:commandButton type="button" value="Cancel" styleClass="ui-button-secondary"
                               onclick="PF('uploadFilesDialog').hide();"/>
-            <!-- Triggers the queued files' upload (see p:fileUpload above,
-                 auto="false"). Each file arrives at
-                 UploadFilesBean.handleFileUpload() as its own ajax call.
-                 Deliberately NOT calling uploadFilesBean.addToPipeline()
-                 yet - that action still only reaches the placeholder
-                 UploadFilesService.submitToPipeline() no-op and is
-                 unrelated to the uploaded files list; wiring the two
-                 together (Azure transfer + Stage Documents refresh) is the
-                 next task per chat, not part of this increment. -->
+            <!-- type="button" deliberately kept - this button's own default
+                 ajax submit is never used. If files are queued, kick off
+                 the upload; p:fileUpload's oncomplete (above) then calls
+                 commitToPipeline() once every file has actually finished,
+                 which is what invokes UploadFilesBean.addToPipeline().
+                 If nothing is queued (comments/destination-only submit,
+                 no new files this time), there's no upload to wait on, so
+                 commitToPipeline() is called immediately instead -
+                 otherwise oncomplete never fires and the click would do
+                 nothing. -->
             <p:commandButton type="button" id="ufdAddToPipelineBtn" value="Add to Pipeline"
                               icon="pi pi-cloud-upload"
-                              onclick="PF('ufdFileUploadWidget').upload();"/>
+                              onclick="if (PF('ufdFileUploadWidget').files.length > 0) { PF('ufdFileUploadWidget').upload(); } else { commitToPipeline(); }"/>
         </div>
 
       </h:form>

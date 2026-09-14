@@ -13,6 +13,7 @@ import com.dodaso.ecosystem.baseline.common.constant.ServiceDiscoveryEnum;
 import com.dodaso.ecosystem.baseline.common.container.RESTReqContainer;
 import com.dodaso.ecosystem.common.container.FileUploadDTOContainer;
 import com.dodaso.ecosystem.common.dto.FileItemDTO;
+import com.dodaso.ecosystem.common.dto.FileUploadDTO;
 import com.dodaso.ecosystem.common.dto.FileUploadRequestDTO;
 import com.dodaso.ecosystem.elcm.ui.constant.DestinationChoiceEnum;
 import com.dodaso.ecosystem.elcm.ui.constant.FileStorageControllerAPIEnum;
@@ -67,16 +68,23 @@ import lombok.extern.slf4j.Slf4j;
  *      profiles would register common-service under the wrong Eureka
  *      name and this call would resolve to the wrong service (or fail).
  *
- * OWNER/SOURCE VALUES ARE PLACEHOLDERS: ownerType="STAGED_DOCUMENT" and
- * ownerId=0L below are temporary -- there is no real staged_document row
- * yet at the point "Add to Pipeline" fires (that row doesn't exist until
- * elcm-service creates one, which isn't built yet). containerName is set
- * to "elcm-stage-documents" (a dedicated container, not the shared
- * "documents" default) since these are ELCM's own files. Wiring a real
- * ownerId -- and refreshing StageDocumentsBean's table with the response
- * -- is the next task, not part of this increment.
+ * OWNER/SOURCE/COMPANY VALUES ARE PLACEHOLDERS: ownerType="STAGED_DOCUMENT",
+ * ownerId=0L, and companyId=0L below are all temporary. There is no real
+ * staged_document row yet at the point "Add to Pipeline" fires (that row
+ * doesn't exist until elcm-service creates one, which isn't built yet),
+ * and elcm-ui has no established way yet to resolve the logged-in user's
+ * company/tenant id -- that needs to come from wherever ELCM's own
+ * multi-tenant identification actually lives (IAMS profile? a workspace
+ * concept? something else?), which hasn't been decided. containerName is
+ * set to "elcm-stage-documents" (a dedicated container, not the shared
+ * "documents" default) since these are ELCM's own files -- company
+ * scoping is done via Azure Blob Index Tags on the common-service side,
+ * not the container/path, per the naming-convention decision in chat.
+ * Wiring real ownerId/companyId values - and refreshing
+ * StageDocumentsBean's table with the response - is the next task, not
+ * part of this increment.
  *
- * ALL data from UploadFilesService is still hardcoded placeholder data --
+ * ALL data from UploadFilesService is still hardcoded placeholder data -
  * see that class's Javadoc.
  */
 @Named
@@ -90,9 +98,12 @@ public class UploadFilesBean extends BaseBean {
     private static final String CONTAINER_NAME = "elcm-stage-documents";
     private static final String SOURCE_APP = "ELCM";
     // TODO: placeholder until elcm-service creates a real staged_document
-    // row before/around this call and gives us its id -- see class Javadoc.
+    // row before/around this call and gives us its id - see class Javadoc.
     private static final String OWNER_TYPE = "STAGED_DOCUMENT";
     private static final Long OWNER_ID_PLACEHOLDER = 0L;
+    // TODO: placeholder until elcm-ui has a real way to resolve the
+    // logged-in user's company/tenant id - see class Javadoc.
+    private static final Long COMPANY_ID_PLACEHOLDER = 0L;
 
     private final UploadFilesService uploadFilesService;
 
@@ -113,7 +124,7 @@ public class UploadFilesBean extends BaseBean {
     /** Result of the most recent common-service call, if any -- not yet
      * consumed by StageDocumentsBean's table (see class Javadoc); kept
      * here mainly so the outcome is inspectable/loggable for now. */
-    private List<FileUploadRequestDTO> persistedFiles;
+    private List<FileUploadDTO> persistedFiles;
 
     @PostConstruct
     void init() {
@@ -170,11 +181,12 @@ public class UploadFilesBean extends BaseBean {
         init();
     }
 
-    private List<FileUploadRequestDTO> uploadToCommonService() throws Exception{
+    private List<FileUploadDTO> uploadToCommonService() throws Exception{
         final FileUploadRequestDTO request = new FileUploadRequestDTO();
         request.setSourceApp(SOURCE_APP);
         request.setOwnerType(OWNER_TYPE);
         request.setOwnerId(OWNER_ID_PLACEHOLDER);
+        request.setCompanyId(COMPANY_ID_PLACEHOLDER);
         request.setContainerName(CONTAINER_NAME);
         request.setFiles(uploadedFiles.stream()
             .map(row -> {
@@ -204,8 +216,8 @@ public class UploadFilesBean extends BaseBean {
             HttpMethod.POST);
       
         final FileUploadDTOContainer response = restServiceClient.callRESTService(restReqContainer);
-            return response != null && response.getFileUploadRequestDTOList() != null
-                ? response.getFileUploadRequestDTOList()
+            return response != null && response.getFileUploadDTOList() != null
+                ? response.getFileUploadDTOList()
                 : List.of();
         }
 }
