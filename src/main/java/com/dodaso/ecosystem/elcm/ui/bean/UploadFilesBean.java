@@ -183,11 +183,18 @@ public class UploadFilesBean extends BaseBean {
 
     private List<FileUploadDTO> uploadToCommonService() throws Exception{
         final FileUploadRequestDTO request = new FileUploadRequestDTO();
-        request.setSourceApp(SOURCE_APP);
-        request.setOwnerType(OWNER_TYPE);
-        request.setOwnerId(OWNER_ID_PLACEHOLDER);
+        //request.setSourceApp(SOURCE_APP);
+        //request.setOwnerType(OWNER_TYPE);
+        //request.setOwnerId(OWNER_ID_PLACEHOLDER);
+        //request.setCompanyId(COMPANY_ID_PLACEHOLDER);
+        //request.setContainerName(CONTAINER_NAME);
+        
+        request.setOwnerType("STAGED_DOCUMENT");
+        request.setOwnerId(Long.valueOf(0));
+        request.setSourceApp("ELCM");
         request.setCompanyId(COMPANY_ID_PLACEHOLDER);
         request.setContainerName(CONTAINER_NAME);
+        
         request.setFiles(uploadedFiles.stream()
             .map(row -> {
                 final FileItemDTO item = new FileItemDTO();

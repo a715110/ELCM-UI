@@ -21,8 +21,11 @@
 # environment variables or a secrets manager. Several blocks below are inert
 # until their corresponding dependency is added back to pom.xml (see the
 # MINIMUM-JARS comment block there) -- each is flagged where it applies.
-
 spring:
+  http:
+    client:
+      connect-timeout: 30s
+      read-timeout: 300s
   main:
     lazy-initialization: true
   jpa:
@@ -166,3 +169,4 @@ logging:
     org.springframework.security: DEBUG            # inert until spring-security is added
     org.springframework.security.oauth2: DEBUG
     org.springframework.security.oauth2.client: DEBUG
+
