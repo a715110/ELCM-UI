@@ -2,6 +2,8 @@ package com.dodaso.ecosystem.elcm.ui.bean;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import org.primefaces.event.FileUploadEvent;
@@ -190,11 +192,12 @@ public class UploadFilesBean extends BaseBean {
         //request.setContainerName(CONTAINER_NAME);
         
         request.setOwnerType("STAGED_DOCUMENT");
-        request.setOwnerId(Long.valueOf(0));
+        int positiveInt = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
+        request.setOwnerId(Long.valueOf(positiveInt));
         request.setSourceApp("ELCM");
         request.setCompanyId(COMPANY_ID_PLACEHOLDER);
         request.setContainerName(CONTAINER_NAME);
-        
+
         request.setFiles(uploadedFiles.stream()
             .map(row -> {
                 final FileItemDTO item = new FileItemDTO();
