@@ -4,8 +4,7 @@
    ============================================================ */
 
 :root {
-  /* Byoung: tweak --task-rail-collapsed-w: 48px; */
-  --task-rail-collapsed-w: 40px;
+  --task-rail-collapsed-w: 48px;
   --task-rail-expanded-w: 300px;
   --task-rail-bg: #ffffff;
   --task-rail-border: rgba(0, 0, 0, 0.08);
@@ -33,24 +32,28 @@
 
 .task-rail {
   position: fixed;
-  top: 50%;
+  top: 45%;
   right: 0;
   transform: translateY(-50%);
   z-index: var(--task-rail-z);
   isolation: isolate; /* guarantee children never escape this stacking context */
-  display: flex;
-  align-items: flex-start;
   width: var(--task-rail-collapsed-w);
-  transition: width 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  /* display:flex removed -- .task-rail-panel is now position:absolute (see
+     below) and out of normal flow, so .task-rail's own box is sized to
+     just its one remaining in-flow child, .task-rail-handle. That's the
+     actual fix for the reported bug: previously, even at width:0, the
+     panel's own content height (header + list items, ~350-400px) still
+     counted toward this flex container's cross-axis size, making the
+     collapsed hover zone far taller than the visible 56px handle -- the
+     "hovering non-icon areas expands it" bug. Removing it from flow means
+     it can no longer inflate this box at all. */
 }
 
 /* ---------- Collapsed handle ---------- */
 .task-rail-handle {
   position: relative;
   width: var(--task-rail-collapsed-w);
-  /* Byoung: tweak - height: 56px; */
-  height: 46px;
-  flex-shrink: 0;
+  height: 56px;
   background: var(--task-rail-handle-bg);
   color: var(--task-rail-handle-fg);
   border-radius: 8px 0 0 8px;
@@ -83,6 +86,9 @@
 
 /* ---------- Expanded panel ---------- */
 .task-rail-panel {
+  position: absolute;
+  top: 0;
+  right: 100%; /* flush against the handle's left edge; grows further left as width increases */
   width: 0;
   overflow: hidden;
   background: var(--task-rail-bg);
@@ -97,16 +103,14 @@
   opacity: 0;
 }
 
-/* Reveal on hover of the whole rail, or when pinned */
+/* Reveal on hover of the whole rail, or when pinned. Only .task-rail-panel's
+   own width needs to grow now (it's out of flow, see .task-rail above) --
+   there's no longer a matching rule growing .task-rail itself, since doing
+   so would just reintroduce an oversized hover zone in a different shape. */
 .task-rail:hover .task-rail-panel,
 .task-rail-pinned .task-rail-panel {
   width: calc(var(--task-rail-expanded-w) - var(--task-rail-collapsed-w));
   opacity: 1;
-}
-
-.task-rail:hover,
-.task-rail-pinned {
-  width: var(--task-rail-expanded-w);
 }
 
 .task-rail-panel-header {
@@ -216,23 +220,19 @@
 
 /* ---------- Small-viewport fallback ----------
    Below ~768px, hover is unreliable (touch) -- the rail is opened by tap
-   instead, via the .task-rail-open class toggled in task-rail.js. */
+   instead, via the .task-rail-open class toggled in task-rail.js. Only
+   .task-rail-panel's own width/opacity need to change here, same reasoning
+   as the desktop hover rules above -- .task-rail itself no longer needs a
+   matching width rule now that the panel is out of flow (position:absolute). */
 @media (max-width: 768px) {
   .task-rail:hover .task-rail-panel {
     width: 0;
     opacity: 0;
   }
-  .task-rail:hover {
-    width: var(--task-rail-collapsed-w);
-  }
   .task-rail.task-rail-open .task-rail-panel {
     width: calc(100vw - var(--task-rail-collapsed-w));
     max-width: 320px;
     opacity: 1;
-  }
-  .task-rail.task-rail-open {
-    width: 100vw;
-    max-width: calc(320px + var(--task-rail-collapsed-w));
   }
 }
 
