@@ -24,7 +24,6 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.WorkspaceOptionRow;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import jakarta.enterprise.context.SessionScoped;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
@@ -138,7 +137,7 @@ import lombok.extern.slf4j.Slf4j;
  * see that class's Javadoc.
  */
 @Named
-@SessionScoped 
+@ViewScoped  
 @Getter
 @Setter
 @RequiredArgsConstructor
@@ -324,12 +323,12 @@ public class UploadFilesBean extends BaseBean {
 
     private List<FileUploadDTO> uploadToCommonService() throws Exception {
         final FileUploadRequestDTO request = new FileUploadRequestDTO();
+        request.setCompanyId(COMPANY_ID_PLACEHOLDER);
         request.setSourceApp(SOURCE_APP);
         request.setOwnerType(OWNER_TYPE);
         // Random rather than a fixed placeholder -- see class Javadoc's
         // OWNER/SOURCE/COMPANY VALUES ARE PLACEHOLDERS note for why.
         request.setOwnerId((long) ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE));
-        request.setCompanyId(COMPANY_ID_PLACEHOLDER);
         request.setContainerName(CONTAINER_NAME);
         request.setFiles(uploadedFiles.stream()
             .map(row -> {
