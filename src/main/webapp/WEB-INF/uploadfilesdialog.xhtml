@@ -14,13 +14,24 @@
         UploadFilesBean.addToPipeline() - this is what actually calls
         through to common-service's FileStorageController.upload() (see
         that bean for the Azure-transfer flow and its current placeholder
-        ownerId). Workspace assignment, destination choice, comments, and
-        "assign to" are still static/unbound markup - wiring those to
+        companyId). Workspace assignment, destination choice, comments,
+        and "assign to" are still static/unbound markup - wiring those to
         UploadFilesBean's existing fields is a later pass.
 
-        Opened from dashboard.xhtml's "Upload Files" button via
-        PF('uploadFilesDialog').show() (see the onclick there) - no ajax
-        postback needed just to open it.
+        RESET: opening this dialog (dashboard.xhtml's "Upload Files"
+        button) and closing it via Cancel or the X button all now go
+        through real ajax calls into UploadFilesBean.reset(), not a bare
+        client-side PF(...).show()/hide() - see that bean's class Javadoc
+        (LIFECYCLE / RESET) for why a same-page re-open after an abandoned
+        upload needed a server-side reset point, not just the client-side
+        widget clear already handled by ufdOnDialogShow() in
+        upload-files-dialog.js.
+
+        FAILURE HANDLING: commitToPipeline's oncomplete only closes the
+        dialog when UploadFilesBean.submissionSuccessful is true - on
+        failure the dialog stays open, nothing is reset, and the error
+        message (added by the bean, rendered by ufdMessages below) stays
+        visible so the user knows what happened and can just retry.
     -->
     <p:dialog widgetVar="uploadFilesDialog"
               modal="true"
@@ -49,17 +60,52 @@
              uploadedFiles list. p:fileUpload's oncomplete callback only
              fires once every queued file has actually finished uploading,
              so that's what triggers this instead (see the button's onclick
-             and p:fileUpload's oncomplete below). -->
+             and p:fileUpload's oncomplete below).
+
+             update includes this whole form (not @none) so a failed
+             submission's error message renders, and so a successful one's
+             reset fields are reflected before the next open. oncomplete
+             only closes the dialog when UploadFilesBean.submissionSuccessful
+             is true - on failure the dialog stays open with the user's
+             files/comments/destination choice intact (see
+             UploadFilesBean.addToPipeline() for why) and the error message
+             below is what tells them what happened.
+
+             update target is the bare absolute id ":uploadFilesDialogForm"
+             (leading colon, no wrapper) - NOT "@(:uploadFilesDialogForm)".
+             @(...) is PrimeFaces' jQuery-selector search-expression syntax
+             (for CSS selectors), not for referencing a component by id;
+             wrapping a colon-prefixed id inside it makes PrimeFaces try to
+             parse ":uploadFilesDialogForm" as CSS, which fails - this was
+             the actual cause of the button silently not opening the
+             dialog in an earlier pass (oncomplete never ran once ajax
+             response processing errored out on the bad search
+             expression). -->
         <p:remoteCommand name="commitToPipeline" action="#{uploadFilesBean.addToPipeline}"
-                          process="@this" update="@none"
+                          process="@this" update=":uploadFilesDialogForm"
+                          oncomplete="if (#{uploadFilesBean.submissionSuccessful}) { PF('uploadFilesDialog').hide(); }"/>
+
+        <!-- Shared by Cancel and the X close button - see
+             UploadFilesBean.reset()'s Javadoc for why closing/cancelling
+             also resets server-side state promptly rather than waiting
+             for the next open to do it. -->
+        <p:remoteCommand name="resetDialog" action="#{uploadFilesBean.reset}"
+                          process="@this" update=":uploadFilesDialogForm"
                           oncomplete="PF('uploadFilesDialog').hide();"/>
+
+        <!-- globalOnly intentionally omitted (defaults to false) - this
+             needs to show BOTH the bean's global messages (added with a
+             null clientId, e.g. addToPipeline()'s failure message) AND
+             p:validateFile's own component-scoped validation messages
+             (invalid type/size), which are NOT global. -->
+        <p:messages id="ufdMessages" showDetail="true" closable="true"/>
 
         <div class="ufd-header">
             <div>
                 <h2 class="ufd-title">Upload Files</h2>
                 <p class="ufd-subtitle">Add documents to the pipeline and set their destination.</p>
             </div>
-            <button type="button" class="ufd-close-btn" onclick="PF('uploadFilesDialog').hide();" aria-label="Close">
+            <button type="button" class="ufd-close-btn" onclick="resetDialog();" aria-label="Close">
                 <i class="pi pi-times"/>
             </button>
         </div>
@@ -73,13 +119,35 @@
                     <span>Accepted: PDF, DOCX, JPG, JPEG, PNG, TIFF &#8212; max 100 MB per file</span>
                 </div>
 
-                <!-- Real transport as of this pass: advanced/multiple mode,
-                     auto="false" so files queue client-side (drag/drop or
-                     click-to-browse, both built in) and are only actually
-                     sent when "Add to Pipeline" calls
-                     PF('ufdFileUploadWidget').upload() - each file arrives
-                     as its own ajax call, invoking
-                     UploadFilesBean.handleFileUpload() once per file.
+                <!-- auto="true" (changed from "false" per chat): dropping/
+                     selecting a file now transmits it immediately - that's
+                     what actually drives PrimeFaces' native per-file
+                     progress bar at the moment the user expects to see it
+                     (on drop), rather than deferring the real transfer
+                     until "Add to Pipeline" is clicked. Each file still
+                     arrives at UploadFilesBean.handleFileUpload() as its
+                     own event once its own transfer completes.
+
+                     onstart/oncomplete/onerror track how many uploads are
+                     currently in flight (see upload-files-dialog.js) and
+                     disable "Add to Pipeline" while count > 0 - needed
+                     now specifically because auto mode decouples the
+                     button's click from any single file's completion;
+                     without this, clicking while a drop is still
+                     transferring could commit an incomplete file list.
+
+                     update targets ufdUploadedFileList as a fully
+                     form-qualified id (uploadFilesDialogForm:...) rather
+                     than a bare relative one - this is a real JSF
+                     UIComponent (a p:outputPanel, not a plain <div>), so
+                     the ajax partial-render correctly finds and replaces
+                     it; a bare HTML div with a hardcoded id can never be
+                     an update target at all, since JSF resolves update
+                     search expressions against the component tree, not
+                     raw DOM - that was the actual root cause of files
+                     disappearing from the list right after a successful
+                     upload in an earlier pass, not a p:fileUpload
+                     transport quirk as first suspected.
 
                      styleClass only lightly reskins this to sit inside the
                      card look (see upload-files-dialog.css's
@@ -93,14 +161,46 @@
                               styleClass="ufd-p-fileupload"
                               mode="advanced"
                               multiple="true"
-                              auto="false"
+                              auto="true"
                               dragDrop="true"
                               listener="#{uploadFilesBean.handleFileUpload}"
                               process="@this"
-                              update="@none"
-                              oncomplete="commitToPipeline();">
+                              update="uploadFilesDialogForm:ufdUploadedFileList ufdMessages"
+                              onstart="ufdOnUploadStart();"
+                              oncomplete="ufdOnUploadSettled();"
+                              onerror="ufdOnUploadSettled();">
                               <p:validateFile fileLimit="50" sizeLimit="104857600" allowTypes="/(\.|\/)(pdf|docx?|jpe?g|png|tiff?)$/" />
                 </p:fileUpload>
+
+                <!-- Persistent list of files actually landed in
+                     UploadFilesBean.uploadedFiles - NOT p:fileUpload's own
+                     file rows, which PrimeFaces clears once each upload
+                     completes (that widget's list is "currently
+                     selected/uploading", not a durable record of what's
+                     been added; that mismatch is why a successfully
+                     uploaded file was disappearing right after its
+                     progress bar finished). Refreshed by p:fileUpload's
+                     own update (above) after each file's own upload
+                     completes - no separate remote command needed since
+                     handleFileUpload() already runs in that same ajax
+                     call. -->
+                <p:outputPanel id="ufdUploadedFileList">
+                    <div class="ufd-file-list">
+                        <ui:fragment rendered="#{empty uploadFilesBean.uploadedFiles}">
+                            <div class="ufd-empty-state">No files added yet</div>
+                        </ui:fragment>
+                        <ui:repeat var="file" value="#{uploadFilesBean.uploadedFiles}">
+                            <div class="ufd-file-row">
+                                <i class="pi pi-file"/>
+                                <span class="ufd-file-name">#{file.fileName}</span>
+                                <span class="ufd-file-size" style="color:#8B8A82;font-size:0.78rem;">#{file.formattedSize}</span>
+                                <p:commandButton icon="pi pi-times" styleClass="ufd-file-remove ui-button-flat"
+                                                action="#{uploadFilesBean.removeFile(file)}"
+                                                process="@this" update="uploadFilesDialogForm:ufdUploadedFileList"/>
+                            </div>
+                        </ui:repeat>
+                    </div>
+               </p:outputPanel>
             </div>
 
             <!-- ==================== RIGHT: target context ==================== -->
@@ -165,20 +265,21 @@
 
         <div class="ufd-footer">
             <p:commandButton type="button" value="Cancel" styleClass="ui-button-secondary"
-                              onclick="PF('uploadFilesDialog').hide();"/>
+                              onclick="resetDialog();"/>
             <!-- type="button" deliberately kept - this button's own default
-                 ajax submit is never used. If files are queued, kick off
-                 the upload; p:fileUpload's oncomplete (above) then calls
-                 commitToPipeline() once every file has actually finished,
-                 which is what invokes UploadFilesBean.addToPipeline().
-                 If nothing is queued (comments/destination-only submit,
-                 no new files this time), there's no upload to wait on, so
-                 commitToPipeline() is called immediately instead -
-                 otherwise oncomplete never fires and the click would do
-                 nothing. -->
+                 ajax submit is never used; commitToPipeline() (the remote
+                 command above) is what actually invokes
+                 UploadFilesBean.addToPipeline(). Simplified now that
+                 auto="true" means every dropped/selected file already
+                 finished uploading into the bean well before this click -
+                 no more branching to conditionally trigger .upload()
+                 first. disabled while an upload is still in flight (see
+                 ufdOnUploadStart/ufdOnUploadSettled in
+                 upload-files-dialog.js) so this can't fire against an
+                 incomplete uploadedFiles list. -->
             <p:commandButton type="button" id="ufdAddToPipelineBtn" value="Add to Pipeline"
                               icon="pi pi-cloud-upload"
-                              onclick="if (PF('ufdFileUploadWidget').files.length > 0) { PF('ufdFileUploadWidget').upload(); } else { commitToPipeline(); }"/>
+                              onclick="commitToPipeline();"/>
         </div>
 
       </h:form>

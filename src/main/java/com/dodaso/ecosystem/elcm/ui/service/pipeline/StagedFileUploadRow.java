@@ -30,4 +30,19 @@ public class StagedFileUploadRow implements Serializable {
     private final long sizeBytes;
     private final String contentType;
     private final byte[] content;
+
+    /** Human-readable size for the dialog's persistent file list (see
+     * uploadfilesdialog.xhtml) -- kept here rather than formatted in EL so
+     * the same logic isn't duplicated across views if this row type ever
+     * gets displayed elsewhere. Not backed by a field, so Lombok's
+     * @Getter doesn't touch it. */
+    public String getFormattedSize() {
+        if (sizeBytes < 1024) {
+            return sizeBytes + " B";
+        }
+        if (sizeBytes < 1024 * 1024) {
+            return String.format("%.0f KB", sizeBytes / 1024.0);
+        }
+        return String.format("%.1f MB", sizeBytes / (1024.0 * 1024.0));
+    }
 }

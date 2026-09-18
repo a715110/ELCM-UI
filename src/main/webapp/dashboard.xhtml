@@ -102,11 +102,29 @@
         <h1>Document Pipeline</h1>
         <p class="section-subtitle">Monitor and manage staged documents before submission to processing.</p>
       </div>
-      <!-- onclick returns false so PrimeFaces' normal ajax submit never
-           fires opening a static dialog doesn't need a bean action.
-           See WEB-INF/uploadfilesdialog.xhtml (screen design only for now). -->
-      <p:commandButton value="Upload Files" icon="pi pi-cloud-upload" styleClass="ui-button-primary"
-                        onclick="PF('uploadFilesDialog').show(); return false;"/>
+      <!-- Wrapped in its own tiny form (there wasn't one before) because
+           this button now needs a real ajax action: it resets
+           UploadFilesBean's server-side state (see that bean's LIFECYCLE
+           / RESET Javadoc) BEFORE the dialog shows, guaranteeing a clean
+           slate on every open regardless of how a previous attempt ended
+           (abandoned mid-upload, closed without submitting, etc.) - a
+           bare client-side PF(...).show() can't do that on its own since
+           it never reaches the server. process="@this" keeps this from
+           submitting/validating any of the page's other forms
+           (stageDocumentsForm, contractPackagesForm).
+
+           update is the bare absolute id ":uploadFilesDialogForm" -
+           NOT "@(:uploadFilesDialogForm)". See the matching note on
+           commitToPipeline in uploadfilesdialog.xhtml for why that
+           distinction actually matters here (it was the root cause of
+           this button silently failing to open the dialog at all in an
+           earlier pass). -->
+      <h:form id="uploadFilesTriggerForm">
+        <p:commandButton value="Upload Files" icon="pi pi-cloud-upload" styleClass="ui-button-primary"
+                          action="#{uploadFilesBean.reset}" process="@this"
+                          update=":uploadFilesDialogForm"
+                          oncomplete="PF('uploadFilesDialog').show();"/>
+      </h:form>
     </div>
 
     <ui:include src="/WEB-INF/uploadfilesdialog.xhtml"/>

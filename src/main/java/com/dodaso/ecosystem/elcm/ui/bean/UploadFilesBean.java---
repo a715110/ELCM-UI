@@ -23,8 +23,6 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.UploadFilesService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.WorkspaceOptionRow;
 
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
-import jakarta.enterprise.context.SessionScoped;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
@@ -42,17 +40,12 @@ import lombok.extern.slf4j.Slf4j;
  * feeds Stage Documents.
  *
  * FILE TRANSPORT (browser -> elcm-ui): PrimeFaces <p:fileUpload
- * mode="advanced" multiple="true" auto="true" listener="#{uploadFilesBean.
- * handleFileUpload}"> in uploadfilesdialog.xhtml. auto="true" (changed
- * from "false" per chat): each dropped/selected file is transmitted
- * immediately rather than queuing client-side until "Add to Pipeline" is
- * clicked -- that's what actually drives PrimeFaces' native per-file
- * progress bar at the moment the user expects to see it (on drop), and
- * lands the file in this bean's uploadedFiles well before "Add to
- * Pipeline" is ever clicked. See uploadfilesdialog.xhtml's onstart/
- * oncomplete/onerror wiring for how the button is disabled while any
- * upload is still in flight, since auto mode decouples the button's
- * click from any single file's own completion.
+ * mode="advanced" multiple="true" auto="false" listener="#{uploadFilesBean.
+ * handleFileUpload}"> in uploadfilesdialog.xhtml. auto="false" matters
+ * here: files queue in the component client-side as they're picked/
+ * dropped, and are only actually transmitted (each as its own ajax call,
+ * invoking handleFileUpload once per file below) when the dialog's "Add
+ * to Pipeline" button calls PF('ufdFileUploadWidget').upload().
  *
  * FILE TRANSPORT (elcm-ui -> common-service): addToPipeline() below posts
  * the accumulated uploadedFiles to common-service's
@@ -63,32 +56,22 @@ import lombok.extern.slf4j.Slf4j;
  * (byte[]) round-trips as a base64 JSON string automatically via Jackson.
  *
  * LIFECYCLE / RESET (confirmed in chat): this bean is @ViewScoped, so a
- * page refresh alone already discards any uploadedFiles that were sitting
- * in it -- a refresh requests a new view, which gets an entirely new bean
- * instance, and the old one (holding whatever files had auto-uploaded
- * into it but never reached addToPipeline()) becomes unreachable and is
- * garbage-collected. No explicit reset call is needed for that specific
- * case; preDestroy() below only adds a log line for production
- * observability (so an abandoned-mid-upload batch is visible in logs),
- * it doesn't do anything the GC wasn't already going to do.
- *
- * The real risk reset()/resetState() actually address is a SAME-page,
- * later re-open of the dialog after an earlier attempt was abandoned
- * (Cancel/X, or simply navigating away within the same view without a
- * refresh) partway through populating uploadedFiles: since
- * handleFileUpload() only APPENDS and the only reset point used to be
- * success-only (inside addToPipeline() after a completed submission),
- * those orphaned entries would otherwise silently survive and get
- * bundled into the NEXT submission alongside genuinely new files.
- * reset() is wired (see uploadfilesdialog.xhtml / dashboard.xhtml) to
- * fire on every dialog OPEN (the actual correctness fix) and on
- * Cancel/close (frees the in-memory file bytes promptly on explicit
- * abandonment rather than leaving them held until whatever later moment
- * the dialog happens to reopen). This matters more now that
- * p:fileUpload is auto="true" -- files land in uploadedFiles the moment
- * they're dropped, well before "Add to Pipeline" is ever clicked, so
- * there's a wider window in which Cancel/X could be hit with files
- * already sitting in memory.
+ * page refresh alone already gives a fresh instance -- that's not the
+ * risk. The real risk is a SAME-page, later re-open of the dialog after
+ * an earlier attempt was abandoned mid-upload (browser closed, connection
+ * dropped, user navigated away) partway through populating uploadedFiles:
+ * since handleFileUpload() only APPENDS and the only reset point used to
+ * be success-only (inside addToPipeline() after a completed submission),
+ * those orphaned entries would silently survive and get bundled into the
+ * NEXT submission alongside genuinely new files. reset() below is the
+ * fix -- it's wired (see uploadfilesdialog.xhtml / dashboard.xhtml) to
+ * fire on every dialog OPEN (the actual correctness fix -- guarantees a
+ * clean slate regardless of how the previous attempt ended) and on
+ * Cancel/close (not strictly required for correctness, since open-time
+ * reset alone prevents stale data from ever being submitted, but frees
+ * the in-memory file bytes promptly on explicit abandonment rather than
+ * leaving them held until whatever later moment the dialog happens to
+ * reopen).
  *
  * FAILURE HANDLING: a failed addToPipeline() (common-service unreachable,
  * network error, etc.) does NOT reset state and does NOT close the dialog
@@ -138,7 +121,7 @@ import lombok.extern.slf4j.Slf4j;
  * see that class's Javadoc.
  */
 @Named
-@SessionScoped 
+@ViewScoped
 @Getter
 @Setter
 @RequiredArgsConstructor
@@ -186,23 +169,6 @@ public class UploadFilesBean extends BaseBean {
     @PostConstruct
     void init() {
         resetState();
-    }
-
-    /**
-     * Purely observational -- see class Javadoc's LIFECYCLE / RESET
-     * section. Doesn't clear anything (there's nothing left to clear;
-     * this whole instance is being discarded), just logs when a page
-     * refresh/navigation-away is discarding files that were auto-uploaded
-     * into this bean but never reached addToPipeline(), so that's visible
-     * in production logs rather than silently vanishing.
-     */
-    @PreDestroy
-    void preDestroy() {
-        if (uploadedFiles != null && !uploadedFiles.isEmpty()) {
-            log.warn("UploadFilesBean destroyed with {} file(s) never submitted via addToPipeline() "
-                + "(likely a page refresh or navigation away before clicking Add to Pipeline); "
-                + "these were held in memory only and are now discarded.", uploadedFiles.size());
-        }
     }
 
     /**
@@ -269,18 +235,6 @@ public class UploadFilesBean extends BaseBean {
     }
 
     /**
-     * Removes one already-uploaded file from the dialog's persistent list
-     * (see uploadfilesdialog.xhtml's ufdUploadedFileList) before "Add to
-     * Pipeline" is clicked. Reference-based removal (StagedFileUploadRow
-     * has no equals()/hashCode() override) is fine here -- the instance
-     * passed back from EL is the exact same one held in this list, since
-     * it came from iterating uploadedFiles itself in the first place.
-     */
-    public void removeFile(final StagedFileUploadRow file) {
-        uploadedFiles.remove(file);
-    }
-
-    /**
      * "Add to Pipeline" button action (invoked via the commitToPipeline
      * remote command once every queued file has finished uploading -- see
      * uploadfilesdialog.xhtml). Sends every file accumulated in
@@ -324,13 +278,21 @@ public class UploadFilesBean extends BaseBean {
 
     private List<FileUploadDTO> uploadToCommonService() throws Exception {
         final FileUploadRequestDTO request = new FileUploadRequestDTO();
-        request.setSourceApp(SOURCE_APP);
-        request.setOwnerType(OWNER_TYPE);
-        // Random rather than a fixed placeholder -- see class Javadoc's
-        // OWNER/SOURCE/COMPANY VALUES ARE PLACEHOLDERS note for why.
-        request.setOwnerId((long) ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE));
+
+        request.setOwnerType("STAGED_DOCUMENT");
+        int positiveInt = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
+        request.setOwnerId(Long.valueOf(positiveInt));
+        request.setSourceApp("ELCM");
         request.setCompanyId(COMPANY_ID_PLACEHOLDER);
         request.setContainerName(CONTAINER_NAME);
+
+        //request.setSourceApp(SOURCE_APP);
+        //request.setOwnerType(OWNER_TYPE);
+        // Random rather than a fixed placeholder -- see class Javadoc's
+        // OWNER/SOURCE/COMPANY VALUES ARE PLACEHOLDERS note for why.
+        //request.setOwnerId((long) ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE));
+        //request.setCompanyId(COMPANY_ID_PLACEHOLDER);
+        //request.setContainerName(CONTAINER_NAME);
         request.setFiles(uploadedFiles.stream()
             .map(row -> {
                 final FileItemDTO item = new FileItemDTO();
