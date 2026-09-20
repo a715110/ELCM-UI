@@ -607,6 +607,12 @@
       <version>${revision}</version>
     </dependency>
 
+    <dependency>
+      <artifactId>elcm-data-model</artifactId>
+      <groupId>com.dodaso.ecosystem.elcm.data.model</groupId>
+      <version>${revision}</version>
+    </dependency>
+
   </dependencies>
   <dependencyManagement>
     <dependencies>

@@ -1,6 +1,9 @@
 package com.dodaso.ecosystem.elcm.ui.service.pipeline;
 
 import java.io.Serializable;
+
+import com.dodaso.ecosystem.elcm.dto.WorkspaceDTO;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -12,7 +15,17 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class WorkspaceOptionRow implements Serializable {
-    private final String code;        // e.g. "RETAIL"
-    private final String label;       // e.g. "Retail" (the pill text)
-    private final String description; // e.g. "Retail Portfolio"
+    private final String code; // e.g. "RETAIL"
+    private final String label; // e.g. "Retail" (the pill text)
+    private final String description; // e.g. "Retail Portfolio" idential to Business Area
+
+    public static WorkspaceOptionRow fromDto(WorkspaceDTO dto) {
+        if (dto == null) {
+            return null;
+        }
+        return new WorkspaceOptionRow(
+                dto.getCode(),
+                dto.getName(),
+                dto.getBusinessArea());
+    }
 }

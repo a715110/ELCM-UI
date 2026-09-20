@@ -38,6 +38,8 @@
               resizable="false"
               closable="false"
               draggable="false"
+              dynamic="true"
+              cache="false"
               showHeader="false"
               onShow="ufdOnDialogShow();"
               styleClass="upload-files-dialog"
@@ -214,17 +216,35 @@
                     WORKSPACE <span class="ufd-required">*</span>
                     <span class="ufd-field-note">(assigned workspace)</span>
                 </div>
-                <div class="ufd-workspace-select">
+                <!-- <div class="ufd-workspace-select">
                     <span class="ufd-workspace-dot"/>
                     <span class="ufd-workspace-name">Retail</span>
                     <span class="ufd-workspace-desc">Retail Portfolio</span>
                     <i class="pi pi-chevron-down ufd-workspace-chevron"/>
-                </div>
+                </div> -->
+
+                <p:selectOneMenu id="ufdWorkspaceSelect"
+                                  styleClass="ufd-workspace-select"
+                                  value="#{uploadFilesBean.assignedWorkspace.code}"
+                                  required="true"
+                                  requiredMessage="Please select a workspace.">
+                    <f:selectItems value="#{uploadFilesBean.availableWorkspaces}"
+                                    var="ws"
+                                    itemValue="#{ws.code}"
+                                    itemLabel="#{ws.label} — #{ws.description}"/>
+                </p:selectOneMenu>
+
                 <p class="ufd-helper-text">
                     All files assigned to <strong>Retail</strong> workspace. Assigned at onboarding &#8212; change to override.
                 </p>
 
                 <div class="ufd-field-label">WHERE SHOULD THESE DOCUMENTS GO?</div>
+
+                <p:selectOneRadio id="ufdDestinationGroup" layout="custom"
+                                    value="#{uploadFilesBean.destinationChoice}">
+                    <f:selectItems value="#{uploadFilesBean.destinationChoiceOptions}" var="dc" itemValue="#{dc}" itemLabel="#{dc}"/>
+                </p:selectOneRadio>
+
                 <div class="ufd-destination-cards" role="radiogroup" aria-label="Document destination">
                     <div class="ufd-dest-card" data-dest="new" role="radio" aria-checked="false" tabindex="0">
                         <div class="ufd-dest-icon"><i class="pi pi-plus"/></div>

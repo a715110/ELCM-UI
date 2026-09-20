@@ -99,19 +99,19 @@ import lombok.extern.slf4j.Slf4j;
  *
  * TWO BLOCKERS, confirmed in chat, that must be resolved outside this file
  * before this compiles/runs:
- *   1. ServiceDiscoveryEnum.common_service does not exist yet --
- *      ServiceDiscoveryEnum lives in baseline-common (a compiled
- *      dependency with no source in this project), so it can't be added
- *      from elcm-ui. Needs an entry there mirroring elcm_service/
- *      iams_service, whose value must match whatever common-service is
- *      actually registered as in Eureka.
- *   2. That registration name currently has a real bug: common-service's
- *      application.properties (the shared non-local base file) sets
- *      spring.application.name=ecws-service -- almost certainly a
- *      copy/paste leftover -- while application-local.properties
- *      correctly says common_service. Until that's fixed, non-local
- *      profiles would register common-service under the wrong Eureka
- *      name and this call would resolve to the wrong service (or fail).
+ * 1. ServiceDiscoveryEnum.common_service does not exist yet --
+ * ServiceDiscoveryEnum lives in baseline-common (a compiled
+ * dependency with no source in this project), so it can't be added
+ * from elcm-ui. Needs an entry there mirroring elcm_service/
+ * iams_service, whose value must match whatever common-service is
+ * actually registered as in Eureka.
+ * 2. That registration name currently has a real bug: common-service's
+ * application.properties (the shared non-local base file) sets
+ * spring.application.name=ecws-service -- almost certainly a
+ * copy/paste leftover -- while application-local.properties
+ * correctly says common_service. Until that's fixed, non-local
+ * profiles would register common-service under the wrong Eureka
+ * name and this call would resolve to the wrong service (or fail).
  *
  * OWNER/SOURCE/COMPANY VALUES ARE PLACEHOLDERS: ownerType="STAGED_DOCUMENT"
  * and companyId=0L below are temporary. There is no real staged_document
@@ -137,7 +137,7 @@ import lombok.extern.slf4j.Slf4j;
  * see that class's Javadoc.
  */
 @Named
-@ViewScoped  
+@ViewScoped
 @Getter
 @Setter
 @RequiredArgsConstructor
@@ -154,37 +154,61 @@ public class UploadFilesBean extends BaseBean {
     private final UploadFilesService uploadFilesService;
 
     private WorkspaceOptionRow assignedWorkspace;
+    private List<WorkspaceOptionRow> availableWorkspaces;
     private List<String> assignableUsers;
 
     private DestinationChoiceEnum destinationChoice;
     private String comments;
     private String assignToUser;
 
-    /** Files received so far via handleFileUpload(), one entry per file --
+    /**
+     * Files received so far via handleFileUpload(), one entry per file --
      * p:fileUpload's advanced/multiple mode invokes the listener once per
      * file rather than once for the whole batch, so this accumulates
      * across however many ajax calls PF('ufdFileUploadWidget').upload()
-     * triggers. */
+     * triggers.
+     */
     private List<StagedFileUploadRow> uploadedFiles;
 
-    /** Result of the most recent common-service call, if any -- not yet
+    /**
+     * Result of the most recent common-service call, if any -- not yet
      * consumed by StageDocumentsBean's table (see class Javadoc); kept
-     * here mainly so the outcome is inspectable/loggable for now. */
+     * here mainly so the outcome is inspectable/loggable for now.
+     */
     private List<FileUploadDTO> persistedFiles;
 
-    /** Set at the end of every addToPipeline() attempt (true on success,
+    /**
+     * Set at the end of every addToPipeline() attempt (true on success,
      * false on failure) -- read by uploadfilesdialog.xhtml's
      * commitToPipeline remote command to decide whether to close the
      * dialog. Starts true so an ajax response glitch before the field is
      * ever set doesn't accidentally block a legitimate close; every real
      * addToPipeline() call always sets it explicitly either way before
      * the ajax response is rendered, so this default is never actually
-     * observed by the client in practice. */
+     * observed by the client in practice.
+     */
     private boolean submissionSuccessful = true;
 
     @PostConstruct
     void init() {
+        loadLookupData();
+
         resetState();
+    }
+
+    private void loadLookupData() {
+        try {
+            assignedWorkspace = uploadFilesService.findAssignedWorkspace(loginId);
+            availableWorkspaces = uploadFilesService.findAllWorkspaces();
+            assignableUsers = uploadFilesService.findAssignableUsers();
+        } catch (final Exception e) {
+            log.error("Failed to load lookup data in UploadFilesBean", e);
+            assignedWorkspace = null;
+            availableWorkspaces = List.of();
+            assignableUsers = List.of();
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
+                    FacesMessage.SEVERITY_WARN, "Some upload options could not be loaded", "You can still add files."));
+        }
     }
 
     /**
@@ -199,38 +223,30 @@ public class UploadFilesBean extends BaseBean {
     void preDestroy() {
         if (uploadedFiles != null && !uploadedFiles.isEmpty()) {
             log.warn("UploadFilesBean destroyed with {} file(s) never submitted via addToPipeline() "
-                + "(likely a page refresh or navigation away before clicking Add to Pipeline); "
-                + "these were held in memory only and are now discarded.", uploadedFiles.size());
+                    + "(likely a page refresh or navigation away before clicking Add to Pipeline); "
+                    + "these were held in memory only and are now discarded.", uploadedFiles.size());
         }
     }
 
     /**
      * Public re-entry point for resetState() -- see class Javadoc's
      * LIFECYCLE / RESET section for why this needs to be callable outside
+     * 
      * @PostConstruct (dialog re-open and Cancel/close, not just bean
-     * construction). Bound as a real ajax action from
-     * uploadfilesdialog.xhtml (Cancel/X-close) and dashboard.xhtml
-     * (the "Upload Files" button that opens this dialog).
+     *                construction). Bound as a real ajax action from
+     *                uploadfilesdialog.xhtml (Cancel/X-close) and dashboard.xhtml
+     *                (the "Upload Files" button that opens this dialog).
      */
     public void reset() {
         resetState();
     }
 
+    public DestinationChoiceEnum[] getDestinationChoiceOptions() {
+        return DestinationChoiceEnum.values();
+    }
+
     private void resetState() {
-        try {
-            assignedWorkspace = uploadFilesService.findAssignedWorkspace(loginId);
-            assignableUsers = uploadFilesService.findAssignableUsers();
-        } catch (final Exception e) {
-            // A hiccup loading placeholder lookup data shouldn't block the
-            // dialog from opening/resetting at all -- degrade to empty/
-            // null rather than leaving the dialog stuck unusable, but
-            // surface it so it's not silently invisible either.
-            log.error("Failed to load workspace/assignable-users data while resetting UploadFilesBean", e);
-            assignedWorkspace = null;
-            assignableUsers = List.of();
-            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
-                FacesMessage.SEVERITY_WARN, "Some upload options could not be loaded", "You can still add files."));
-        }
+
         destinationChoice = null;
         comments = null;
         assignToUser = null;
@@ -249,10 +265,10 @@ public class UploadFilesBean extends BaseBean {
         final UploadedFile uploadedFile = event.getFile();
         try {
             uploadedFiles.add(new StagedFileUploadRow(
-                uploadedFile.getFileName(),
-                uploadedFile.getSize(),
-                uploadedFile.getContentType(),
-                uploadedFile.getContent()));
+                    uploadedFile.getFileName(),
+                    uploadedFile.getSize(),
+                    uploadedFile.getContentType(),
+                    uploadedFile.getContent()));
         } catch (final Exception e) {
             // getContent() can throw depending on the UploadedFile impl
             // (e.g. a temp-file-backed implementation whose file has
@@ -262,8 +278,8 @@ public class UploadFilesBean extends BaseBean {
             // indication anything went wrong.
             log.error("Failed to read uploaded file content for {}", uploadedFile.getFileName(), e);
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
-                FacesMessage.SEVERITY_ERROR, "Couldn't read " + uploadedFile.getFileName(),
-                "This file was skipped; the others in this batch are unaffected."));
+                    FacesMessage.SEVERITY_ERROR, "Couldn't read " + uploadedFile.getFileName(),
+                    "This file was skipped; the others in this batch are unaffected."));
         }
     }
 
@@ -299,7 +315,8 @@ public class UploadFilesBean extends BaseBean {
     public void addToPipeline() {
         try {
             if (assignedWorkspace == null) {
-                throw new IllegalStateException("No workspace is assigned -- cannot determine where to file these documents.");
+                throw new IllegalStateException(
+                        "No workspace is assigned -- cannot determine where to file these documents.");
             }
 
             if (!uploadedFiles.isEmpty()) {
@@ -308,7 +325,7 @@ public class UploadFilesBean extends BaseBean {
             }
 
             uploadFilesService.submitToPipeline(destinationChoice,
-                assignedWorkspace.getCode(), comments, assignToUser);
+                    assignedWorkspace.getCode(), comments, assignToUser);
 
             resetState();
             submissionSuccessful = true;
@@ -316,8 +333,8 @@ public class UploadFilesBean extends BaseBean {
             log.error("addToPipeline failed", e);
             submissionSuccessful = false;
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
-                FacesMessage.SEVERITY_ERROR, "Couldn't add these files to the pipeline",
-                "Nothing was lost -- your files and details are still here. Please try again."));
+                    FacesMessage.SEVERITY_ERROR, "Couldn't add these files to the pipeline",
+                    "Nothing was lost -- your files and details are still here. Please try again."));
         }
     }
 
@@ -331,14 +348,14 @@ public class UploadFilesBean extends BaseBean {
         request.setOwnerId((long) ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE));
         request.setContainerName(CONTAINER_NAME);
         request.setFiles(uploadedFiles.stream()
-            .map(row -> {
-                final FileItemDTO item = new FileItemDTO();
-                item.setFileName(row.getFileName());
-                item.setContentType(row.getContentType());
-                item.setContent(row.getContent());
-                return item;
-            })
-            .collect(Collectors.toList()));
+                .map(row -> {
+                    final FileItemDTO item = new FileItemDTO();
+                    item.setFileName(row.getFileName());
+                    item.setContentType(row.getContentType());
+                    item.setContent(row.getContent());
+                    return item;
+                })
+                .collect(Collectors.toList()));
 
         // Same restServiceClient/RESTReqContainer(serviceDiscoveryName,
         // endpoint, requestBody, responseType, httpMethod) shape used by
@@ -349,12 +366,12 @@ public class UploadFilesBean extends BaseBean {
         final FileUploadDTOContainer fileUploadDTOContainer = new FileUploadDTOContainer();
         fileUploadDTOContainer.setFileUploadRequestDTO(request);
         final RESTReqContainer<FileUploadDTOContainer> restReqContainer = new RESTReqContainer<>(
-            ServiceDiscoveryEnum.common_service.getServiceDiscoveryName(),
-            FileStorageControllerAPIEnum.upload.getEndPoint(),
-            fileUploadDTOContainer,
-            new ParameterizedTypeReference<>() {
-            },
-            HttpMethod.POST);
+                ServiceDiscoveryEnum.common_service.getServiceDiscoveryName(),
+                FileStorageControllerAPIEnum.upload.getEndPoint(),
+                fileUploadDTOContainer,
+                new ParameterizedTypeReference<>() {
+                },
+                HttpMethod.POST);
 
         final FileUploadDTOContainer response = restServiceClient.callRESTService(restReqContainer);
         if (response == null) {
