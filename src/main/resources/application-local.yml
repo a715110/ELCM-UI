@@ -86,6 +86,9 @@ server:
     enabled: true
     min-response-size: 2048
     mime-types: "text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json"
+  tomcat:
+    max-http-form-post-size: 100MB
+    max-swallow-size: 100MB
 
 # Eureka client -- inert until spring-cloud-starter-netflix-eureka-client is
 # added back to pom.xml (see MINIMUM-JARS comment there).
