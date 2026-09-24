@@ -5,7 +5,6 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.StagedDocumentRow;
 import jakarta.annotation.PostConstruct;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Named;
-import java.io.Serializable;
 import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

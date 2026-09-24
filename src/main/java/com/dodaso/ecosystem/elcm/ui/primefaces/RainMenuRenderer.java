@@ -366,7 +366,7 @@ public class RainMenuRenderer extends BaseMenuRenderer {
   @Override
   protected void encodeScript(FacesContext context, AbstractMenu abstractMenu) throws IOException {
     RainMenu menu = (RainMenu) abstractMenu;
-    String clientId = menu.getClientId(context);
+    //String clientId = menu.getClientId(context);
     WidgetBuilder wb = getWidgetBuilder(context);
     wb.init("Rain", menu).finish();
   }

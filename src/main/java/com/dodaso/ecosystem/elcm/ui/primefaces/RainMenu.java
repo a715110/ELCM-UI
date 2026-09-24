@@ -22,7 +22,6 @@ import jakarta.faces.component.UIViewRoot;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.event.AbortProcessingException;
 import jakarta.faces.event.ComponentSystemEvent;
-import jakarta.faces.event.ComponentSystemEventListener;
 import jakarta.faces.event.ListenerFor;
 import jakarta.faces.event.PostAddToViewEvent;
 import org.primefaces.component.api.Widget;
@@ -36,7 +35,7 @@ import org.primefaces.component.menu.AbstractMenu;
 // same reason as before -- see the equivalent note on this class from
 // that earlier fix if it's still in version history.
 @ListenerFor(sourceClass = RainMenu.class, systemEventClass = PostAddToViewEvent.class)
-public class RainMenu extends AbstractMenu implements Widget, ComponentSystemEventListener {
+public class RainMenu extends AbstractMenu implements Widget {
 
   public static final String COMPONENT_TYPE = "org.primefaces.component.RainMenu";
   public static final String COMPONENT_FAMILY = "org.primefaces.component";
