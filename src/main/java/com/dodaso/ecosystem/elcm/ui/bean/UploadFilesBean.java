@@ -144,9 +144,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class UploadFilesBean extends BaseBean {
 
-    private static final String CONTAINER_NAME = "elcm-stage-documents";
-    private static final String SOURCE_APP = "ELCM";
-    private static final String OWNER_TYPE = "STAGED_DOCUMENT";
+    private static final String CONTAINER_NAME = "elcm-documents";
+    private static final String SOURCE_APP = "elcm";
+    private static final String OWNER_TYPE = "staged_document";
     // TODO: placeholder until elcm-ui has a real way to resolve the
     // logged-in user's company/tenant id -- see class Javadoc.
     private static final Long COMPANY_ID_PLACEHOLDER = 0L;
