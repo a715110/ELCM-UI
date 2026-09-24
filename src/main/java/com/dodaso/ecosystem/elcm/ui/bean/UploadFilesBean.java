@@ -137,7 +137,7 @@ import lombok.extern.slf4j.Slf4j;
  * see that class's Javadoc.
  */
 @Named
-@ViewScoped
+@ViewScoped  
 @Getter
 @Setter
 @RequiredArgsConstructor
@@ -154,61 +154,56 @@ public class UploadFilesBean extends BaseBean {
     private final UploadFilesService uploadFilesService;
 
     private WorkspaceOptionRow assignedWorkspace;
+
+    /** Full pick list for the WORKSPACE selector on uploadfilesdialog.xhtml's
+     * right panel ("change to override" the onboarding-assigned workspace).
+     * Populated in resetState() alongside assignedWorkspace; assignedWorkspace
+     * itself remains the selected value AND the one addToPipeline() reads
+     * (assignedWorkspace.getCode()) -- the dropdown binds directly to
+     * assignedWorkspace.code, so overriding the selection updates the same
+     * object the rest of this bean already uses, with no separate
+     * "selected workspace" field to keep in sync.
+     *
+     * REQUIRES a new UploadFilesService method (not yet on that class as
+     * provided): something like List<WorkspaceOptionRow> findAllWorkspaces(),
+     * returning every workspace the current user may file documents into
+     * (findAssignedWorkspace(loginId) presumably already narrows to one; this
+     * is that same lookup's unfiltered/broader counterpart). This bean calls
+     * it below on that assumption -- add it to UploadFilesService (or rename
+     * this call to match whatever the real method ends up being called). */
     private List<WorkspaceOptionRow> availableWorkspaces;
+
     private List<String> assignableUsers;
 
-    private DestinationChoiceEnum destinationChoice;
+    private DestinationChoiceEnum destinationChoice = DestinationChoiceEnum.NEW_RECORD;
     private String comments;
     private String assignToUser;
 
-    /**
-     * Files received so far via handleFileUpload(), one entry per file --
+    /** Files received so far via handleFileUpload(), one entry per file --
      * p:fileUpload's advanced/multiple mode invokes the listener once per
      * file rather than once for the whole batch, so this accumulates
      * across however many ajax calls PF('ufdFileUploadWidget').upload()
-     * triggers.
-     */
+     * triggers. */
     private List<StagedFileUploadRow> uploadedFiles;
 
-    /**
-     * Result of the most recent common-service call, if any -- not yet
+    /** Result of the most recent common-service call, if any -- not yet
      * consumed by StageDocumentsBean's table (see class Javadoc); kept
-     * here mainly so the outcome is inspectable/loggable for now.
-     */
+     * here mainly so the outcome is inspectable/loggable for now. */
     private List<FileUploadDTO> persistedFiles;
 
-    /**
-     * Set at the end of every addToPipeline() attempt (true on success,
+    /** Set at the end of every addToPipeline() attempt (true on success,
      * false on failure) -- read by uploadfilesdialog.xhtml's
      * commitToPipeline remote command to decide whether to close the
      * dialog. Starts true so an ajax response glitch before the field is
      * ever set doesn't accidentally block a legitimate close; every real
      * addToPipeline() call always sets it explicitly either way before
      * the ajax response is rendered, so this default is never actually
-     * observed by the client in practice.
-     */
+     * observed by the client in practice. */
     private boolean submissionSuccessful = true;
 
     @PostConstruct
     void init() {
-        loadLookupData();
-
         resetState();
-    }
-
-    private void loadLookupData() {
-        try {
-            assignedWorkspace = uploadFilesService.findAssignedWorkspace(loginId);
-            availableWorkspaces = uploadFilesService.findAllWorkspaces();
-            assignableUsers = uploadFilesService.findAssignableUsers();
-        } catch (final Exception e) {
-            log.error("Failed to load lookup data in UploadFilesBean", e);
-            assignedWorkspace = null;
-            availableWorkspaces = List.of();
-            assignableUsers = List.of();
-            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
-                    FacesMessage.SEVERITY_WARN, "Some upload options could not be loaded", "You can still add files."));
-        }
     }
 
     /**
@@ -223,30 +218,57 @@ public class UploadFilesBean extends BaseBean {
     void preDestroy() {
         if (uploadedFiles != null && !uploadedFiles.isEmpty()) {
             log.warn("UploadFilesBean destroyed with {} file(s) never submitted via addToPipeline() "
-                    + "(likely a page refresh or navigation away before clicking Add to Pipeline); "
-                    + "these were held in memory only and are now discarded.", uploadedFiles.size());
+                + "(likely a page refresh or navigation away before clicking Add to Pipeline); "
+                + "these were held in memory only and are now discarded.", uploadedFiles.size());
         }
     }
 
     /**
      * Public re-entry point for resetState() -- see class Javadoc's
      * LIFECYCLE / RESET section for why this needs to be callable outside
-     * 
      * @PostConstruct (dialog re-open and Cancel/close, not just bean
-     *                construction). Bound as a real ajax action from
-     *                uploadfilesdialog.xhtml (Cancel/X-close) and dashboard.xhtml
-     *                (the "Upload Files" button that opens this dialog).
+     * construction). Bound as a real ajax action from
+     * uploadfilesdialog.xhtml (Cancel/X-close) and dashboard.xhtml
+     * (the "Upload Files" button that opens this dialog).
      */
     public void reset() {
         resetState();
     }
 
+    /**
+     * Pick list for uploadfilesdialog.xhtml's "WHERE SHOULD THESE DOCUMENTS
+     * GO?" destination cards, bound as a custom-layout p:selectOneRadio over
+     * destinationChoice. Deliberately just DestinationChoiceEnum.values() --
+     * the visible card copy ("New Record" / "Existing Record" / "Not sure --
+     * leave instructions") is written directly into the xhtml rather than
+     * derived from this enum, so this bean never needs to know that enum's
+     * constant names, only that it has exactly three values in the same
+     * order as the three cards. If DestinationChoiceEnum's declaration order
+     * doesn't already match [new, existing, unsure], either reorder its
+     * constants or reorder the p:radioButton index= values in the dialog to
+     * match -- see the dialog's comment on this same assumption.
+     */
     public DestinationChoiceEnum[] getDestinationChoiceOptions() {
         return DestinationChoiceEnum.values();
     }
 
     private void resetState() {
-
+        try {
+            assignedWorkspace = uploadFilesService.findAssignedWorkspace(loginId);
+            availableWorkspaces = uploadFilesService.findAllWorkspaces();
+            assignableUsers = uploadFilesService.findAssignableUsers();
+        } catch (final Exception e) {
+            // A hiccup loading placeholder lookup data shouldn't block the
+            // dialog from opening/resetting at all -- degrade to empty/
+            // null rather than leaving the dialog stuck unusable, but
+            // surface it so it's not silently invisible either.
+            log.error("Failed to load workspace/assignable-users data while resetting UploadFilesBean", e);
+            assignedWorkspace = null;
+            availableWorkspaces = List.of();
+            assignableUsers = List.of();
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
+                FacesMessage.SEVERITY_WARN, "Some upload options could not be loaded", "You can still add files."));
+        }
         destinationChoice = null;
         comments = null;
         assignToUser = null;
@@ -265,10 +287,10 @@ public class UploadFilesBean extends BaseBean {
         final UploadedFile uploadedFile = event.getFile();
         try {
             uploadedFiles.add(new StagedFileUploadRow(
-                    uploadedFile.getFileName(),
-                    uploadedFile.getSize(),
-                    uploadedFile.getContentType(),
-                    uploadedFile.getContent()));
+                uploadedFile.getFileName(),
+                uploadedFile.getSize(),
+                uploadedFile.getContentType(),
+                uploadedFile.getContent()));
         } catch (final Exception e) {
             // getContent() can throw depending on the UploadedFile impl
             // (e.g. a temp-file-backed implementation whose file has
@@ -278,8 +300,8 @@ public class UploadFilesBean extends BaseBean {
             // indication anything went wrong.
             log.error("Failed to read uploaded file content for {}", uploadedFile.getFileName(), e);
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
-                    FacesMessage.SEVERITY_ERROR, "Couldn't read " + uploadedFile.getFileName(),
-                    "This file was skipped; the others in this batch are unaffected."));
+                FacesMessage.SEVERITY_ERROR, "Couldn't read " + uploadedFile.getFileName(),
+                "This file was skipped; the others in this batch are unaffected."));
         }
     }
 
@@ -309,14 +331,21 @@ public class UploadFilesBean extends BaseBean {
      * submissionSuccessful=false so the client keeps the dialog open and
      * shows the error message added below.
      *
+     * FIXED 2026-09-23: previously called submitToPipeline() with only
+     * destinationChoice/workspace/comments/assignToUser -- that method was
+     * itself a no-op stub, so common.file_upload got populated but
+     * elcm.staged_document never did. Now passes persistedFiles (this
+     * method's own upload result) and loginId through as well, and
+     * UploadFilesService.submitToPipeline() actually POSTs to elcm-service
+     * to create the staged_document rows. See that method's Javadoc.
+     *
      * Does NOT yet refresh StageDocumentsBean's table with the result, and
      * does NOT yet wire a real companyId -- see class Javadoc for both.
      */
     public void addToPipeline() {
         try {
             if (assignedWorkspace == null) {
-                throw new IllegalStateException(
-                        "No workspace is assigned -- cannot determine where to file these documents.");
+                throw new IllegalStateException("No workspace is assigned -- cannot determine where to file these documents.");
             }
 
             if (!uploadedFiles.isEmpty()) {
@@ -324,8 +353,9 @@ public class UploadFilesBean extends BaseBean {
                 log.info("common-service returned {} persisted file(s)", persistedFiles.size());
             }
 
+            destinationChoice = DestinationChoiceEnum.NEW_RECORD;
             uploadFilesService.submitToPipeline(destinationChoice,
-                    assignedWorkspace.getCode(), comments, assignToUser);
+                assignedWorkspace.getCode(), comments, assignToUser, loginId, persistedFiles);
 
             resetState();
             submissionSuccessful = true;
@@ -333,8 +363,8 @@ public class UploadFilesBean extends BaseBean {
             log.error("addToPipeline failed", e);
             submissionSuccessful = false;
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
-                    FacesMessage.SEVERITY_ERROR, "Couldn't add these files to the pipeline",
-                    "Nothing was lost -- your files and details are still here. Please try again."));
+                FacesMessage.SEVERITY_ERROR, "Couldn't add these files to the pipeline",
+                "Nothing was lost -- your files and details are still here. Please try again."));
         }
     }
 
@@ -348,14 +378,14 @@ public class UploadFilesBean extends BaseBean {
         request.setOwnerId((long) ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE));
         request.setContainerName(CONTAINER_NAME);
         request.setFiles(uploadedFiles.stream()
-                .map(row -> {
-                    final FileItemDTO item = new FileItemDTO();
-                    item.setFileName(row.getFileName());
-                    item.setContentType(row.getContentType());
-                    item.setContent(row.getContent());
-                    return item;
-                })
-                .collect(Collectors.toList()));
+            .map(row -> {
+                final FileItemDTO item = new FileItemDTO();
+                item.setFileName(row.getFileName());
+                item.setContentType(row.getContentType());
+                item.setContent(row.getContent());
+                return item;
+            })
+            .collect(Collectors.toList()));
 
         // Same restServiceClient/RESTReqContainer(serviceDiscoveryName,
         // endpoint, requestBody, responseType, httpMethod) shape used by
@@ -366,12 +396,12 @@ public class UploadFilesBean extends BaseBean {
         final FileUploadDTOContainer fileUploadDTOContainer = new FileUploadDTOContainer();
         fileUploadDTOContainer.setFileUploadRequestDTO(request);
         final RESTReqContainer<FileUploadDTOContainer> restReqContainer = new RESTReqContainer<>(
-                ServiceDiscoveryEnum.common_service.getServiceDiscoveryName(),
-                FileStorageControllerAPIEnum.upload.getEndPoint(),
-                fileUploadDTOContainer,
-                new ParameterizedTypeReference<>() {
-                },
-                HttpMethod.POST);
+            ServiceDiscoveryEnum.common_service.getServiceDiscoveryName(),
+            FileStorageControllerAPIEnum.upload.getEndPoint(),
+            fileUploadDTOContainer,
+            new ParameterizedTypeReference<>() {
+            },
+            HttpMethod.POST);
 
         final FileUploadDTOContainer response = restServiceClient.callRESTService(restReqContainer);
         if (response == null) {
@@ -384,3 +414,4 @@ public class UploadFilesBean extends BaseBean {
         return response.getFileUploadDTOList() != null ? response.getFileUploadDTOList() : List.of();
     }
 }
+
