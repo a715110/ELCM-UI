@@ -3,7 +3,7 @@
   xmlns="http://maven.apache.org/POM/4.0.0"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-  <description>Enterprise Collaborative Workflow Lifecycle System UI</description>
+  <description>Enterprise Lease Contract Management UI</description> <!-- SB3.5.16: description was copied from ECWS UI -->
   <groupId>com.dodaso.ecosystem.elcm.ui</groupId>
   <artifactId>elcm-ui</artifactId>
   <modelVersion>4.0.0</modelVersion>
@@ -14,14 +14,15 @@
     <artifactId>spring-boot-starter-parent</artifactId>
     <groupId>org.springframework.boot</groupId>
     <relativePath/>
-    <version>3.4.2</version>
+    <version>3.5.16</version> <!-- SB3.5.16: was 3.4.13 -->
   </parent>
 
   <properties>
     <build.number>SNAPSHOT</build.number>
     <java.version>21</java.version>
 <!--    <joinfaces.version>5.3.4</joinfaces.version>-->
-    <joinfaces.version>5.5.3</joinfaces.version>
+    <joinfaces.version>5.5.15</joinfaces.version> <!-- SB3.5.16: was 5.5.3 -->
+    <spring-cloud.version>2025.0.3</spring-cloud.version> <!-- SB3.5.16: added -->
     <revision>1.0.0-SNAPSHOT</revision>
   </properties>
 
@@ -301,7 +302,7 @@
         </exclusion>
       </exclusions>
       <groupId>org.springframework.cloud</groupId>
-      <version>4.2.0</version>
+      <!-- SB3.5.16: version 4.2.0 removed; managed by spring-cloud-dependencies -->
     </dependency>
     <dependency>
       <artifactId>jsf-spring-boot-starter</artifactId>
@@ -353,17 +354,33 @@
     <dependency>
       <artifactId>commons-fileupload</artifactId>
       <groupId>commons-fileupload</groupId>
-      <version>1.5</version>
+      <version>1.6.0</version> <!-- SB3.5.16: was 1.5 (CVE-2025-48976) -->
     </dependency>
     <dependency>
       <artifactId>commons-io</artifactId>
       <groupId>commons-io</groupId>
-      <version>2.14.0</version>
+      <version>2.18.0</version> <!-- SB3.5.16: was 2.14.0; POI 5.4.0 requires 2.18.0 -->
     </dependency>
     <dependency>
       <artifactId>commons-cli</artifactId>
       <groupId>commons-cli</groupId>
       <version>1.5.0</version>
+    </dependency>
+    <!-- SB3.5.16: explicit legacy deps. These were only on the classpath transitively
+         (javax.inject via the removed maven-resources-plugin -> maven-filtering 3.3.1).
+         Used by: javax.inject.Named (e.g. CollaborationTask) and
+         org.apache.commons.lang.WordUtils (e.g. BaseBean).
+         Recommended follow-up: switch imports to jakarta.inject.Named and
+         org.apache.commons.text.WordUtils, then delete these two entries. -->
+    <dependency>
+      <groupId>javax.inject</groupId>
+      <artifactId>javax.inject</artifactId>
+      <version>1</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-lang</groupId>
+      <artifactId>commons-lang</artifactId>
+      <version>2.6</version>
     </dependency>
     <dependency>
       <artifactId>aspectjrt</artifactId>
@@ -373,10 +390,7 @@
       <artifactId>aspectjweaver</artifactId>
       <groupId>org.aspectj</groupId>
     </dependency>
-    <dependency>
-      <artifactId>aspectjtools</artifactId>
-      <groupId>org.aspectj</groupId>
-    </dependency>
+    <!-- SB3.5.16: removed runtime aspectjtools (compiler jar; aspectjweaver covers Spring AOP) -->
     <dependency>
       <artifactId>spring-boot-starter-test</artifactId>
       <exclusions>
@@ -427,11 +441,7 @@
       <groupId>com.azure</groupId>
       <version>12.30.0</version>
     </dependency>
-    <dependency>
-      <artifactId>maven-resources-plugin</artifactId>
-      <groupId>org.apache.maven.plugins</groupId>
-      <version>3.3.1</version>
-    </dependency>
+    <!-- SB3.5.16: removed maven-resources-plugin declared as a runtime dependency (it is a build plugin) -->
     <!-- Testing Framework -->
     <!--        <dependency>-->
     <!--            <groupId>javax.xml.bind</groupId>-->
@@ -474,9 +484,9 @@
       <groupId>org.hibernate.orm</groupId>
     </dependency>
     <dependency>
-      <artifactId>hypersistence-utils-hibernate-55</artifactId>
+      <artifactId>hypersistence-utils-hibernate-63</artifactId> <!-- SB3.5.16: was -hibernate-55:3.6.1 (Hibernate 5.x); same Java packages -->
       <groupId>io.hypersistence</groupId>
-      <version>3.6.1</version>
+      <version>3.15.5</version>
     </dependency>
     <dependency>
       <artifactId>owasp-java-html-sanitizer</artifactId>
@@ -518,7 +528,7 @@
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi</artifactId>
-      <version>5.2.5</version>
+      <version>5.4.0</version> <!-- SB3.5.16: was 5.2.5; all POI modules must match -->
     </dependency>
     <dependency>
       <groupId>org.apache.poi</groupId>
@@ -528,7 +538,7 @@
     <dependency>
       <groupId>org.apache.poi</groupId>
       <artifactId>poi-scratchpad</artifactId>
-      <version>5.2.5</version>
+      <version>5.4.0</version> <!-- SB3.5.16: was 5.2.5; all POI modules must match -->
     </dependency>
 
     <!-- Required POI dependencies for logging -->
@@ -542,7 +552,7 @@
     <dependency>
       <groupId>org.apache.xmlbeans</groupId>
       <artifactId>xmlbeans</artifactId>
-      <version>5.1.1</version>
+      <version>5.3.0</version> <!-- SB3.5.16: was 5.1.1 (downgraded POI 5.4.0's 5.3.0) -->
     </dependency>
 
     <!-- Commons Collections for POI -->
@@ -556,7 +566,7 @@
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-compress</artifactId>
-      <version>1.26.0</version>
+      <version>1.27.1</version> <!-- SB3.5.16: was 1.26.0 (downgraded POI 5.4.0's 1.27.1) -->
     </dependency>
 
     <dependency>
@@ -586,26 +596,18 @@
     <dependency>
       <groupId>com.github.ben-manes.caffeine</groupId>
       <artifactId>caffeine</artifactId>
-      <version>3.1.8</version>
+      <!-- SB3.5.16: version 3.1.8 removed; Boot manages Caffeine -->
     </dependency>
 
-    <dependency>
-      <artifactId>baseline-common</artifactId>
-      <groupId>com.dodaso.ecosystem.baseline.common</groupId>
-      <version>${revision}</version>
-    </dependency>
+    <!-- SB3.5.16: removed duplicate baseline-common declaration -->
 
     <dependency>
       <artifactId>iams-data-model</artifactId>
       <groupId>com.dodaso.ecosystem.iams.data.model</groupId>
       <version>${revision}</version>
     </dependency>
-    
-    <dependency>
-      <artifactId>ears-data-model</artifactId>
-      <groupId>com.dodaso.ecosystem.ears.data.model</groupId>
-      <version>${revision}</version>
-    </dependency>
+
+    <!-- SB3.5.16: removed duplicate ears-data-model declaration -->
 
     <dependency>
       <artifactId>elcm-data-model</artifactId>
@@ -616,6 +618,14 @@
   </dependencies>
   <dependencyManagement>
     <dependencies>
+      <!-- SB3.5.16: Spring Cloud 2025.0.x (Northfields) is the train for Boot 3.5.x -->
+      <dependency>
+        <groupId>org.springframework.cloud</groupId>
+        <artifactId>spring-cloud-dependencies</artifactId>
+        <version>${spring-cloud.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
       <dependency>
         <artifactId>joinfaces-dependencies</artifactId>
         <groupId>org.joinfaces</groupId>
