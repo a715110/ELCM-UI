@@ -1,22 +1,154 @@
-# Base config shared by every profile. Profile-specific overrides live in
-# application-{profile}.yml (local, adev, bdev, dit, sit, uat, prod), matching
-# the Maven profiles in pom.xml.
+# =====================================================================
+# elcm-ui — BASE configuration (all environments)
 #
-# '@activatedProperties@' is resolved by Maven resource filtering (pom.xml
-# <resources><filtering>true</filtering>) using the "@" delimiter that
-# spring-boot-starter-parent configures by default (chosen specifically so it
-# doesn't collide with Spring's own ${...} placeholder syntax elsewhere in
-# this file).
+# Rules (see SDS Step 1):
+#   * Product defaults only. No hosts, ports, local paths or secrets here.
+#   * Instance values   -> ${DODASO_*} / other environment variables
+#   * Secrets           -> referenced by Key Vault secret name, e.g. ${elcm-ui-jwt-secret}
+#   * Profiles: local = developer machine (application-local.yml)
+#               cloud = every customer instance (application-cloud.yml)
+#
+# STEP1: spring.profiles.active (Maven activatedProperties token) removed. The Maven
+# profile that filled it is gone; the profile is chosen at run time
+# (IDE run configuration locally, SPRING_PROFILES_ACTIVE=cloud in the cloud).
+# =====================================================================
+
+dodaso:
+  instance:
+    customer-code: ${DODASO_CUSTOMER_CODE}
+    display-name: ${DODASO_CUSTOMER_NAME}
+    environment: ${DODASO_ENVIRONMENT}
+    ecws-base-url: ${DODASO_ECWS_BASE_URL}
+    elcm-base-url: ${DODASO_ELCM_BASE_URL}
+    auth-issuer-uri: ${DODASO_AUTH_ISSUER_URI}
+
+# Task Rail (WEB-INF/taskrail.xhtml) cross-app links. Derived, so it is never
+# set per environment again.
+ecws:
+  base-url: ${dodaso.instance.ecws-base-url}
+
 spring:
   application:
     name: elcm-ui
-  profiles:
-    active: '@activatedProperties@'
+  main:
+    # Eager in every deployed instance, so a missing value or secret stops the
+    # app at startup (SDS R5). The local profile turns lazy init back on.
+    lazy-initialization: false
+  http:
+    client:
+      connect-timeout: 30s
+      read-timeout: 300s
+  jpa:
+    open-in-view: false
+  servlet:
+    multipart:
+      # Matches "max 100 MB per file" in uploadfilesdialog.xhtml. Request size
+      # is higher because "multiple" mode can post several files at once.
+      max-file-size: 100MB
+      max-request-size: 600MB
+  security:
+    oauth2:
+      client:
+        registration:
+          sso:
+            client-id: jsf-primefaces-client
+            client-secret: ${elcm-ui-oauth-client-secret}          # Key Vault
+            scope: openid,profile,email,read,write
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_basic
+            # Must match the redirect URI registered on the authorization
+            # server character for character.
+            redirect-uri: ${dodaso.instance.elcm-base-url}/login/oauth2/code/sso
+        provider:
+          sso:
+            # Explicit endpoints (not issuer-uri) so startup never depends on
+            # the authorization server being reachable.
+            authorization-uri: ${dodaso.instance.auth-issuer-uri}/oauth2/authorize
+            token-uri: ${dodaso.instance.auth-issuer-uri}/oauth2/token
+            user-info-uri: ${dodaso.instance.auth-issuer-uri}/userinfo
+            jwk-set-uri: ${dodaso.instance.auth-issuer-uri}/oauth2/jwks
+            user-name-attribute: sub
 
 server:
-  port: 443
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /elcm
+    session:
+      cookie:
+        name: ELCMSESSIONID
+        max-age: 43200        # 12 hours
+        http-only: true
+        same-site: None       # cross-site iframes / OAuth2 silent flow
+        path: /
+        secure: true          # browser always reaches the app over HTTPS
+      timeout: 1800
+      tracking-modes: cookie
+  # Honor X-Forwarded-Proto/Host from nginx or the cloud ingress, so redirects,
+  # the OAuth2 redirect URI and generated links use the public https URL.
+  forward-headers-strategy: framework
+  compression:
+    enabled: true
+    min-response-size: 2048
+    mime-types: "text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json"
+  tomcat:
+    max-http-form-post-size: 100MB
+    max-swallow-size: 100MB
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVICE_URL}
+    register-with-eureka: true
+    fetch-registry: true
+    registry-fetch-interval-seconds: 30
+    initial-instance-info-replication-interval-seconds: 5
+    healthcheck:
+      enabled: true           # needs spring-boot-starter-actuator (added in STEP1 pom)
+  instance:
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+
+# STEP1: Actuator. Only health and info are exposed. Eureka's health-check-url
+# and status-page-url point here, and the container platform will use the
+# liveness/readiness groups for its probes (Step 6).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  info:
+    build:
+      enabled: true           # release version from build-info (STEP1 pom)
+
+# Custom app-level JWT settings, read by application code.
+auth:
+  jwt:
+    header: Authorization
+    expiration: 30000000
+    secret: ${elcm-ui-jwt-secret}                                 # Key Vault
+
+validation:
+  aop:
+    enabled: true
+
+# General file upload settings. The directory is machine-specific, so it comes
+# from the environment. NOTE: container disks are temporary; see STEP1 notes.
+app:
+  file:
+    upload:
+      directory: ${APP_FILE_UPLOAD_DIRECTORY:/tmp/dodaso/uploads}
+      max-size: 15728640
+
+# STEP1: azure.storage.* removed. elcm-ui does not talk to Blob Storage;
+# common-service owns file storage end to end.
 
 logging:
+  pattern:
+    level: "%5p [${dodaso.instance.customer-code}]"
   level:
     root: INFO
-    com.dodaso.ecosystem.elcm: DEBUG
+    com.dodaso.ecosystem.elcm: INFO

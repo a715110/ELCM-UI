@@ -1,0 +1,38 @@
+# =====================================================================
+# elcm-ui — CLOUD profile (every customer instance)
+# Activated with SPRING_PROFILES_ACTIVE=cloud.
+#
+# TLS ends at the instance ingress; the app itself serves plain HTTP inside
+# the private network. No keystore, no truststore in this profile.
+# =====================================================================
+
+spring:
+  cloud:
+    azure:
+      # The instance's managed identity: the only credential this app holds.
+      credential:
+        managed-identity-enabled: true
+        client-id: ${AZURE_CLIENT_ID:}          # user-assigned identity; blank = system-assigned
+      keyvault:
+        secret:
+          property-source-enabled: true
+          property-sources:
+            - name: dodaso-instance-kv
+              endpoint: ${AZURE_KEYVAULT_ENDPOINT}
+
+eureka:
+  client:
+    tls:
+      enabled: ${EUREKA_TLS_ENABLED:false}      # internal network; set true only if the registry itself serves TLS
+  instance:
+    # Register an address other services can actually reach, not the
+    # container's internal hostname.
+    hostname: ${EUREKA_INSTANCE_HOSTNAME}
+    prefer-ip-address: ${EUREKA_PREFER_IP:false}
+    non-secure-port-enabled: true
+    non-secure-port: ${server.port}
+    secure-port-enabled: false
+    # Paths include the context path; Eureka's defaults do not.
+    status-page-url-path: ${server.servlet.context-path}/actuator/info
+    health-check-url-path: ${server.servlet.context-path}/actuator/health
+    home-page-url-path: ${server.servlet.context-path}/

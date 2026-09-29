@@ -1,119 +1,68 @@
-# Local developer machine.
+# =====================================================================
+# elcm-ui — LOCAL profile (developer machine only; never deployed)
 #
-# HTTPS is required locally (matching ECWS) because
-# server.servlet.session.cookie.secure=true below -- browsers silently drop
-# secure cookies over plain HTTP, which would break session/login state.
-# You'll need a self-signed PKCS12 keystore before this profile will start:
+# Supplies every value the base file expects from the environment or Key
+# Vault, so the local profile needs nothing from Azure.
 #
-#   keytool -genkeypair -alias dodaso-server -keyalg RSA -keysize 2048 \
-#     -storetype PKCS12 -keystore src/main/resources/dodaso_keystore.p12 \
-#     -validity 3650 -storepass changeit \
-#     -dname "CN=localhost, OU=dodaso, O=dodaso, L=, ST=, C=US"
+# HTTPS is required locally because the session cookie is secure=true;
+# browsers drop secure cookies over plain HTTP.
 #
-# ...and a matching truststore if/when the Eureka TLS block below is
-# actually activated -- reuse ECWS's dodaso_truststore.p12 rather than
-# generating a new one (see note on that block below for why).
+# Keystores live OUTSIDE the project (shared with ecws-ui), never in
+# src/main/resources:
+#   ${user.home}/.dodaso/certs/dodaso_keystore.p12
+#   ${user.home}/.dodaso/certs/dodaso_truststore.p12
+# Override the folder with the DODASO_CERT_DIR environment variable.
 #
-# Adapted from ECWS UI's application-local.properties. Thumbnail and
-# LibreOffice/office-conversion settings intentionally excluded per request.
-# Secrets (JWT signing secret, OAuth2 client secret, Azure storage account
-# key) are REDACTED, not copied -- do not commit real values here; use
-# environment variables or a secrets manager. Several blocks below are inert
-# until their corresponding dependency is added back to pom.xml (see the
-# MINIMUM-JARS comment block there) -- each is flagged where it applies.
+# The secret defaults below are DEV-ONLY values. Real values for any shared
+# environment come from Key Vault, never from this file.
+# =====================================================================
+
+dodaso:
+  local:
+    cert-dir: ${DODASO_CERT_DIR:${user.home}/.dodaso/certs}
+  instance:
+    customer-code: local
+    display-name: Local Dev
+    environment: local
+    ecws-base-url: https://localhost/ecws
+    elcm-base-url: https://localhost/elcm
+    auth-issuer-uri: https://localhost:8081
+
+# Secrets that come from Key Vault in the cloud (dev values only).
+elcm-ui-oauth-client-secret: ${ELCM_UI_OAUTH_CLIENT_SECRET:jsf-client-secret}
+# Same value as before, so local token handling keeps working. It has been in
+# git, so it must never be used outside local development.
+elcm-ui-jwt-secret: ${ELCM_UI_JWT_SECRET:9a4f2c8d3b7a1e6f45c8a0b3f267d8b1d4e6f3c8a9d2b5f8e3a9c8b5f6v8a3d9}
+
 spring:
-  http:
-    client:
-      connect-timeout: 30s
-      read-timeout: 300s
   main:
-    lazy-initialization: true
-  jpa:
-    open-in-view: false  # inert until Spring Data JPA is added to pom.xml
-  servlet:
-    multipart:
-      # Matches the "max 100 MB per file" text in uploadfilesdialog.xhtml's
-      # accept banner -- Spring Boot's own default (1MB file / 10MB request)
-      # would otherwise silently reject anything past that before
-      # UploadFilesBean.handleFileUpload() ever sees it. max-request-size
-      # is set higher than a single file's cap since "multiple" mode can
-      # post several files in one request.
-      max-file-size: 100MB
-      max-request-size: 600MB
+    lazy-initialization: true     # faster local restarts
   security:
     oauth2:
       client:
-        # inert until spring-security-core/web + oauth2-client are added to
-        # pom.xml. Registration id renamed from ECWS's "sso" to "iams" since
-        # this is specifically ELCM's IAMS SSO integration.
         registration:
           sso:
-            client-id: jsf-primefaces-client          # set via IAMS_CLIENT_ID env var -- do not commit
-            client-secret: jsf-client-secret          # set via IAMS_CLIENT_SECRET env var -- do not commit
-            scope: openid,profile,email,read,write
-            authorization-grant-type: authorization_code
-            redirect-uri: "https://localhost:443/elcm/login/oauth2/code/sso"
-            client-authentication-method: client_secret_basic
-        provider:
-          sso:
-            authorization-uri: https://localhost:8081/oauth2/authorize  # placeholder -- confirm actual local IAMS port
-            token-uri: https://localhost:8081/oauth2/token
-            user-info-uri: https://localhost:8081/userinfo
-            jwk-set-uri: https://localhost:8081/oauth2/jwks
-            user-name-attribute: sub
+            # Kept exactly as registered on the local authorization server
+            # (with the explicit :443). The derived base value
+            # (https://localhost/elcm/...) would not match that registration.
+            redirect-uri: https://localhost:443/elcm/login/oauth2/code/sso
 
 server:
   port: 333
-  servlet:
-    context-path: /elcm
-    session:
-      cookie:
-        name: ELCMSESSIONID   # renamed from ECWS's ECWSSESSIONID
-        max-age: 43200        # 12 hours
-        http-only: true
-        same-site: None       # allows cross-site iframes / OAuth2 silent flow
-        path: /
-        secure: true           # requires HTTPS -- see note at top of file
-      timeout: 1800
-      tracking-modes: cookie
   ssl:
     enabled: true
     key-store-type: PKCS12
-    key-store: classpath:dodaso_keystore.p12   # generate this -- see note at top of file
+    key-store: file:${dodaso.local.cert-dir}/dodaso_keystore.p12
     key-store-password: changeit
     key-alias: dodaso-server
-  compression:
-    enabled: true
-    min-response-size: 2048
-    mime-types: "text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json"
-  tomcat:
-    max-http-form-post-size: 100MB
-    max-swallow-size: 100MB
 
-# Eureka client -- inert until spring-cloud-starter-netflix-eureka-client is
-# added back to pom.xml (see MINIMUM-JARS comment there).
-#
-# trust-store: reuse ECWS's dodaso_truststore.p12 (copy the actual file into
-# src/main/resources/) rather than generating a new one. The "dodaso_"
-# prefix (not "ecws_") suggests this is already a shared ecosystem-wide dev
-# cert, not an ECWS-specific artifact -- and since elcm-ui and ecws-ui both
-# register with the same local Eureka instance, they should trust the same
-# server cert anyway. The password below (changeit) is whatever's already
-# baked into that file -- update it only if the actual file uses something
-# different.
 eureka:
   client:
     service-url:
       defaultZone: https://localhost:9443/eureka/
-    register-with-eureka: true
-    fetch-registry: true
-    registry-fetch-interval-seconds: 30
-    initial-instance-info-replication-interval-seconds: 5
-    healthcheck:
-      enabled: true
     tls:
       enabled: true
-      trust-store: classpath:dodaso_truststore.p12   # reuse ECWS's file -- see note above
+      trust-store: file:${dodaso.local.cert-dir}/dodaso_truststore.p12
       trust-store-password: changeit
       trust-store-type: PKCS12
   instance:
@@ -123,53 +72,15 @@ eureka:
     status-page-url: https://localhost:333/elcm/actuator/info
     health-check-url: https://localhost:333/elcm/actuator/health
     home-page-url: https://localhost:333/elcm
-    lease-renewal-interval-in-seconds: 10
-    lease-expiration-duration-in-seconds: 30
 
-# Custom app-level JWT config -- read by application code, not Spring
-# Security itself. Structure only; secret redacted.
-auth:
-  jwt:
-    header: Authorization
-    expiration: 30000000
-    secret: 9a4f2c8d3b7a1e6f45c8a0b3f267d8b1d4e6f3c8a9d2b5f8e3a9c8b5f6v8a3d9  # set via JWT_SECRET env var -- DO NOT commit a real value here
-
-validation:
-  aop:
-    enabled: true
-
-# Azure Blob Storage -- inert until azure-storage-blob is added to pom.xml.
-# account-key REDACTED: the source value looked like a real ECWS
-# dev-environment shared key -- do not copy real storage keys between
-# projects/repos. Also worth confirming with the team: should elcm-ui
-# provision its own storage account/container, or is sharing ECWS's account
-# actually the intended architecture?
-azure:
-  storage:
-    account-name: CHANGE_ME   # confirm: share ECWS's account, or provision a new one?
-    account-key: CHANGE_ME    # set via AZURE_STORAGE_ACCOUNT_KEY env var -- DO NOT commit
-
-# Base URL for the ECWS application, used by the Task Rail (WEB-INF/taskrail.xhtml)
-# to build cross-app links that open ECWS pages in a new browser tab. Both apps
-# proxy through the same local nginx host (see /elcm + /ecws path routing set up
-# earlier), so this is same-origin locally -- update per environment as ECWS/ELCM
-# land on real hostnames (adev/bdev/dit/sit/uat/prod profiles below).
-ecws:
-  base-url: https://localhost/ecws
-
-# General file upload (not thumbnail-specific). Path below was ECWS's
-# Windows dev-machine path -- change it for your own elcm-ui checkout.
 app:
   file:
     upload:
-      directory: C:/development/uploads   # ECWS-specific path -- adjust for elcm-ui
-      max-size: 15728640
+      directory: C:/development/uploads
 
 logging:
   level:
-    root: INFO
     com.dodaso.ecosystem.elcm: DEBUG
-    org.springframework.security: DEBUG            # inert until spring-security is added
+    org.springframework.security: DEBUG
     org.springframework.security.oauth2: DEBUG
     org.springframework.security.oauth2.client: DEBUG
-

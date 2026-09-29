@@ -2,7 +2,6 @@ package com.dodaso.ecosystem.elcm.ui.config;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -57,8 +56,19 @@ public class SecurityConfig {
   @Autowired
   private SimpleCORSFilter simpleCORSFileter;
 
-  @Value("${spring.profiles.active}")
+  // FIX: default added. Without it the app cannot start when no profile is set
+  // explicitly (the profile is no longer baked into the build since Step 1).
+  @Value("${spring.profiles.active:default}")
   private String activeProfile;
+
+  /** The UI's own OAuth2 login entry point (registration id "sso"), relative to the context path. */
+  private static final String OAUTH2_LOGIN_PATH = "/oauth2/authorization/sso";
+
+  /** Session attribute / query parameter marking the single automatic retry. */
+  private static final String RETRY_PARAM = "oauth2retry";
+
+  /** A retry within this window counts as "already retried" (no second retry). */
+  private static final long RETRY_WINDOW_MS = 60_000L;
 
   @Bean
   public OAuth2DebugFilter oauth2DebugFilter() {
@@ -152,30 +162,14 @@ public class SecurityConfig {
             )
             .loginPage("/oauth2/authorization/sso?reason=timeout")
             .defaultSuccessUrl("/dashboard", true)
-            .failureHandler(new AuthenticationFailureHandler() {
-              @Override
-              public void onAuthenticationFailure(HttpServletRequest request,
-                  HttpServletResponse response,
-                  AuthenticationException exception) throws IOException {
-                log.warn("OAuth2 login failure: {}", exception.getMessage());
-
-                // Check if it's an authorization_request_not_found error
-                if (exception.getMessage().contains("authorization_request_not_found") ||
-                    exception.getCause() != null &&
-                        exception.getCause().getMessage()
-                            .contains("authorization_request_not_found")) {
-
-                  log.info("Redirecting to fresh OAuth2 flow due to expired authorization request");
-                  // Redirect to fresh OAuth2 flow
-                  response.sendRedirect("/oauth2/authorization/sso?autosubmit=true&refresh="
-                      + System.currentTimeMillis());
-                } else {
-                  // Generic error - could redirect to error page or retry
-                  log.error("OAuth2 authentication failed: {}", exception.getMessage());
-                  response.sendRedirect("/oauth2/authorization/sso");
-                }
-              }
-            })
+            // FIX: the previous handler used response.sendRedirect("/oauth2/authorization/sso"),
+            // which is relative to the SERVER root, not to this app: behind nginx it became
+            // https://localhost/oauth2/authorization/sso (no /ecws or /elcm) and returned 404.
+            // It also retried on EVERY failure, so a persistent error (e.g. an untrusted
+            // certificate on the token call) looped between the UI and the SSO server until
+            // the browser gave up. Now: one automatic retry for an expired authorization
+            // request, otherwise a plain error response with the cause logged.
+            .failureHandler(oauth2LoginFailureHandler())
             // Add token refresh configuration
             .userInfoEndpoint(userInfo -> userInfo
                 .userService(customOAuth2UserService())
@@ -187,14 +181,61 @@ public class SecurityConfig {
                 new AntPathRequestMatcher("/logout", "GET"),
                 new AntPathRequestMatcher("/logout", "POST")
             ))
-            .logoutSuccessUrl(
-                "/oauth2/authorization/sso") // or "https://localhost:8081/login?logout"
+            // Context-relative: Spring's redirect strategy adds the context path itself.
+            .logoutSuccessUrl(OAUTH2_LOGIN_PATH)
             .invalidateHttpSession(true)
             .clearAuthentication(true)
-            .deleteCookies("ECWSSESSIONID")           // <-- use your web cookie name
+            .deleteCookies("ELCMSESSIONID")   // FIX: was ECWSSESSIONID (copied from ECWS); ELCM's cookie is ELCMSESSIONID
         );
 
     return http.build();
+  }
+
+  /**
+   * OAuth2 login failure handling.
+   *
+   * <ul>
+   *   <li>{@code authorization_request_not_found} (the saved authorization request
+   *       expired, e.g. the login page sat open too long): restart the login ONCE.</li>
+   *   <li>Anything else, or a failure on the retry itself: 401 with the reason logged.
+   *       Never an automatic restart, which is what used to loop.</li>
+   * </ul>
+   * Every redirect is built with {@code request.getContextPath()}, so it works behind
+   * nginx, on the app's own port and in the cloud.
+   */
+  private AuthenticationFailureHandler oauth2LoginFailureHandler() {
+    return (HttpServletRequest request, HttpServletResponse response,
+        AuthenticationException exception) -> {
+      final boolean expiredRequest = mentionsAuthorizationRequestNotFound(exception);
+      // The failure arrives on the callback request, which cannot carry our own
+      // parameter, so the retry is remembered in the session with a timestamp.
+      // Older than RETRY_WINDOW_MS counts as a fresh attempt, so a stale flag never
+      // blocks the retry for a later, unrelated expiry.
+      final Object lastRetry = request.getSession().getAttribute(RETRY_PARAM);
+      final boolean alreadyRetried = lastRetry instanceof Long ts
+          && System.currentTimeMillis() - ts < RETRY_WINDOW_MS;
+
+      if (expiredRequest && !alreadyRetried) {
+        log.info("OAuth2 authorization request expired - restarting login once");
+        request.getSession().setAttribute(RETRY_PARAM, System.currentTimeMillis());
+        response.sendRedirect(request.getContextPath() + OAUTH2_LOGIN_PATH
+            + "?" + RETRY_PARAM + "=1");
+        return;
+      }
+
+      request.getSession().removeAttribute(RETRY_PARAM);
+      log.error("OAuth2 authentication failed (no automatic retry): {}",
+          exception.getMessage(), exception);
+      response.sendError(HttpServletResponse.SC_UNAUTHORIZED,
+          "Login failed. Please close this tab and sign in again.");
+    };
+  }
+
+  private static boolean mentionsAuthorizationRequestNotFound(AuthenticationException exception) {
+    final String marker = "authorization_request_not_found";
+    return (exception.getMessage() != null && exception.getMessage().contains(marker))
+        || (exception.getCause() != null && exception.getCause().getMessage() != null
+        && exception.getCause().getMessage().contains(marker));
   }
 
   // 3. Custom OAuth2 User Service for token refresh handling
