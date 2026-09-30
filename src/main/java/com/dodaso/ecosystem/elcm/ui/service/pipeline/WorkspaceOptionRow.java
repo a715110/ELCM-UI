@@ -6,6 +6,7 @@ import com.dodaso.ecosystem.elcm.dto.WorkspaceDTO;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 
 /**
  * One entry in the workspace picker on uploadfilesdialog.xhtml ("WORKSPACE"
@@ -13,6 +14,7 @@ import lombok.Getter;
  * for why (EL can't always resolve record-style accessors).
  */
 @Getter
+@Setter
 @AllArgsConstructor
 public class WorkspaceOptionRow implements Serializable {
     private final String code; // e.g. "RETAIL"

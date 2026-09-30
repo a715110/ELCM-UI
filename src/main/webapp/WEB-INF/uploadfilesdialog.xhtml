@@ -14,9 +14,7 @@
         UploadFilesBean.addToPipeline() - this is what actually calls
         through to common-service's FileStorageController.upload() (see
         that bean for the Azure-transfer flow and its current placeholder
-        companyId). Workspace assignment, destination choice, comments,
-        and "assign to" are still static/unbound markup - wiring those to
-        UploadFilesBean's existing fields is a later pass.
+        companyId).
 
         RESET: opening this dialog (dashboard.xhtml's "Upload Files"
         button) and closing it via Cancel or the X button all now go
@@ -32,6 +30,52 @@
         failure the dialog stays open, nothing is reset, and the error
         message (added by the bean, rendered by ufdMessages below) stays
         visible so the user knows what happened and can just retry.
+
+        DESTINATION CARDS (REWRITTEN 2026-09-29): previously each card was
+        a <label> wrapping a real (visually-hidden) <p:radioButton>, on the
+        theory that clicking the label would natively check the wrapped
+        radio. That doesn't actually work with PrimeFaces' radio widget:
+        <p:radioButton styleClass="..."> puts that class on the component's
+        OWN top-level wrapper div (the composite "ui-radiobutton" widget -
+        native <input> + PrimeFaces' own clickable ".ui-radiobutton-box"
+        icon box), not on the bare <input>. Shrinking that whole wrapper to
+        a 1x1px hidden box (see upload-files-dialog.css's old
+        .ufd-dest-radio-input rule) also shrank away the box PrimeFaces'
+        own widget JS binds its click handler to, so clicking anywhere on
+        the visible card except that 1x1px spot never actually toggled the
+        radio's checked state. Symptom: with required="true" on the
+        p:selectOneRadio, JSF saw no submitted value at all and aborted the
+        lifecycle before addToPipeline() ever ran (looked like "the button
+        doesn't do anything"); with required="false" the lifecycle
+        completed but destinationChoice decoded to null every time.
+
+        Fixed by dropping <p:selectOneRadio>/<p:radioButton> entirely for
+        this control and driving destinationChoice through a single
+        <h:inputHidden> (ufdDestinationChoice below) that
+        upload-files-dialog.js's click handler sets directly - a hidden
+        input is a single real element fully under this script's own
+        control, with no composite-widget click-target/visibility quirks
+        to fight. Each card is now a <div role="radio"> (not a <label>,
+        since it no longer wraps a real form control) with a
+        data-dest-value attribute holding the exact
+        DestinationChoiceEnum constant name (see that enum) so the JS can
+        write a value JSF's implicit enum converter can decode without any
+        explicit <f:converter/>. tabindex/role/aria-checked plus a
+        keydown handler in the JS restore the keyboard operability the
+        native radio group used to give for free.
+
+        Selecting a card still reveals that destination's own fields
+        (ufd-dest-subpanel below the cards) and hides the other two cards,
+        via upload-files-dialog.js's applyDestinationSelection() - keyed
+        off each card's own data-dest attribute ("new"/"existing"/
+        "unsure"), same as before. A "Change selection" link in each
+        subpanel reverses this (clears the hidden field, shows all three
+        cards again).
+
+        The New Record / Existing Record fields below are real, bound form
+        fields (see UploadFilesBean) - wiring their own conditional
+        validation is deferred to a later phase of development per
+        explicit instruction; see UploadFilesBean.addToPipeline().
     -->
     <p:dialog widgetVar="uploadFilesDialog"
               modal="true"
@@ -45,264 +89,357 @@
               styleClass="upload-files-dialog"
               appendTo="@(body)">
 
-      <!-- Added now that p:fileUpload/p:commandButton need a real form to
-           ajax-submit through - there was none before since everything
-           was static markup. appendTo="@(body)" on the dialog already
-           moves this whole subtree to be a direct child of <body> at
-           render time, so this form doesn't nest inside or conflict with
-           any other form on the page (template.xhtml's own form is
-           commented out and unused). -->
-      <h:form id="uploadFilesDialogForm" enctype="multipart/form-data">
+        <!-- Added now that p:fileUpload/p:commandButton need a real form to
+             ajax-submit through - there was none before since everything
+             was static markup. appendTo="@(body)" on the dialog already
+             moves this whole subtree to be a direct child of <body> at
+             render time, so this form doesn't nest inside or conflict with
+             any other form on the page (template.xhtml's own form is
+             commented out and unused). -->
+        <h:form id="uploadFilesDialogForm" enctype="multipart/form-data">
 
-        <!-- Bridges the async file-upload sequence to the bean action.
-             PF('ufdFileUploadWidget').upload() below is asynchronous (one
-             ajax call per queued file, each invoking handleFileUpload) -
-             calling addToPipeline() directly from the button's own click
-             would race ahead of those calls and run against an incomplete
-             uploadedFiles list. p:fileUpload's oncomplete callback only
-             fires once every queued file has actually finished uploading,
-             so that's what triggers this instead (see the button's onclick
-             and p:fileUpload's oncomplete below).
+            <!-- Bridges the async file-upload sequence to the bean action.
+                 PF('ufdFileUploadWidget').upload() below is asynchronous (one
+                 ajax call per queued file, each invoking handleFileUpload) -
+                 calling addToPipeline() directly from the button's own click
+                 would race ahead of those calls and run against an incomplete
+                 uploadedFiles list. p:fileUpload's oncomplete callback only
+                 fires once every queued file has actually finished uploading,
+                 so that's what triggers this instead (see the button's onclick
+                 and p:fileUpload's oncomplete below).
 
-             update includes this whole form (not @none) so a failed
-             submission's error message renders, and so a successful one's
-             reset fields are reflected before the next open. oncomplete
-             only closes the dialog when UploadFilesBean.submissionSuccessful
-             is true - on failure the dialog stays open with the user's
-             files/comments/destination choice intact (see
-             UploadFilesBean.addToPipeline() for why) and the error message
-             below is what tells them what happened.
+                 update includes this whole form (not @none) so a failed
+                 submission's error message renders, and so a successful one's
+                 reset fields are reflected before the next open. oncomplete
+                 only closes the dialog when UploadFilesBean.submissionSuccessful
+                 is true - on failure the dialog stays open with the user's
+                 files/comments/destination choice intact (see
+                 UploadFilesBean.addToPipeline() for why) and the error message
+                 below is what tells them what happened.
 
-             update target is the bare absolute id ":uploadFilesDialogForm"
-             (leading colon, no wrapper) - NOT "@(:uploadFilesDialogForm)".
-             @(...) is PrimeFaces' jQuery-selector search-expression syntax
-             (for CSS selectors), not for referencing a component by id;
-             wrapping a colon-prefixed id inside it makes PrimeFaces try to
-             parse ":uploadFilesDialogForm" as CSS, which fails - this was
-             the actual cause of the button silently not opening the
-             dialog in an earlier pass (oncomplete never ran once ajax
-             response processing errored out on the bad search
-             expression). -->
-        <p:remoteCommand name="commitToPipeline" action="#{uploadFilesBean.addToPipeline}"
-                          process="@this" update=":uploadFilesDialogForm"
-                          oncomplete="if (#{uploadFilesBean.submissionSuccessful}) { PF('uploadFilesDialog').hide(); }"/>
+                 update target is the bare absolute id ":uploadFilesDialogForm"
+                 (leading colon, no wrapper) - NOT "@(:uploadFilesDialogForm)".
+                 @(...) is PrimeFaces' jQuery-selector search-expression syntax
+                 (for CSS selectors), not for referencing a component by id;
+                 wrapping a colon-prefixed id inside it makes PrimeFaces try to
+                 parse ":uploadFilesDialogForm" as CSS, which fails - this was
+                 the actual cause of the button silently not opening the
+                 dialog in an earlier pass (oncomplete never ran once ajax
+                 response processing errored out on the bad search
+                 expression). -->
+            <!-- process="@form" (not "@this"): the workspace override,
+                 destinationChoice (now via ufdDestinationChoice), comments,
+                 assignToUser, and the New/Existing Record sub-panel inputs all
+                 need to actually be decoded into the bean on submit - "@this"
+                 would only ever process this remoteCommand itself and silently
+                 submit whatever the bean's fields already held. -->
+            <p:remoteCommand name="commitToPipeline" action="#{uploadFilesBean.addToPipeline}"
+                             process="@form" update=":uploadFilesDialogForm"
+                             oncomplete="if (#{uploadFilesBean.submissionSuccessful}) { PF('uploadFilesDialog').hide(); }"/>
 
-        <!-- Shared by Cancel and the X close button - see
-             UploadFilesBean.reset()'s Javadoc for why closing/cancelling
-             also resets server-side state promptly rather than waiting
-             for the next open to do it. -->
-        <p:remoteCommand name="resetDialog" action="#{uploadFilesBean.reset}"
-                          process="@this" update=":uploadFilesDialogForm"
-                          oncomplete="PF('uploadFilesDialog').hide();"/>
+            <!-- Shared by Cancel and the X close button - see
+                 UploadFilesBean.reset()'s Javadoc for why closing/cancelling
+                 also resets server-side state promptly rather than waiting
+                 for the next open to do it. -->
+            <p:remoteCommand name="resetDialog" action="#{uploadFilesBean.reset}"
+                             process="@this" update=":uploadFilesDialogForm"
+                             oncomplete="PF('uploadFilesDialog').hide();"/>
 
-        <!-- globalOnly intentionally omitted (defaults to false) - this
-             needs to show BOTH the bean's global messages (added with a
-             null clientId, e.g. addToPipeline()'s failure message) AND
-             p:validateFile's own component-scoped validation messages
-             (invalid type/size), which are NOT global. -->
-        <p:messages id="ufdMessages" showDetail="true" closable="true"/>
+            <!-- globalOnly intentionally omitted (defaults to false) - this
+                 needs to show BOTH the bean's global messages (added with a
+                 null clientId, e.g. addToPipeline()'s failure message) AND
+                 p:validateFile's own component-scoped validation messages
+                 (invalid type/size), which are NOT global. -->
+            <p:messages id="ufdMessages" showDetail="true" closable="true"/>
 
-        <div class="ufd-header">
-            <div>
-                <h2 class="ufd-title">Upload Files</h2>
-                <p class="ufd-subtitle">Add documents to the pipeline and set their destination.</p>
+            <div class="ufd-header">
+                <div>
+                    <h2 class="ufd-title">Upload Files</h2>
+                    <p class="ufd-subtitle">Add documents to the pipeline and set their destination.</p>
+                </div>
+                <button type="button" class="ufd-close-btn" onclick="resetDialog();" aria-label="Close">
+                    <i class="pi pi-times"/>
+                </button>
             </div>
-            <button type="button" class="ufd-close-btn" onclick="resetDialog();" aria-label="Close">
-                <i class="pi pi-times"/>
-            </button>
-        </div>
 
-        <div class="ufd-body">
+            <div class="ufd-body">
 
-            <!-- ==================== LEFT: file drop area ==================== -->
-            <div class="ufd-left">
-                <div class="ufd-accept-banner">
-                    <i class="pi pi-info-circle"/>
-                    <span>Accepted: PDF, DOCX, JPG, JPEG, PNG, TIFF &#8212; max 100 MB per file</span>
+                <!-- ==================== LEFT: file drop area ==================== -->
+                <div class="ufd-left">
+                    <div class="ufd-accept-banner">
+                        <i class="pi pi-info-circle"/>
+                        <span>Accepted: PDF, DOCX, JPG, JPEG, PNG, TIFF &#8212; max 100 MB per file</span>
+                    </div>
+
+                    <!-- auto="true" (changed from "false" per chat): dropping/
+                         selecting a file now transmits it immediately - that's
+                         what actually drives PrimeFaces' native per-file
+                         progress bar at the moment the user expects to see it
+                         (on drop), rather than deferring the real transfer
+                         until "Add to Pipeline" is clicked. Each file still
+                         arrives at UploadFilesBean.handleFileUpload() as its
+                         own event once its own transfer completes.
+
+                         onstart/oncomplete/onerror track how many uploads are
+                         currently in flight (see upload-files-dialog.js) and
+                         disable "Add to Pipeline" while count > 0 - needed
+                         now specifically because auto mode decouples the
+                         button's click from any single file's completion;
+                         without this, clicking while a drop is still
+                         transferring could commit an incomplete file list.
+
+                         update targets ufdUploadedFileList as a fully
+                         form-qualified id (uploadFilesDialogForm:...) rather
+                         than a bare relative one - this is a real JSF
+                         UIComponent (a p:outputPanel, not a plain <div>), so
+                         the ajax partial-render correctly finds and replaces
+                         it; a bare HTML div with a hardcoded id can never be
+                         an update target at all, since JSF resolves update
+                         search expressions against the component tree, not
+                         raw DOM - that was the actual root cause of files
+                         disappearing from the list right after a successful
+                         upload in an earlier pass, not a p:fileUpload
+                         transport quirk as first suspected.
+
+                         styleClass only lightly reskins this to sit inside the
+                         card look (see upload-files-dialog.css's
+                         .ufd-p-fileupload rules) - it still renders
+                         PrimeFaces' own dropzone/file-list markup rather than
+                         a pixel-match of the original mockup dropzone; full
+                         visual reconciliation is a follow-up, not part of
+                         this increment. -->
+                    <p:fileUpload id="ufdFileUpload"
+                                  widgetVar="ufdFileUploadWidget"
+                                  styleClass="ufd-p-fileupload"
+                                  mode="advanced"
+                                  multiple="true"
+                                  auto="true"
+                                  dragDrop="true"
+                                  listener="#{uploadFilesBean.handleFileUpload}"
+                                  process="@this"
+                                  update="uploadFilesDialogForm:ufdUploadedFileList ufdMessages"
+                                  onstart="ufdOnUploadStart();"
+                                  oncomplete="ufdOnUploadSettled();"
+                                  onerror="ufdOnUploadSettled();">
+                        <p:validateFile fileLimit="50" sizeLimit="104857600" allowTypes="/(\.|\/)(pdf|docx?|jpe?g|png|tiff?)$/" />
+                    </p:fileUpload>
+
+                    <!-- Persistent list of files actually landed in
+                         UploadFilesBean.uploadedFiles - NOT p:fileUpload's own
+                         file rows, which PrimeFaces clears once each upload
+                         completes (that widget's list is "currently
+                         selected/uploading", not a durable record of what's
+                         been added; that mismatch is why a successfully
+                         uploaded file was disappearing right after its
+                         progress bar finished). Refreshed by p:fileUpload's
+                         own update (above) after each file's own upload
+                         completes - no separate remote command needed since
+                         handleFileUpload() already runs in that same ajax
+                         call. -->
+                    <p:outputPanel id="ufdUploadedFileList">
+                        <div class="ufd-file-list">
+                            <ui:fragment rendered="#{empty uploadFilesBean.uploadedFiles}">
+                                <div class="ufd-empty-state">No files added yet</div>
+                            </ui:fragment>
+                            <ui:repeat var="file" value="#{uploadFilesBean.uploadedFiles}">
+                                <div class="ufd-file-row">
+                                    <i class="pi pi-file"/>
+                                    <span class="ufd-file-name">#{file.fileName}</span>
+                                    <span class="ufd-file-size" style="color:#8B8A82;font-size:0.78rem;">#{file.formattedSize}</span>
+                                    <p:commandButton icon="pi pi-times" styleClass="ufd-file-remove ui-button-flat"
+                                                     action="#{uploadFilesBean.removeFile(file)}"
+                                                     process="@this" update="uploadFilesDialogForm:ufdUploadedFileList"/>
+                                </div>
+                            </ui:repeat>
+                        </div>
+                    </p:outputPanel>
                 </div>
 
-                <!-- auto="true" (changed from "false" per chat): dropping/
-                     selecting a file now transmits it immediately - that's
-                     what actually drives PrimeFaces' native per-file
-                     progress bar at the moment the user expects to see it
-                     (on drop), rather than deferring the real transfer
-                     until "Add to Pipeline" is clicked. Each file still
-                     arrives at UploadFilesBean.handleFileUpload() as its
-                     own event once its own transfer completes.
+                <!-- ==================== RIGHT: target context ==================== -->
+                <div class="ufd-right">
+                    <div class="ufd-right-header">
+                        <i class="pi pi-tag"/>
+                        <span>Target Context</span>
+                    </div>
 
-                     onstart/oncomplete/onerror track how many uploads are
-                     currently in flight (see upload-files-dialog.js) and
-                     disable "Add to Pipeline" while count > 0 - needed
-                     now specifically because auto mode decouples the
-                     button's click from any single file's completion;
-                     without this, clicking while a drop is still
-                     transferring could commit an incomplete file list.
+                    <div class="ufd-field-label">
+                        WORKSPACE <span class="ufd-required">*</span>
+                        <span class="ufd-field-note">(assigned workspace)</span>
+                    </div>
 
-                     update targets ufdUploadedFileList as a fully
-                     form-qualified id (uploadFilesDialogForm:...) rather
-                     than a bare relative one - this is a real JSF
-                     UIComponent (a p:outputPanel, not a plain <div>), so
-                     the ajax partial-render correctly finds and replaces
-                     it; a bare HTML div with a hardcoded id can never be
-                     an update target at all, since JSF resolves update
-                     search expressions against the component tree, not
-                     raw DOM - that was the actual root cause of files
-                     disappearing from the list right after a successful
-                     upload in an earlier pass, not a p:fileUpload
-                     transport quirk as first suspected.
+                    <!-- Binds to the flat assignedWorkspaceCode String, not a
+                         nested assignedWorkspace.code - see
+                         UploadFilesBean.assignedWorkspace's Javadoc for why a
+                         nested-property binding on a field that can be null at
+                         dialog-open time (assignedWorkspace itself) breaks
+                         JSF's Update Model Values phase with an unrecoverable
+                         PropertyNotFoundException. -->
+                    <p:selectOneMenu id="ufdWorkspaceSelect"
+                                     styleClass="ufd-workspace-select"
+                                     value="#{uploadFilesBean.assignedWorkspaceCode}"
+                                     required="true"
+                                     requiredMessage="Please select a workspace.">
+                        <f:selectItems value="#{uploadFilesBean.availableWorkspaces}"
+                                       var="ws"
+                                       itemValue="#{ws.code}"
+                                       itemLabel="#{ws.label} — #{ws.description}"/>
+                    </p:selectOneMenu>
 
-                     styleClass only lightly reskins this to sit inside the
-                     card look (see upload-files-dialog.css's
-                     .ufd-p-fileupload rules) - it still renders
-                     PrimeFaces' own dropzone/file-list markup rather than
-                     a pixel-match of the original mockup dropzone; full
-                     visual reconciliation is a follow-up, not part of
-                     this increment. -->
-                <p:fileUpload id="ufdFileUpload"
-                              widgetVar="ufdFileUploadWidget"
-                              styleClass="ufd-p-fileupload"
-                              mode="advanced"
-                              multiple="true"
-                              auto="true"
-                              dragDrop="true"
-                              listener="#{uploadFilesBean.handleFileUpload}"
-                              process="@this"
-                              update="uploadFilesDialogForm:ufdUploadedFileList ufdMessages"
-                              onstart="ufdOnUploadStart();"
-                              oncomplete="ufdOnUploadSettled();"
-                              onerror="ufdOnUploadSettled();">
-                              <p:validateFile fileLimit="50" sizeLimit="104857600" allowTypes="/(\.|\/)(pdf|docx?|jpe?g|png|tiff?)$/" />
-                </p:fileUpload>
+                    <p class="ufd-helper-text">
+                        All files assigned to <strong>Retail</strong> workspace. Assigned at onboarding &#8212; change to override.
+                    </p>
 
-                <!-- Persistent list of files actually landed in
-                     UploadFilesBean.uploadedFiles - NOT p:fileUpload's own
-                     file rows, which PrimeFaces clears once each upload
-                     completes (that widget's list is "currently
-                     selected/uploading", not a durable record of what's
-                     been added; that mismatch is why a successfully
-                     uploaded file was disappearing right after its
-                     progress bar finished). Refreshed by p:fileUpload's
-                     own update (above) after each file's own upload
-                     completes - no separate remote command needed since
-                     handleFileUpload() already runs in that same ajax
-                     call. -->
-                <p:outputPanel id="ufdUploadedFileList">
-                    <div class="ufd-file-list">
-                        <ui:fragment rendered="#{empty uploadFilesBean.uploadedFiles}">
-                            <div class="ufd-empty-state">No files added yet</div>
-                        </ui:fragment>
-                        <ui:repeat var="file" value="#{uploadFilesBean.uploadedFiles}">
-                            <div class="ufd-file-row">
-                                <i class="pi pi-file"/>
-                                <span class="ufd-file-name">#{file.fileName}</span>
-                                <span class="ufd-file-size" style="color:#8B8A82;font-size:0.78rem;">#{file.formattedSize}</span>
-                                <p:commandButton icon="pi pi-times" styleClass="ufd-file-remove ui-button-flat"
-                                                action="#{uploadFilesBean.removeFile(file)}"
-                                                process="@this" update="uploadFilesDialogForm:ufdUploadedFileList"/>
+                    <div class="ufd-field-label">WHERE SHOULD THESE DOCUMENTS GO?</div>
+
+                    <!-- Drives UploadFilesBean.destinationChoice directly -
+                         see the DESTINATION CARDS comment at the top of this
+                         file for why this replaced <p:selectOneRadio>/
+                         <p:radioButton>. JSF's implicit enum converter decodes
+                         the submitted String back into DestinationChoiceEnum
+                         with no explicit <f:converter/> needed, as long as the
+                         value written here (by upload-files-dialog.js) is
+                         exactly one of the enum's constant names - see each
+                         card's data-dest-value below, which must keep matching
+                         DestinationChoiceEnum's constant names verbatim. -->
+                    <h:inputHidden id="ufdDestinationChoice" value="#{uploadFilesBean.destinationChoice}"/>
+
+                    <div class="ufd-destination-cards" role="radiogroup" aria-label="Document destination">
+                        <div class="ufd-dest-card" data-dest="new" data-dest-value="NEW_RECORD"
+                             role="radio" tabindex="0" aria-checked="false">
+                            <div class="ufd-dest-icon"><i class="pi pi-plus"/></div>
+                            <div>
+                                <div class="ufd-dest-title">New Record</div>
+                                <div class="ufd-dest-desc">For a newly executed contract not yet in this system</div>
                             </div>
-                        </ui:repeat>
+                        </div>
+                        <div class="ufd-dest-card" data-dest="existing" data-dest-value="EXISTING_RECORD"
+                             role="radio" tabindex="0" aria-checked="false">
+                            <div class="ufd-dest-icon"><i class="pi pi-search"/></div>
+                            <div>
+                                <div class="ufd-dest-title">Existing Record</div>
+                                <div class="ufd-dest-desc">Add to a current contract record in this system: an amendment, exhibit, document...etc.</div>
+                            </div>
+                        </div>
+                        <div class="ufd-dest-card" data-dest="unsure" data-dest-value="NOT_SURE"
+                             role="radio" tabindex="0" aria-checked="false">
+                            <div class="ufd-dest-icon"><i class="pi pi-question"/></div>
+                            <div>
+                                <div class="ufd-dest-title">Not sure &#8212; leave instructions</div>
+                                <div class="ufd-dest-desc">A Preparer will find the right record and may contact you</div>
+                            </div>
+                        </div>
                     </div>
-               </p:outputPanel>
+
+                    <!-- ============ New Record subpanel ============
+                         Record Name / Counterparty sit side by side
+                         (ufd-field-grid-2); Property Address and Contract Type
+                         each take the full row, matching the reference
+                         screenshot. Conditional required-ness (Counterparty/
+                         Property Address only matter when destinationChoice ==
+                         NEW_RECORD) is deferred along with the rest of
+                         validation - see UploadFilesBean.addToPipeline() and
+                         validateDestinationSpecificFields(), currently unused
+                         pending that later phase. -->
+                    <div class="ufd-dest-subpanel" data-dest-panel="new" style="display:none;">
+                        <div class="ufd-field-grid-2">
+                            <div>
+                                <div class="ufd-field-label" style="margin-top:1rem;">RECORD NAME</div>
+                                <p:inputText styleClass="ufd-input" id="ufdNewRecordName"
+                                             value="#{uploadFilesBean.newRecordName}"
+                                             placeholder="Auto-generated if blank"/>
+                            </div>
+                            <div>
+                                <div class="ufd-field-label" style="margin-top:1rem;">
+                                    COUNTERPARTY <span class="ufd-required">*</span>
+                                </div>
+                                <p:inputText styleClass="ufd-input" id="ufdNewCounterparty"
+                                             value="#{uploadFilesBean.newRecordCounterparty}"
+                                             placeholder="e.g. Acme Corp"/>
+                            </div>
+                        </div>
+
+                        <div class="ufd-field-label">
+                            PROPERTY ADDRESS <span class="ufd-required">*</span>
+                        </div>
+                        <p:inputText styleClass="ufd-input" id="ufdNewPropertyAddress"
+                                     value="#{uploadFilesBean.newRecordPropertyAddress}"
+                                     placeholder="e.g. 123 Main St, New York NY 10001"/>
+
+                        <div class="ufd-field-label">CONTRACT TYPE</div>
+                        <p:selectOneMenu id="ufdNewContractType" styleClass="ufd-workspace-select"
+                                         value="#{uploadFilesBean.newRecordContractType}">
+                            <f:selectItem itemLabel="Property Lease" itemValue="PROPERTY_LEASE"/>
+                            <f:selectItem itemLabel="Equipment Lease" itemValue="EQUIPMENT_LEASE"/>
+                        </p:selectOneMenu>
+
+                        <a href="#" class="ufd-change-selection">&#8592; Change selection</a>
+                    </div>
+
+                    <!-- ============ Existing Record subpanel ============
+                         Plain search input for now - becoming a real
+                         autocomplete against elcm-service's contract-record
+                         search is Java-side follow-up work, not part of this
+                         pass; the typed text is captured as-is for a Preparer
+                         to act on (see UploadFilesService.submitToPipeline()'s
+                         Javadoc). -->
+                    <div class="ufd-dest-subpanel" data-dest-panel="existing" style="display:none;">
+                        <div class="ufd-field-label" style="margin-top:1rem;">FIND RECORD</div>
+                        <div class="ufd-search-input-wrap">
+                            <i class="pi pi-search"/>
+                            <p:inputText styleClass="ufd-input ufd-search-input" id="ufdExistingRecordSearch"
+                                         value="#{uploadFilesBean.existingRecordQuery}"
+                                         placeholder="Counterparty name, address, or contract number"/>
+                        </div>
+
+                        <a href="#" class="ufd-change-selection">&#8592; Change selection</a>
+                    </div>
+
+                    <!-- ============ Not Sure subpanel ============ -->
+                    <div class="ufd-dest-subpanel" data-dest-panel="unsure" style="display:none;">
+                        <div class="ufd-warning-box">
+                            <i class="pi pi-exclamation-triangle"/>
+                            <span>Your files will be held in staging until a Preparer assigns them to the correct record.</span>
+                        </div>
+
+                        <a href="#" class="ufd-change-selection">&#8592; Change selection</a>
+                    </div>
+
+                    <div class="ufd-routing-divider">Routing Context</div>
+
+                    <div class="ufd-field-label">COMMENTS / INSTRUCTIONS <span class="ufd-optional">(OPTIONAL)</span></div>
+                    <p:inputTextarea id="ufdComments" styleClass="ufd-textarea" rows="3"
+                                     value="#{uploadFilesBean.comments}"
+                                     placeholder="Describe what these documents are and any context that helps the person processing them..."/>
+
+                    <div class="ufd-field-label">ASSIGN TO <span class="ufd-optional">(OPTIONAL)</span></div>
+                    <p:selectOneMenu id="ufdAssignToSelect" styleClass="ufd-assign-select"
+                                     value="#{uploadFilesBean.assignToUser}">
+                        <f:selectItem itemLabel="Unassigned" itemValue="#{null}" noSelectionOption="true"/>
+                        <f:selectItems value="#{uploadFilesBean.assignableUsers}" var="u" itemValue="#{u}" itemLabel="#{u}"/>
+                    </p:selectOneMenu>
+                </div>
             </div>
 
-            <!-- ==================== RIGHT: target context ==================== -->
-            <div class="ufd-right">
-                <div class="ufd-right-header">
-                    <i class="pi pi-tag"/>
-                    <span>Target Context</span>
-                </div>
-
-                <div class="ufd-field-label">
-                    WORKSPACE <span class="ufd-required">*</span>
-                    <span class="ufd-field-note">(assigned workspace)</span>
-                </div>
-                <!-- <div class="ufd-workspace-select">
-                    <span class="ufd-workspace-dot"/>
-                    <span class="ufd-workspace-name">Retail</span>
-                    <span class="ufd-workspace-desc">Retail Portfolio</span>
-                    <i class="pi pi-chevron-down ufd-workspace-chevron"/>
-                </div> -->
-
-                <p:selectOneMenu id="ufdWorkspaceSelect"
-                                  styleClass="ufd-workspace-select"
-                                  value="#{uploadFilesBean.assignedWorkspace.code}"
-                                  required="true"
-                                  requiredMessage="Please select a workspace.">
-                    <f:selectItems value="#{uploadFilesBean.availableWorkspaces}"
-                                    var="ws"
-                                    itemValue="#{ws.code}"
-                                    itemLabel="#{ws.label} — #{ws.description}"/>
-                </p:selectOneMenu>
-
-                <p class="ufd-helper-text">
-                    All files assigned to <strong>Retail</strong> workspace. Assigned at onboarding &#8212; change to override.
-                </p>
-
-                <div class="ufd-field-label">WHERE SHOULD THESE DOCUMENTS GO?</div>
-
-                <p:selectOneRadio id="ufdDestinationGroup" layout="custom"
-                                    value="#{uploadFilesBean.destinationChoice}">
-                    <f:selectItems value="#{uploadFilesBean.destinationChoiceOptions}" var="dc" itemValue="#{dc}" itemLabel="#{dc}"/>
-                </p:selectOneRadio>
-
-                <div class="ufd-destination-cards" role="radiogroup" aria-label="Document destination">
-                    <div class="ufd-dest-card" data-dest="new" role="radio" aria-checked="false" tabindex="0">
-                        <div class="ufd-dest-icon"><i class="pi pi-plus"/></div>
-                        <div>
-                            <div class="ufd-dest-title">New Record</div>
-                            <div class="ufd-dest-desc">For a newly executed contract not yet in this system</div>
-                        </div>
-                    </div>
-                    <div class="ufd-dest-card" data-dest="existing" role="radio" aria-checked="false" tabindex="0">
-                        <div class="ufd-dest-icon"><i class="pi pi-search"/></div>
-                        <div>
-                            <div class="ufd-dest-title">Existing Record</div>
-                            <div class="ufd-dest-desc">Add to a current contract record in this system: an amendment, exhibit, document...etc.</div>
-                        </div>
-                    </div>
-                    <div class="ufd-dest-card" data-dest="unsure" role="radio" aria-checked="false" tabindex="0">
-                        <div class="ufd-dest-icon"><i class="pi pi-question"/></div>
-                        <div>
-                            <div class="ufd-dest-title">Not sure &#8212; leave instructions</div>
-                            <div class="ufd-dest-desc">A Preparer will find the right record and may contact you</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="ufd-routing-divider">Routing Context</div>
-
-                <div class="ufd-field-label">COMMENTS / INSTRUCTIONS <span class="ufd-optional">(OPTIONAL)</span></div>
-                <textarea id="ufdComments" class="ufd-textarea" rows="3"
-                          placeholder="Describe what these documents are and any context that helps the person processing them..."/>
-
-                <div class="ufd-field-label">ASSIGN TO <span class="ufd-optional">(OPTIONAL)</span></div>
-                <div class="ufd-assign-select">
-                    <span class="ufd-assign-placeholder">&#160;</span>
-                    <i class="pi pi-chevron-down"/>
-                </div>
+            <div class="ufd-footer">
+                <p:commandButton type="button" value="Cancel" styleClass="ui-button-secondary"
+                                 onclick="resetDialog();"/>
+                <!-- type="button" deliberately kept - this button's own default
+                     ajax submit is never used; commitToPipeline() (the remote
+                     command above) is what actually invokes
+                     UploadFilesBean.addToPipeline(). Simplified now that
+                     auto="true" means every dropped/selected file already
+                     finished uploading into the bean well before this click -
+                     no more branching to conditionally trigger .upload()
+                     first. disabled while an upload is still in flight (see
+                     ufdOnUploadStart/ufdOnUploadSettled in
+                     upload-files-dialog.js) so this can't fire against an
+                     incomplete uploadedFiles list. -->
+                <p:commandButton type="button" id="ufdAddToPipelineBtn" value="Add to Pipeline"
+                                 icon="pi pi-cloud-upload"
+                                 onclick="commitToPipeline();"/>
             </div>
-        </div>
 
-        <div class="ufd-footer">
-            <p:commandButton type="button" value="Cancel" styleClass="ui-button-secondary"
-                              onclick="resetDialog();"/>
-            <!-- type="button" deliberately kept - this button's own default
-                 ajax submit is never used; commitToPipeline() (the remote
-                 command above) is what actually invokes
-                 UploadFilesBean.addToPipeline(). Simplified now that
-                 auto="true" means every dropped/selected file already
-                 finished uploading into the bean well before this click -
-                 no more branching to conditionally trigger .upload()
-                 first. disabled while an upload is still in flight (see
-                 ufdOnUploadStart/ufdOnUploadSettled in
-                 upload-files-dialog.js) so this can't fire against an
-                 incomplete uploadedFiles list. -->
-            <p:commandButton type="button" id="ufdAddToPipelineBtn" value="Add to Pipeline"
-                              icon="pi pi-cloud-upload"
-                              onclick="commitToPipeline();"/>
-        </div>
-
-      </h:form>
+        </h:form>
     </p:dialog>
 
 </ui:composition>

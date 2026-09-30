@@ -3,6 +3,8 @@ package com.dodaso.ecosystem.elcm.ui.service.pipeline;
 import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
  * Row shape returned by StageDocumentService. Lives here (not on a bean)
@@ -23,12 +25,14 @@ import lombok.Getter;
  * type or of any bean/page that consumes it.
  */
 @Getter
+@Setter
+@NoArgsConstructor
 @AllArgsConstructor
 public class StagedDocumentRow implements Serializable {
-    private final String fileName;
-    private final String type;
-    private final String workspace;
-    private final String record;
-    private final String assignee;
-    private final String uploadedAt;
+    private String fileName;
+    private String type;
+    private String workspace;
+    private String record;
+    private String assignee;
+    private String uploadedAt;
 }

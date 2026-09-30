@@ -1,10 +1,13 @@
 package com.dodaso.ecosystem.elcm.ui.bean;
 
+import com.dodaso.ecosystem.baseline.common.proxy.RESTServiceClient;
+import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
+import org.primefaces.PrimeFaces;
 import org.primefaces.event.FileUploadEvent;
 import org.primefaces.model.file.UploadedFile;
 import org.springframework.core.ParameterizedTypeReference;
@@ -45,7 +48,7 @@ import lombok.extern.slf4j.Slf4j;
  * handleFileUpload}"> in uploadfilesdialog.xhtml. auto="true" (changed
  * from "false" per chat): each dropped/selected file is transmitted
  * immediately rather than queuing client-side until "Add to Pipeline" is
- * clicked -- that's what actually drives PrimeFaces' native per-file
+ * clicked - that's what actually drives PrimeFaces' native per-file
  * progress bar at the moment the user expects to see it (on drop), and
  * lands the file in this bean's uploadedFiles well before "Add to
  * Pipeline" is ever clicked. See uploadfilesdialog.xhtml's onstart/
@@ -58,12 +61,12 @@ import lombok.extern.slf4j.Slf4j;
  * FileStorageController.upload() as a single JSON request
  * (FileUploadRequestDTO), via the same restServiceClient/RESTReqContainer
  * pattern PipelineMetricsBean and UserHelper already use for every other
- * cross-service call -- not a second multipart hop. FileItemDTO.content
+ * cross-service call - not a second multipart hop. FileItemDTO.content
  * (byte[]) round-trips as a base64 JSON string automatically via Jackson.
  *
  * LIFECYCLE / RESET (confirmed in chat): this bean is @ViewScoped, so a
  * page refresh alone already discards any uploadedFiles that were sitting
- * in it -- a refresh requests a new view, which gets an entirely new bean
+ * in it - a refresh requests a new view, which gets an entirely new bean
  * instance, and the old one (holding whatever files had auto-uploaded
  * into it but never reached addToPipeline()) becomes unreachable and is
  * garbage-collected. No explicit reset call is needed for that specific
@@ -84,14 +87,14 @@ import lombok.extern.slf4j.Slf4j;
  * Cancel/close (frees the in-memory file bytes promptly on explicit
  * abandonment rather than leaving them held until whatever later moment
  * the dialog happens to reopen). This matters more now that
- * p:fileUpload is auto="true" -- files land in uploadedFiles the moment
+ * p:fileUpload is auto="true" - files land in uploadedFiles the moment
  * they're dropped, well before "Add to Pipeline" is ever clicked, so
  * there's a wider window in which Cancel/X could be hit with files
  * already sitting in memory.
  *
  * FAILURE HANDLING: a failed addToPipeline() (common-service unreachable,
  * network error, etc.) does NOT reset state and does NOT close the dialog
- * -- the user's queued files, comments, and destination choice are left
+ * - the user's queued files, comments, and destination choice are left
  * intact so they can retry without re-entering anything, and an error
  * FacesMessage is added (rendered via <p:messages> in the dialog) so the
  * failure is visible rather than silently swallowed or surfaced only as
@@ -107,8 +110,8 @@ import lombok.extern.slf4j.Slf4j;
  * actually registered as in Eureka.
  * 2. That registration name currently has a real bug: common-service's
  * application.properties (the shared non-local base file) sets
- * spring.application.name=ecws-service -- almost certainly a
- * copy/paste leftover -- while application-local.properties
+ * spring.application.name=ecws-service - almost certainly a
+ * copy/paste leftover - while application-local.properties
  * correctly says common_service. Until that's fixed, non-local
  * profiles would register common-service under the wrong Eureka
  * name and this call would resolve to the wrong service (or fail).
@@ -118,29 +121,39 @@ import lombok.extern.slf4j.Slf4j;
  * row yet at the point "Add to Pipeline" fires (that row doesn't exist
  * until elcm-service creates one, which isn't built yet), and elcm-ui has
  * no established way yet to resolve the logged-in user's company/tenant
- * id -- that needs to come from wherever ELCM's own multi-tenant
+ * id - that needs to come from wherever ELCM's own multi-tenant
  * identification actually lives (IAMS profile? a workspace concept?
  * something else?), which hasn't been decided. ownerId uses a random
  * positive long per submission rather than a fixed placeholder, so
  * multiple test uploads don't all collide under the same owner while
- * that's unresolved -- still a placeholder, just one that avoids
+ * that's unresolved - still a placeholder, just one that avoids
  * accidental collisions in the interim. containerName is set to
  * "elcm-stage-documents" (a dedicated container, not the shared
- * "documents" default) since these are ELCM's own files -- company
+ * "documents" default) since these are ELCM's own files - company
  * scoping is done via Azure Blob Index Tags on the common-service side,
  * not the container/path, per the naming-convention decision in chat.
- * Wiring a real ownerId/companyId -- and refreshing StageDocumentsBean's
- * table with the response -- is the next task, not part of this
+ * Wiring a real ownerId/companyId - and refreshing StageDocumentsBean's
+ * table with the response - is the next task, not part of this
  * increment.
  *
- * ALL data from UploadFilesService is still hardcoded placeholder data --
- * see that class's Javadoc.
+ * REVISED 2026-09-29: destinationChoice, comments, assignToUser, and the
+ * New Record/Existing Record sub-panel fields are now real, bound form
+ * fields (see uploadfilesdialog.xhtml) instead of static markup -- and
+ * critically, commitToPipeline's remoteCommand had to change from
+ * process="@this" to process="@form", since @this meant none of those
+ * fields (nor the workspace override) were ever actually decoded into
+ * this bean regardless of what the user typed/selected. addToPipeline()
+ * no longer overwrites destinationChoice to a hardcoded NEW_RECORD before
+ * use -- that line was a leftover from before the cards had any real
+ * selection at all (see uploadfilesdialog.xhtml's DESTINATION CARDS
+ * comment) and would have silently misrouted every Existing Record/Not
+ * Sure submission as if it were New Record.
  */
 @Named
-@ViewScoped  
+@ViewScoped
 @Getter
 @Setter
-@RequiredArgsConstructor
+@RequiredArgsConstructor(onConstructor_ = @Inject)
 @Slf4j
 public class UploadFilesBean extends BaseBean {
 
@@ -151,9 +164,15 @@ public class UploadFilesBean extends BaseBean {
     // logged-in user's company/tenant id -- see class Javadoc.
     private static final Long COMPANY_ID_PLACEHOLDER = 0L;
 
+    /** Matches the dialog's Contract Type dropdown default selection
+     * (ufdNewContractType's first f:selectItem) -- see resetState(). */
+    private static final String DEFAULT_NEW_RECORD_CONTRACT_TYPE = "PROPERTY_LEASE";
+
     private final UploadFilesService uploadFilesService;
 
     private WorkspaceOptionRow assignedWorkspace;
+
+    private String assignedWorkspaceCode;
 
     /** Full pick list for the WORKSPACE selector on uploadfilesdialog.xhtml's
      * right panel ("change to override" the onboarding-assigned workspace).
@@ -162,22 +181,33 @@ public class UploadFilesBean extends BaseBean {
      * (assignedWorkspace.getCode()) -- the dropdown binds directly to
      * assignedWorkspace.code, so overriding the selection updates the same
      * object the rest of this bean already uses, with no separate
-     * "selected workspace" field to keep in sync.
-     *
-     * REQUIRES a new UploadFilesService method (not yet on that class as
-     * provided): something like List<WorkspaceOptionRow> findAllWorkspaces(),
-     * returning every workspace the current user may file documents into
-     * (findAssignedWorkspace(loginId) presumably already narrows to one; this
-     * is that same lookup's unfiltered/broader counterpart). This bean calls
-     * it below on that assumption -- add it to UploadFilesService (or rename
-     * this call to match whatever the real method ends up being called). */
+     * "selected workspace" field to keep in sync. */
     private List<WorkspaceOptionRow> availableWorkspaces;
 
     private List<String> assignableUsers;
 
-    private DestinationChoiceEnum destinationChoice = DestinationChoiceEnum.NEW_RECORD;
+    private DestinationChoiceEnum destinationChoice;
     private String comments;
     private String assignToUser;
+
+    @Override
+    public RESTServiceClient getRestServiceClient() {
+        return super.getRestServiceClient();
+    }
+
+    /** New Record sub-panel fields (uploadfilesdialog.xhtml) -- only
+     * meaningful, and only required, when destinationChoice == NEW_RECORD.
+     * See addToPipeline()'s validateDestinationSpecificFields(). */
+    private String newRecordName;
+    private String newRecordCounterparty;
+    private String newRecordPropertyAddress;
+    private String newRecordContractType = DEFAULT_NEW_RECORD_CONTRACT_TYPE;
+
+    /** Existing Record sub-panel's search field -- only meaningful when
+     * destinationChoice == EXISTING_RECORD. Not yet backed by a real
+     * record search (see UploadFilesService.submitToPipeline()'s Javadoc);
+     * captured as free text for a Preparer to act on. */
+    private String existingRecordQuery;
 
     /** Files received so far via handleFileUpload(), one entry per file --
      * p:fileUpload's advanced/multiple mode invokes the listener once per
@@ -243,10 +273,9 @@ public class UploadFilesBean extends BaseBean {
      * leave instructions") is written directly into the xhtml rather than
      * derived from this enum, so this bean never needs to know that enum's
      * constant names, only that it has exactly three values in the same
-     * order as the three cards. If DestinationChoiceEnum's declaration order
-     * doesn't already match [new, existing, unsure], either reorder its
-     * constants or reorder the p:radioButton index= values in the dialog to
-     * match -- see the dialog's comment on this same assumption.
+     * order as the three cards (0=New Record, 1=Existing Record, 2=Not
+     * Sure) -- see the dialog's p:radioButton itemIndex values, which are
+     * keyed to this same order.
      */
     public DestinationChoiceEnum[] getDestinationChoiceOptions() {
         return DestinationChoiceEnum.values();
@@ -255,6 +284,7 @@ public class UploadFilesBean extends BaseBean {
     private void resetState() {
         try {
             assignedWorkspace = uploadFilesService.findAssignedWorkspace(loginId);
+            assignedWorkspaceCode = (assignedWorkspace != null) ? assignedWorkspace.getCode() : null;
             availableWorkspaces = uploadFilesService.findAllWorkspaces();
             assignableUsers = uploadFilesService.findAssignableUsers();
         } catch (final Exception e) {
@@ -264,6 +294,7 @@ public class UploadFilesBean extends BaseBean {
             // surface it so it's not silently invisible either.
             log.error("Failed to load workspace/assignable-users data while resetting UploadFilesBean", e);
             assignedWorkspace = null;
+            assignedWorkspaceCode = null;
             availableWorkspaces = List.of();
             assignableUsers = List.of();
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
@@ -272,6 +303,11 @@ public class UploadFilesBean extends BaseBean {
         destinationChoice = null;
         comments = null;
         assignToUser = null;
+        newRecordName = null;
+        newRecordCounterparty = null;
+        newRecordPropertyAddress = null;
+        newRecordContractType = DEFAULT_NEW_RECORD_CONTRACT_TYPE;
+        existingRecordQuery = null;
         uploadedFiles = new ArrayList<>();
         persistedFiles = new ArrayList<>();
         submissionSuccessful = true;
@@ -322,7 +358,8 @@ public class UploadFilesBean extends BaseBean {
      * remote command once every queued file has finished uploading -- see
      * uploadfilesdialog.xhtml). Sends every file accumulated in
      * uploadedFiles to common-service's FileStorageController.upload() in
-     * a single request.
+     * a single request, then creates the matching staged_document row(s)
+     * via UploadFilesService.submitToPipeline().
      *
      * On success: resets the dialog's own fields (resetState()) so a
      * future re-open starts clean, and sets submissionSuccessful=true so
@@ -331,40 +368,73 @@ public class UploadFilesBean extends BaseBean {
      * submissionSuccessful=false so the client keeps the dialog open and
      * shows the error message added below.
      *
-     * FIXED 2026-09-23: previously called submitToPipeline() with only
-     * destinationChoice/workspace/comments/assignToUser -- that method was
-     * itself a no-op stub, so common.file_upload got populated but
-     * elcm.staged_document never did. Now passes persistedFiles (this
-     * method's own upload result) and loginId through as well, and
-     * UploadFilesService.submitToPipeline() actually POSTs to elcm-service
-     * to create the staged_document rows. See that method's Javadoc.
+     * REVISED 2026-09-29: no longer overwrites destinationChoice to a
+     * hardcoded NEW_RECORD -- see class Javadoc. Now validates a
+     * destination was actually chosen, and (for New Record specifically)
+     * that Counterparty/Property Address were filled in, before doing
+     * anything else -- a validation failure here leaves uploadedFiles
+     * alone (nothing has been sent to common-service yet at that point),
+     * same "nothing is lost" guarantee as every other failure path below.
      *
      * Does NOT yet refresh StageDocumentsBean's table with the result, and
      * does NOT yet wire a real companyId -- see class Javadoc for both.
      */
     public void addToPipeline() {
         try {
-            if (assignedWorkspace == null) {
+            //we will add all the validations at a later phase of development
+            if (assignedWorkspaceCode == null) {
                 throw new IllegalStateException("No workspace is assigned -- cannot determine where to file these documents.");
             }
+            if (destinationChoice == null) {
+                throw new IllegalStateException("Please choose where these documents should go.");
+            }
+            validateDestinationSpecificFields();
 
             if (!uploadedFiles.isEmpty()) {
                 persistedFiles = uploadToCommonService();
                 log.info("common-service returned {} persisted file(s)", persistedFiles.size());
             }
 
-            destinationChoice = DestinationChoiceEnum.NEW_RECORD;
             uploadFilesService.submitToPipeline(destinationChoice,
-                assignedWorkspace.getCode(), comments, assignToUser, loginId, persistedFiles);
+                assignedWorkspaceCode, comments, assignToUser, loginId, persistedFiles,
+                newRecordName, newRecordCounterparty, newRecordPropertyAddress, newRecordContractType,
+                existingRecordQuery);
 
             resetState();
             submissionSuccessful = true;
+        } catch (final IllegalStateException e) {
+            // Validation failures (no workspace, no destination chosen,
+            // New Record missing a required field) -- these messages are
+            // written for the user, unlike a generic downstream failure
+            // below, so show them directly rather than a canned summary.
+            log.warn("addToPipeline validation failed: {}", e.getMessage());
+            submissionSuccessful = false;
+            FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
+                FacesMessage.SEVERITY_WARN, e.getMessage(), null));
         } catch (final Exception e) {
             log.error("addToPipeline failed", e);
             submissionSuccessful = false;
             FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
                 FacesMessage.SEVERITY_ERROR, "Couldn't add these files to the pipeline",
                 "Nothing was lost -- your files and details are still here. Please try again."));
+        }
+        PrimeFaces.current().ajax().addCallbackParam("submissionSuccessful", submissionSuccessful);
+    }
+
+    /**
+     * The dialog only marks Counterparty/Property Address as required
+     * (asterisks in uploadfilesdialog.xhtml) for the New Record
+     * destination -- Existing Record's search field and Not Sure have no
+     * required fields of their own beyond the destination choice itself.
+     */
+    private void validateDestinationSpecificFields() {
+        if (destinationChoice == DestinationChoiceEnum.NEW_RECORD) {
+            if (newRecordCounterparty == null || newRecordCounterparty.isBlank()) {
+                throw new IllegalStateException("Counterparty is required for a new record.");
+            }
+            if (newRecordPropertyAddress == null || newRecordPropertyAddress.isBlank()) {
+                throw new IllegalStateException("Property address is required for a new record.");
+            }
         }
     }
 
@@ -414,4 +484,3 @@ public class UploadFilesBean extends BaseBean {
         return response.getFileUploadDTOList() != null ? response.getFileUploadDTOList() : List.of();
     }
 }
-

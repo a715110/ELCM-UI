@@ -192,6 +192,12 @@
   padding: 0.75rem 0.9rem;
   cursor: pointer;
   transition: border-color 0.12s, box-shadow 0.12s;
+  /* now a <label> wrapping a real radio input (see uploadfilesdialog.xhtml)
+     rather than a bare non-interactive <div> -- position:relative isn't
+     needed since the radio itself is taken out of flow (see
+     .ufd-dest-radio-input below), but the label needs to keep behaving
+     like a block-level flex container the way the old div did. */
+  position: relative;
 }
 .ufd-dest-card:hover { border-color: #C9C5B8; }
 .ufd-dest-card.ufd-dest-selected {
@@ -209,6 +215,75 @@
 .ufd-dest-card.ufd-dest-selected .ufd-dest-icon { background: #DCE8FD; color: #2563EB; }
 .ufd-dest-title { font-weight: 700; font-size: 0.88rem; }
 .ufd-dest-desc { font-size: 0.78rem; color: #8B8A82; margin-top: 0.1rem; }
+
+/* Visually hidden but still focusable/keyboard-operable -- NOT
+   display:none, which would drop it out of tab order entirely. The
+   surrounding <label> already makes clicking anywhere on the card check
+   this input natively; this just keeps it from being drawn. */
+.ufd-dest-radio-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+/* ---------- Destination subpanels (New Record / Existing Record /
+   Not Sure) -- shown one at a time once a card is selected, see
+   upload-files-dialog.js's applyDestinationSelection(). ---------- */
+.ufd-field-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 0.75rem;
+}
+.ufd-input {
+  width: 100%;
+  border: 1px solid #D6D2C7;
+  border-radius: 8px;
+  background: #FDFCFA;
+  padding: 0.55rem 0.8rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.ufd-search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.ufd-search-input-wrap .pi-search {
+  position: absolute;
+  left: 0.75rem;
+  color: #8B8A82;
+  font-size: 0.85rem;
+}
+.ufd-search-input-wrap .ufd-search-input {
+  padding-left: 2.1rem;
+}
+.ufd-warning-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  background: #FEF9E7;
+  border: 1px solid #F5D98B;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.82rem;
+  color: #7A5D00;
+  margin-top: 1rem;
+}
+.ufd-warning-box .pi { color: #B7891A; margin-top: 0.1rem; }
+.ufd-change-selection {
+  display: inline-block;
+  margin-top: 1rem;
+  font-size: 0.82rem;
+  color: #2563EB;
+  text-decoration: none;
+  cursor: pointer;
+}
+.ufd-change-selection:hover { text-decoration: underline; }
 
 .ufd-routing-divider {
   font-weight: 700;
@@ -254,6 +329,7 @@
 @media (max-width: 768px) {
   .ufd-body { grid-template-columns: 1fr; }
   .ufd-left { border-right: none; border-bottom: 1px solid #E5E2D9; }
+  .ufd-field-grid-2 { grid-template-columns: 1fr; }
 }
 
 /* ---------- p:fileUpload (advanced mode) light reskin ----------
