@@ -13,7 +13,13 @@ import lombok.Getter;
  */
 @Getter
 public enum ContractRecordControllerAPIEnum {
-  searchContractRecords("/api/v1/pipeline/contract-record/search");
+  searchContractRecords("/api/v1/pipeline/contract-record/search"),
+  // ADDED 2026-10-01 -- base path for ContractRecordController.getById()
+  // ("/api/v1/pipeline/contract-record/{id}"), backing the file-preview
+  // feature's "record details" panel. A base path (not the full route)
+  // since the id is a path segment appended at the call site -- see
+  // DocumentViewerService.getRecordDetail().
+  contractRecordBase("/api/v1/pipeline/contract-record");
 
   final String endPoint;
 

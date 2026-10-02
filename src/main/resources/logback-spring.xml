@@ -40,7 +40,11 @@
   <!-- Was ERROR. WARN keeps Spring Security and configuration warnings visible. -->
   <logger name="org.springframework" level="WARN"/>
   <logger name="org.springframework.security.web" level="WARN"/>
+
   <logger name="org.primefaces" level="ERROR"/>
+  <logger name="jakarta.faces" level="ERROR"/>
+  <logger name="jakarta.faces.component" level="ERROR"/>
+
   <logger name="org.jboss" level="ERROR"/>
   <logger name="org.apache" level="ERROR"/>
   <logger name="com.netflix" level="ERROR"/>

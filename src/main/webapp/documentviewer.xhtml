@@ -1,0 +1,170 @@
+<!--
+    ADDED 2026-10-01 - the Stage Documents dashboard's new file-preview
+    feature (the eye icon on dashboard.xhtml's table). Opened in a NEW
+    BROWSER TAB (h:outputLink target="_blank", not a popup) per explicit
+    decision in chat - a real URL, shareable/bookmarkable, with normal
+    back/forward behavior, no popup-blocker risk.
+
+    Deliberately NOT built on template.xhtml (unlike dashboard.xhtml) -
+    this is meant to open as its own focused tab, not sit inside the main
+    app's sidebar/topbar chrome (which isn't even wired up yet per
+    dashboard.xhtml's own comment). Pulls in just PrimeFaces' own
+    auto-included resources, primeicons (for pi-eye/pi-download/pi-file),
+    and this page's own stylesheet - no rain-layout JS/CSS, since that
+    drives navigation chrome this page doesn't have.
+
+    Split into two sections per the request: .dv-preview-pane (file
+    preview) and .dv-details-pane (record details), side by side on a wide
+    viewport and stacked on a narrow one (see document-viewer.css).
+-->
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://xmlns.jcp.org/jsf/core"
+      xmlns:p="http://primefaces.org/ui"
+      xmlns:jsf="http://xmlns.jcp.org/jsf">
+<!-- xmlns:jsf declared above so plain html elements below (div/img/etc, not
+     a PrimeFaces/h: component) can use the jsf:rendered pass-through
+     attribute - needed for conditional rendering on elements like <img>/
+     <div> that have no rendered="" attribute of their own. -->
+<h:head>
+  <title><h:outputText value="#{documentViewerBean.fileName}"/> - Document Viewer</title>
+  <h:outputStylesheet name="css/primeicons.css" library="rain-layout"/>
+  <h:outputStylesheet name="css/theme-override.css" library="elcm-custom"/>
+  <h:outputStylesheet name="css/document-viewer.css" library="ext"/>
+</h:head>
+<h:body>
+
+  <f:metadata>
+    <f:viewParam name="fileUploadId" value="#{documentViewerBean.fileUploadId}"/>
+    <f:viewParam name="recordId" value="#{documentViewerBean.recordId}"/>
+    <f:viewParam name="fileName" value="#{documentViewerBean.fileName}"/>
+    <f:viewParam name="type" value="#{documentViewerBean.type}"/>
+    <f:viewParam name="workspace" value="#{documentViewerBean.workspace}"/>
+    <f:viewParam name="record" value="#{documentViewerBean.record}"/>
+    <f:viewParam name="assignee" value="#{documentViewerBean.assignee}"/>
+    <f:viewParam name="uploadedAt" value="#{documentViewerBean.uploadedAt}"/>
+    <f:event type="preRenderView" listener="#{documentViewerBean.loadRecordDetail}"/>
+  </f:metadata>
+
+  <h:form id="documentViewerForm">
+
+    <div class="dv-header">
+      <div class="dv-header-title">
+        <i class="pi pi-file"/>
+        <span><h:outputText value="#{documentViewerBean.fileName}"/></span>
+      </div>
+      <div class="dv-header-actions">
+        <h:outputLink styleClass="dv-download-link"
+                      value="#{facesContext.externalContext.requestContextPath}/api/v1/pipeline/document-viewer/#{documentViewerBean.fileUploadId}/download">
+          <i class="pi pi-download"/> Download
+        </h:outputLink>
+      </div>
+    </div>
+
+    <div class="dv-body">
+
+      <!-- ==================== FILE PREVIEW PANE ==================== -->
+      <div class="dv-preview-pane">
+
+        <p:fragment rendered="#{documentViewerBean.isPdf()}">
+          <iframe class="dv-pdf-frame"
+                  src="#{facesContext.externalContext.requestContextPath}/api/v1/pipeline/document-viewer/#{documentViewerBean.fileUploadId}/preview"
+                  title="#{documentViewerBean.fileName}"></iframe>
+        </p:fragment>
+
+        <p:fragment rendered="#{documentViewerBean.isImage()}">
+          <img class="dv-image-preview"
+               src="#{facesContext.externalContext.requestContextPath}/api/v1/pipeline/document-viewer/#{documentViewerBean.fileUploadId}/preview"
+               alt="#{documentViewerBean.fileName}"/>
+        </p:fragment>
+
+        <!-- Non-previewable file types (e.g. .docx/.xlsx) - per explicit
+             decision in chat: a fallback message + download link, rather
+             than attempting to force a browser render that would usually
+             just prompt a download or show a blank frame anyway. -->
+        <div class="dv-no-preview" jsf:rendered="#{!documentViewerBean.isPreviewable()}">
+          <i class="pi pi-file-o dv-no-preview-icon"/>
+          <div class="dv-no-preview-title">Preview not available for this file type</div>
+          <div class="dv-no-preview-sub"><h:outputText value="#{documentViewerBean.type}"/> files can't be rendered in the browser.</div>
+          <h:outputLink styleClass="dv-no-preview-download-btn"
+                        value="#{facesContext.externalContext.requestContextPath}/api/v1/pipeline/document-viewer/#{documentViewerBean.fileUploadId}/download">
+            <i class="pi pi-download"/> Download <h:outputText value="#{documentViewerBean.fileName}"/>
+          </h:outputLink>
+        </div>
+
+      </div>
+
+      <!-- ==================== RECORD DETAILS PANE ==================== -->
+      <div class="dv-details-pane">
+
+        <div class="dv-details-section">
+          <div class="dv-details-section-title">Document</div>
+          <div class="dv-field"><span class="dv-field-label">File Name</span><span class="dv-field-value"><h:outputText value="#{documentViewerBean.fileName}"/></span></div>
+          <div class="dv-field"><span class="dv-field-label">Type</span><span class="dv-field-value"><h:outputText value="#{documentViewerBean.type}"/></span></div>
+          <div class="dv-field"><span class="dv-field-label">Workspace</span><span class="dv-field-value"><h:outputText value="#{documentViewerBean.workspace}"/></span></div>
+          <div class="dv-field"><span class="dv-field-label">Assignee</span><span class="dv-field-value"><h:outputText value="#{documentViewerBean.assignee}"/></span></div>
+          <div class="dv-field"><span class="dv-field-label">Uploaded</span><span class="dv-field-value"><h:outputText value="#{documentViewerBean.uploadedAt}"/></span></div>
+        </div>
+
+        <div class="dv-details-section">
+          <div class="dv-details-section-title">Record</div>
+
+          <!-- Not yet linked to a real ContractRecord (recordId is null -
+               see DocumentViewerBean's Javadoc) - show the same fallback
+               label the dashboard table already computed instead of a
+               broken/empty "record details" section. -->
+          <div class="dv-record-unlinked" jsf:rendered="#{!documentViewerBean.isRecordLinked()}">
+            <i class="pi pi-info-circle"/>
+            <span>Not yet linked to a record. (<h:outputText value="#{documentViewerBean.record}"/>)</span>
+          </div>
+
+          <div class="dv-warning-box" jsf:rendered="#{documentViewerBean.isRecordLinked() and documentViewerBean.recordDetailError != null}">
+            <i class="pi pi-exclamation-triangle"/>
+            <span><h:outputText value="#{documentViewerBean.recordDetailError}"/></span>
+          </div>
+
+          <p:fragment rendered="#{documentViewerBean.isRecordLinked() and documentViewerBean.recordDetail != null}">
+            <div class="dv-field"><span class="dv-field-label">Record Code</span><span class="dv-field-value"><h:outputText value="#{documentViewerBean.recordDetail.recordCode}"/></span></div>
+            <div class="dv-field" jsf:rendered="#{documentViewerBean.recordDetail.counterpartyDTO != null}">
+              <span class="dv-field-label">Counterparty</span><span class="dv-field-value"><h:outputText value="#{documentViewerBean.recordDetail.counterpartyDTO.name}"/></span>
+            </div>
+            <div class="dv-field" jsf:rendered="#{documentViewerBean.recordDetail.contractTypeDTO != null}">
+              <span class="dv-field-label">Contract Type</span><span class="dv-field-value"><h:outputText value="#{documentViewerBean.recordDetail.contractTypeDTO.label}"/></span>
+            </div>
+            <div class="dv-field" jsf:rendered="#{documentViewerBean.recordDetail.statusDTO != null}">
+              <span class="dv-field-label">Status</span><span class="dv-field-value"><h:outputText value="#{documentViewerBean.recordDetail.statusDTO.label}"/></span>
+            </div>
+            <div class="dv-field" jsf:rendered="#{documentViewerBean.recordDetail.workspaceDTO != null}">
+              <span class="dv-field-label">Workspace</span><span class="dv-field-value"><h:outputText value="#{documentViewerBean.recordDetail.workspaceDTO.name}"/></span>
+            </div>
+
+            <!-- Property/address only exist once a Property row was
+                 created for this record (see RecordProvisioningService.
+                 getRecordDetail()'s Javadoc) - legacy/incomplete records
+                 may have none. -->
+            <div jsf:rendered="#{documentViewerBean.recordDetail.propertyDTO != null}">
+              <div class="dv-details-section-title dv-details-subsection-title">Property</div>
+              <div class="dv-field" jsf:rendered="#{documentViewerBean.recordDetail.propertyDTO.propertyName != null}">
+                <span class="dv-field-label">Name</span><span class="dv-field-value"><h:outputText value="#{documentViewerBean.recordDetail.propertyDTO.propertyName}"/></span>
+              </div>
+              <div class="dv-field" jsf:rendered="#{documentViewerBean.recordDetail.propertyDTO.addressDTO != null}">
+                <span class="dv-field-label">Address</span>
+                <span class="dv-field-value">
+                  <h:outputText value="#{documentViewerBean.recordDetail.propertyDTO.addressDTO.addressLine1}"/><h:outputText value=", #{documentViewerBean.recordDetail.propertyDTO.addressDTO.addressLine2}" rendered="#{documentViewerBean.recordDetail.propertyDTO.addressDTO.addressLine2 != null}"/><br/>
+                  <h:outputText value="#{documentViewerBean.recordDetail.propertyDTO.addressDTO.city}"/>, <h:outputText value="#{documentViewerBean.recordDetail.propertyDTO.addressDTO.state}"/> <h:outputText value="#{documentViewerBean.recordDetail.propertyDTO.addressDTO.zip}"/>
+                </span>
+              </div>
+            </div>
+          </p:fragment>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </h:form>
+
+</h:body>
+</html>

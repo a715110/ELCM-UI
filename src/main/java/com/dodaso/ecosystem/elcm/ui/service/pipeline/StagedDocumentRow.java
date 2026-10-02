@@ -23,16 +23,24 @@ import lombok.Setter;
  * elcm_fc1_fc2_schema.sql, so wiring this to a real repository later is a
  * data-source swap inside StageDocumentService, not a redesign of this
  * type or of any bean/page that consumes it.
+ *
+ * REVISED 2026-10-01 -- added id/fileUploadId/targetRecordId, mirroring the
+ * service-side row of the same name -- see that class's Javadoc. Backs
+ * dashboard.xhtml's eye icon, which links out to documentviewer.xhtml with
+ * these three as query params.
  */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class StagedDocumentRow implements Serializable {
+    private Long id;
     private String fileName;
     private String type;
     private String workspace;
     private String record;
     private String assignee;
     private String uploadedAt;
+    private Long fileUploadId;
+    private Long targetRecordId;
 }

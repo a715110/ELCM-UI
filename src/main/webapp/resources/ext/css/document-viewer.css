@@ -1,0 +1,164 @@
+/* ============================================================
+   Document Viewer page (documentviewer.xhtml) -- the Stage Documents
+   dashboard's file-preview feature, opened as its own browser tab.
+   Same warm-neutral + forest-green palette as upload-files-dialog.css /
+   theme-override.css, reused here for visual consistency even though this
+   page isn't wrapped in template.xhtml.
+   ============================================================ */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #F3F2ED;
+  font-family: inherit;
+}
+
+/* ---------- Header ---------- */
+.dv-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: #FDFCFA;
+  border-bottom: 1px solid #E5E2D9;
+}
+.dv-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #2B2A26;
+}
+.dv-header-title .pi { color: #6B6A63; }
+
+.dv-download-link,
+.dv-no-preview-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #D6D2C7;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  background: #FDFCFA;
+  color: #2B2A26;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.dv-download-link:hover,
+.dv-no-preview-download-btn:hover {
+  border-color: #2563EB;
+  color: #2563EB;
+}
+
+/* ---------- Body: two-pane split ---------- */
+.dv-body {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1px;
+  background: #E5E2D9;
+  min-height: calc(100vh - 64px);
+}
+
+/* ---------- Preview pane ---------- */
+.dv-preview-pane {
+  background: #EDEBE4;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 1rem;
+}
+.dv-pdf-frame {
+  width: 100%;
+  height: calc(100vh - 96px);
+  border: 1px solid #D6D2C7;
+  border-radius: 8px;
+  background: #FFFFFF;
+}
+.dv-image-preview {
+  max-width: 100%;
+  max-height: calc(100vh - 96px);
+  object-fit: contain;
+  border: 1px solid #D6D2C7;
+  border-radius: 8px;
+  background: #FFFFFF;
+  margin: auto;
+}
+.dv-no-preview {
+  margin: auto;
+  text-align: center;
+  color: #6B6A63;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem;
+}
+.dv-no-preview-icon { font-size: 2.5rem; color: #8B8A82; }
+.dv-no-preview-title { font-weight: 700; font-size: 1rem; color: #2B2A26; }
+.dv-no-preview-sub { font-size: 0.85rem; margin-bottom: 0.5rem; }
+
+/* ---------- Details pane ---------- */
+.dv-details-pane {
+  background: #FDFCFA;
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+}
+.dv-details-section { margin-bottom: 1.5rem; }
+.dv-details-section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #55544D;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid #E5E2D9;
+}
+.dv-details-subsection-title {
+  margin-top: 1rem;
+  font-size: 0.72rem;
+}
+.dv-field {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.4rem 0;
+  font-size: 0.88rem;
+  border-bottom: 1px dashed #EDEBE4;
+}
+.dv-field-label { color: #8B8A82; flex-shrink: 0; }
+.dv-field-value { color: #2B2A26; font-weight: 600; text-align: right; }
+
+.dv-record-unlinked {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #F3F2ED;
+  border: 1px solid #E5E2D9;
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.85rem;
+  color: #55544D;
+}
+.dv-record-unlinked .pi { color: #6B6A63; }
+
+.dv-warning-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  background: #FEF9E7;
+  border: 1px solid #F5D98B;
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.82rem;
+  color: #7A5D00;
+}
+.dv-warning-box .pi { color: #B7891A; margin-top: 0.1rem; }
+
+@media (max-width: 900px) {
+  .dv-body { grid-template-columns: 1fr; }
+  .dv-pdf-frame, .dv-image-preview { max-height: 60vh; height: 60vh; }
+}
