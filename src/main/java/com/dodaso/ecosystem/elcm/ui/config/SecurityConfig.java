@@ -138,6 +138,19 @@ public class SecurityConfig {
             .invalidSessionUrl("/login") // Redirect to login on invalid session
         )
         .csrf(csrf -> csrf.disable()) // Temporarily disable for testing
+        // ADDED 2026-10-02 -- without this, Spring Security's own default
+        // X-Frame-Options header-writer runs AFTER SimpleCORSFilter (which
+        // tries to set X-Frame-Options: SAMEORIGIN) and overrides it with
+        // DENY, blocking the Stage Documents dashboard's file-preview
+        // feature's <iframe> entirely (both the plain PDF preview and the
+        // Gotenberg-converted-PDF preview -- this was likely always latent
+        // for PDFs, just never exercised, since <img>-based image preview
+        // isn't affected by X-Frame-Options at all). sameOrigin() here is
+        // explicit and wins over whatever default Spring Security would
+        // otherwise apply, matching SimpleCORSFilter's intent.
+        .headers(headers -> headers
+            .frameOptions(frameOptions -> frameOptions.sameOrigin())
+        )
         .authorizeHttpRequests(authz -> authz
             // Static resources - allow all
             .requestMatchers("/javax.faces.resource/**", "/resources/**", "/css/**", "/js/**",

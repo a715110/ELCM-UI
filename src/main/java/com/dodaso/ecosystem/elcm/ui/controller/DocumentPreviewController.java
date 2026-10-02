@@ -8,10 +8,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.dodaso.ecosystem.common.dto.DocumentConversionDTO;
 import com.dodaso.ecosystem.common.dto.FileUploadDTO;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.DocumentViewerService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * ADDED 2026-10-01 -- a plain Spring MVC @RestController living alongside
@@ -45,6 +47,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/v1/pipeline/document-viewer")
 @RequiredArgsConstructor
+@Slf4j
 public class DocumentPreviewController {
 
     private final DocumentViewerService documentViewerService;
@@ -67,6 +70,50 @@ public class DocumentPreviewController {
     @GetMapping("/{fileUploadId}/download")
     public ResponseEntity<byte[]> download(@PathVariable final Long fileUploadId) throws Exception {
         return stream(fileUploadId, false);
+    }
+
+    /**
+     * ADDED 2026-10-02 -- Gotenberg office-document-conversion feature.
+     * Rendered inline in documentviewer.xhtml's preview pane the same way
+     * the plain preview() route is, but streams the CONVERTED PDF
+     * (common-service's GET /{id}/conversion) rather than the original
+     * office-format bytes, which a browser can't render natively.
+     *
+     * REVISED 2026-10-02 -- originally called getConvertedPdfBytes()
+     * directly, trusting the bean's polling to never hit this route before
+     * status was COMPLETED. That held for the <iframe> the bean itself
+     * renders, but this route is also reachable directly (anyone can type
+     * the URL, and that's exactly how a "why is Firefox blocking my
+     * preview" report got diagnosed) -- common-service 404s when there's
+     * no conversion row at all, which getConvertedPdfBytes() doesn't
+     * catch, so that 404 propagated up as an UNCAUGHT exception and
+     * Spring's default error handling turned it into a generic Whitelabel
+     * error page (confusingly also a 404, but with no useful information
+     * -- and, inside an <iframe>, indistinguishable at a glance from an
+     * X-Frame-Options block). Now checks status first and returns a
+     * proper 404/202, the same "not ready yet, not an error" contract
+     * stream() area and common-service's own endpoints already follow.
+     */
+    @GetMapping("/{fileUploadId}/converted-preview")
+    public ResponseEntity<byte[]> convertedPreview(@PathVariable final Long fileUploadId) throws Exception {
+        final DocumentConversionDTO statusDto = documentViewerService.getConversionStatus(fileUploadId);
+        if (statusDto == null || statusDto.getStatusDTO() == null) {
+            log.warn("No document_conversion row for fileUploadId={} -- this file was never eligible for "
+                    + "conversion, or predates the feature", fileUploadId);
+            return ResponseEntity.notFound().build();
+        }
+        if (!"COMPLETED".equals(statusDto.getStatusDTO().getCode())) {
+            // Still PENDING/PROCESSING, or FAILED -- not an error condition
+            // for this route to throw over; the bean's own polling is what
+            // decides what the user sees for each of those.
+            return ResponseEntity.accepted().build();
+        }
+
+        final byte[] content = documentViewerService.getConvertedPdfBytes(fileUploadId);
+        return ResponseEntity.ok()
+            .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"converted.pdf\"")
+            .contentType(MediaType.APPLICATION_PDF)
+            .body(content);
     }
 
     private ResponseEntity<byte[]> stream(final Long fileUploadId, final boolean inline) throws Exception {

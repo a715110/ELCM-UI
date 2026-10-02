@@ -67,9 +67,15 @@
       <!-- ==================== FILE PREVIEW PANE ==================== -->
       <div class="dv-preview-pane">
 
+        <!-- #zoom=page-width (a PDF.js/Adobe viewer URL-fragment convention,
+             not a server-side query param) tells the browser's built-in PDF
+             viewer to fit the page to the frame's width on open, instead of
+             its own "Automatic"/actual-size default, which otherwise renders
+             small and left-aligned inside a wide pane - see the matching
+             comment on the converted-preview <iframe> below. -->
         <p:fragment rendered="#{documentViewerBean.isPdf()}">
           <iframe class="dv-pdf-frame"
-                  src="#{facesContext.externalContext.requestContextPath}/api/v1/pipeline/document-viewer/#{documentViewerBean.fileUploadId}/preview"
+                  src="#{facesContext.externalContext.requestContextPath}/api/v1/pipeline/document-viewer/#{documentViewerBean.fileUploadId}/preview#zoom=page-width"
                   title="#{documentViewerBean.fileName}"></iframe>
         </p:fragment>
 
@@ -79,11 +85,55 @@
                alt="#{documentViewerBean.fileName}"/>
         </p:fragment>
 
-        <!-- Non-previewable file types (e.g. .docx/.xlsx) - per explicit
-             decision in chat: a fallback message + download link, rather
-             than attempting to force a browser render that would usually
-             just prompt a download or show a blank frame anyway. -->
-        <div class="dv-no-preview" jsf:rendered="#{!documentViewerBean.isPreviewable()}">
+        <!-- ADDED 2026-10-02 - Gotenberg office-document-conversion
+             feature. Only engages for office formats (docx/xlsx/pptx and
+             legacy equivalents) - everything else keeps the original
+             isPdf()/isImage()/no-preview behavior above untouched. A
+             hidden <p:poll> drives checkConversionStatus() every few
+             seconds until a terminal state is reached (see
+             isConversionPollingDone()), updating just this wrapper div so
+             the rest of the page doesn't re-render on every tick. -->
+        <h:panelGroup id="dvConversionWrapper" layout="block" styleClass="dv-conversion-wrapper" rendered="#{documentViewerBean.isOfficeFormat()}">
+
+          <p:poll interval="4" listener="#{documentViewerBean.checkConversionStatus}"
+                  update="dvConversionWrapper"
+                  rendered="#{!documentViewerBean.isConversionPollingDone()}"/>
+
+          <!-- Same #zoom=page-width fragment as the native-PDF <iframe>
+               above - a converted PDF needs it just as much. -->
+          <p:fragment rendered="#{documentViewerBean.isConversionCompleted()}">
+            <iframe class="dv-pdf-frame"
+                    src="#{facesContext.externalContext.requestContextPath}/api/v1/pipeline/document-viewer/#{documentViewerBean.fileUploadId}/converted-preview#zoom=page-width"
+                    title="#{documentViewerBean.fileName} (converted preview)"></iframe>
+          </p:fragment>
+
+          <div class="dv-no-preview" jsf:rendered="#{documentViewerBean.isConversionInProgress() or !documentViewerBean.conversionChecked}">
+            <i class="pi pi-spin pi-spinner dv-no-preview-icon"/>
+            <div class="dv-no-preview-title">Converting document for preview&#8230;</div>
+            <div class="dv-no-preview-sub">This usually takes a few seconds. The preview will appear automatically once it's ready.</div>
+          </div>
+
+          <!-- Conversion FAILED, or this file turned out to have no
+               conversion row at all (checked, nothing came back) - same
+               fallback message/download link as any other non-previewable
+               type. -->
+          <div class="dv-no-preview" jsf:rendered="#{documentViewerBean.conversionChecked and (documentViewerBean.isConversionFailed() or documentViewerBean.conversionStatus == null)}">
+            <i class="pi pi-file-o dv-no-preview-icon"/>
+            <div class="dv-no-preview-title">Preview not available for this file type</div>
+            <div class="dv-no-preview-sub"><h:outputText value="#{documentViewerBean.type}"/> files can't be rendered in the browser.</div>
+            <h:outputLink styleClass="dv-no-preview-download-btn"
+                          value="#{facesContext.externalContext.requestContextPath}/api/v1/pipeline/document-viewer/#{documentViewerBean.fileUploadId}/download">
+              <i class="pi pi-download"/> Download <h:outputText value="#{documentViewerBean.fileName}"/>
+            </h:outputLink>
+          </div>
+
+        </h:panelGroup>
+
+        <!-- Non-previewable, non-office file types - per explicit decision
+             in chat: a fallback message + download link, rather than
+             attempting to force a browser render that would usually just
+             prompt a download or show a blank frame anyway. -->
+        <div class="dv-no-preview" jsf:rendered="#{!documentViewerBean.isPreviewable() and !documentViewerBean.isOfficeFormat()}">
           <i class="pi pi-file-o dv-no-preview-icon"/>
           <div class="dv-no-preview-title">Preview not available for this file type</div>
           <div class="dv-no-preview-sub"><h:outputText value="#{documentViewerBean.type}"/> files can't be rendered in the browser.</div>

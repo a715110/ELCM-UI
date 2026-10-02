@@ -86,6 +86,44 @@ html, body {
   background: #FFFFFF;
   margin: auto;
 }
+/* ADDED 2026-10-02 - Gotenberg office-document-conversion feature. The
+   converted-preview <iframe> (and its spinner/fallback states) sits inside
+   an extra wrapper <div> (documentviewer.xhtml's dvConversionWrapper,
+   needed so <p:poll>'s ajax update has a single target to re-render) that
+   the plain PDF/image previews above don't have. As a flex item of
+   .dv-preview-pane with no explicit size of its own, that wrapper was
+   shrinking to fit its content instead of stretching -- so the iframe's
+   width:100%/height:100% had no real basis to resolve against and fell
+   back to the browser's default ~300x150 iframe size. Giving the wrapper
+   itself an explicit width/height (and making it a flex container so its
+   children, including the iframe, stretch to fill it) fixes that. */
+.dv-conversion-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+/* REVISED 2026-10-02 -- fixing .dv-conversion-wrapper alone wasn't enough:
+   each <p:fragment>/<p:poll rendered="">/panelGroup inside it ALSO renders
+   its own wrapping <div> (PrimeFaces/JSF auto-generates its id, e.g.
+   "j_idt31" -- not something this stylesheet can target by id, and not
+   stable across any structural edit to the page). That generated div is
+   itself a flex item of .dv-conversion-wrapper with no explicit size, so
+   the exact same shrink-to-fit problem repeats one level deeper, and the
+   iframe/no-preview content inside IT still has nothing real to size
+   against. Targeting ":scope > *" (any direct child, whatever JSF named
+   it) instead of a specific id fixes this at the structural level and
+   keeps working if the page's generated ids ever change. */
+.dv-conversion-wrapper > * {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
 .dv-no-preview {
   margin: auto;
   text-align: center;

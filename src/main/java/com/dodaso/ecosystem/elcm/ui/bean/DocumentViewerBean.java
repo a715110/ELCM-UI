@@ -7,6 +7,7 @@ import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 
+import com.dodaso.ecosystem.common.dto.DocumentConversionDTO;
 import com.dodaso.ecosystem.elcm.dto.ContractRecordDTO;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.DocumentViewerService;
 
@@ -61,6 +62,22 @@ public class DocumentViewerBean extends BaseBean {
 
     /** Rendered via a plain <img> in documentviewer.xhtml. */
     private static final List<String> IMAGE_TYPES = List.of("PNG", "JPG", "JPEG", "GIF", "BMP", "WEBP");
+
+    /**
+     * ADDED 2026-10-02 -- Gotenberg office-document-conversion feature.
+     * Office formats that are NOT natively previewable but ARE eligible
+     * for async conversion to PDF via common-service's
+     * DocumentConversionEligibility -- kept in sync with that class's
+     * OFFICE_EXTENSIONS set. "type" here is the same file-extension string
+     * StageDocumentService.deriveFileType() already computed (same source
+     * isPdf()/isImage() read from), not a content-type.
+     */
+    private static final Set<String> OFFICE_TYPES = Set.of("DOC", "DOCX", "XLS", "XLSX", "PPT", "PPTX");
+
+    private static final String CONVERSION_PROCESSING_CODE = "PROCESSING";
+    private static final String CONVERSION_PENDING_CODE = "PENDING";
+    private static final String CONVERSION_COMPLETED_CODE = "COMPLETED";
+    private static final String CONVERSION_FAILED_CODE = "FAILED";
 
     private final DocumentViewerService documentViewerService;
 
@@ -132,7 +149,70 @@ public class DocumentViewerBean extends BaseBean {
         return type != null && IMAGE_TYPES.contains(type.toUpperCase());
     }
 
+    /**
+     * NOTE: deliberately unchanged by the conversion feature -- this still
+     * means "the ORIGINAL file can be rendered natively". A converted
+     * office document is previewable too, but through a different pane
+     * (see isConversionCompleted()/isOfficeFormat() below); the xhtml
+     * checks both, not just this one, to decide what to show.
+     */
     public boolean isPreviewable() {
         return isPdf() || isImage();
+    }
+
+    /**
+     * ADDED 2026-10-02 -- Gotenberg office-document-conversion feature.
+     * conversionStatus/conversionChecked are populated by
+     * checkConversionStatus() below, which documentviewer.xhtml's
+     * <p:poll> calls repeatedly (every few seconds) until conversion
+     * reaches a terminal state, at which point the xhtml stops rendering
+     * the poll component. conversionChecked distinguishes "haven't polled
+     * yet" (xhtml shows nothing conversion-related on first paint) from
+     * "polled and there's genuinely no conversion for this file" (not
+     * office format, or common-service returned no row at all).
+     */
+    private String conversionStatus;
+    private boolean conversionChecked;
+
+    public boolean isOfficeFormat() {
+        return type != null && OFFICE_TYPES.contains(type.toUpperCase());
+    }
+
+    /**
+     * Bound to documentviewer.xhtml's <p:poll> listener. Safe to call
+     * repeatedly and safe to call even when isOfficeFormat() is false --
+     * it just won't find anything to poll for in that case (no row was
+     * ever queued -- see FileUploadService.queueDocumentConversion()).
+     * Polling continues (per the xhtml's rendered="" condition on the
+     * <p:poll>) until this method reports a terminal status (COMPLETED/
+     * FAILED) or "no row at all".
+     */
+    public void checkConversionStatus() {
+        if (!isOfficeFormat() || fileUploadId == null) {
+            conversionChecked = true;
+            return;
+        }
+        final DocumentConversionDTO dto = documentViewerService.getConversionStatus(fileUploadId);
+        conversionChecked = true;
+        conversionStatus = (dto != null && dto.getStatusDTO() != null) ? dto.getStatusDTO().getCode() : null;
+    }
+
+    public boolean isConversionInProgress() {
+        return CONVERSION_PENDING_CODE.equals(conversionStatus) || CONVERSION_PROCESSING_CODE.equals(conversionStatus);
+    }
+
+    public boolean isConversionCompleted() {
+        return CONVERSION_COMPLETED_CODE.equals(conversionStatus);
+    }
+
+    public boolean isConversionFailed() {
+        return CONVERSION_FAILED_CODE.equals(conversionStatus);
+    }
+
+    /** True once polling should stop: either a terminal status was
+     * reached, or this file was never eligible for conversion in the
+     * first place (checked but no status at all). */
+    public boolean isConversionPollingDone() {
+        return isConversionCompleted() || isConversionFailed() || (conversionChecked && conversionStatus == null);
     }
 }
