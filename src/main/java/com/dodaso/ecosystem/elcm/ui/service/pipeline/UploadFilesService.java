@@ -1,5 +1,7 @@
 package com.dodaso.ecosystem.elcm.ui.service.pipeline;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -16,6 +18,7 @@ import com.dodaso.ecosystem.elcm.dto.LkpContractTypeDTO;
 import com.dodaso.ecosystem.elcm.dto.LkpRoutingIntentDTO;
 import com.dodaso.ecosystem.elcm.dto.StagedDocumentDTO;
 import com.dodaso.ecosystem.elcm.dto.WorkspaceDTO;
+import com.dodaso.ecosystem.elcm.ui.constant.ContractRecordControllerAPIEnum;
 import com.dodaso.ecosystem.elcm.ui.constant.DestinationChoiceEnum;
 
 /**
@@ -101,12 +104,30 @@ public class UploadFilesService {
    *                                    lkp_contract_type.code, e.g.
    *                                    "PROPERTY_LEASE") -- null unless
    *                                    destinationChoice is NEW_RECORD.
-   * @param existingRecordQuery        Existing Record's free-text search
+   * @param newRecordAddressLine2      New Record's optional Address Line 2
    *                                    field -- null unless
-   *                                    destinationChoice is
-   *                                    EXISTING_RECORD. Not yet backed by
-   *                                    a real record search; captured
-   *                                    as-is for a Preparer to act on.
+   *                                    destinationChoice is NEW_RECORD.
+   * @param newRecordCity              New Record's required City field --
+   *                                    null unless destinationChoice is
+   *                                    NEW_RECORD.
+   * @param newRecordState             New Record's optional State field --
+   *                                    null unless destinationChoice is
+   *                                    NEW_RECORD.
+   * @param newRecordZip               New Record's optional Zip field --
+   *                                    null unless destinationChoice is
+   *                                    NEW_RECORD.
+   * @param existingRecordQuery        Existing Record's free-text search
+   *                                    field, kept only as an audit trail
+   *                                    (see StagedDocument's Javadoc) --
+   *                                    null unless destinationChoice is
+   *                                    EXISTING_RECORD.
+   * @param existingRecordId           Existing Record's actual selection --
+   *                                    the id the user picked from the
+   *                                    autocomplete (see
+   *                                    ContractRecordOptionRow), required
+   *                                    server-side when destinationChoice
+   *                                    is EXISTING_RECORD -- null
+   *                                    otherwise.
    */
   public void submitToPipeline(final DestinationChoiceEnum destinationChoice,
       final String workspaceCode,
@@ -118,7 +139,12 @@ public class UploadFilesService {
       final String newRecordCounterparty,
       final String newRecordPropertyAddress,
       final String newRecordContractTypeCode,
-      final String existingRecordQuery) throws Exception {
+      final String newRecordAddressLine2,
+      final String newRecordCity,
+      final String newRecordState,
+      final String newRecordZip,
+      final String existingRecordQuery,
+      final Long existingRecordId) throws Exception {
 
     if (persistedFiles == null || persistedFiles.isEmpty()) {
       return;
@@ -154,7 +180,12 @@ public class UploadFilesService {
           dto.setNewRecordName(newRecordName);
           dto.setNewRecordCounterparty(newRecordCounterparty);
           dto.setNewRecordPropertyAddress(newRecordPropertyAddress);
+          dto.setNewRecordAddressLine2(newRecordAddressLine2);
+          dto.setNewRecordCity(newRecordCity);
+          dto.setNewRecordState(newRecordState);
+          dto.setNewRecordZip(newRecordZip);
           dto.setExistingRecordQuery(existingRecordQuery);
+          dto.setExistingRecordId(existingRecordId);
           return dto;
         })
         .collect(Collectors.toList());
@@ -194,5 +225,25 @@ public class UploadFilesService {
         .collect(Collectors.toList());
 
     return workspaceOptionRows;
+  }
+
+  /**
+   * ADDED 2026-10-01 -- backs the dialog's Existing Record p:autoComplete
+   * (UploadFilesBean.completeExistingRecords()). Same GET pattern as
+   * findAllWorkspaces(), hitting elcm-service's
+   * ContractRecordController.search() -- see RecordProvisioningService.
+   * search()'s Javadoc on the elcm-service side for matching rules/
+   * limitations (record_code only, top 20, case-insensitive contains).
+   */
+  public List<ContractRecordOptionRow> searchExistingRecords(final String query) throws Exception {
+    if (query == null || query.isBlank()) {
+      return List.of();
+    }
+    return restServiceClient.get(
+        ServiceDiscoveryEnum.elcm_service.getServiceDiscoveryName(),
+        ContractRecordControllerAPIEnum.searchContractRecords.getEndPoint()
+            + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8),
+        new ParameterizedTypeReference<List<ContractRecordOptionRow>>() {
+        });
   }
 }

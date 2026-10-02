@@ -191,6 +191,8 @@
                      value="#{stageDocumentsBean.stagedDocuments}"
                      selection="#{stageDocumentsBean.selectedDocuments}"
                      rowKey="#{doc.fileName}"
+                     rows="10"
+                     paginator="true"
                      emptyMessage="No staged documents.">
 
           <p:column selectionMode="multiple" style="width:3rem" exportable="false"/>
@@ -231,7 +233,7 @@
           <!-- Renamed to match mockup ("Create Document Set", not "Review &
                Group") and disabled when nothing is selected, matching the
                greyed-out state shown there. Assumes stageDocumentsBean
-               exposes selectedDocuments as a List that's empty by default 
+               exposes selectedDocuments as a List that's empty by default
                confirm the getter name if this doesn't compile as-is. -->
           <p:commandButton value="Create Document Set" icon="pi pi-arrow-right" iconPos="right"
                             disabled="#{empty stageDocumentsBean.selectedDocuments}"/>

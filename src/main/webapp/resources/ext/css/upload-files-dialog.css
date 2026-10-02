@@ -238,6 +238,15 @@
   grid-template-columns: 1fr 1fr;
   gap: 0 0.75rem;
 }
+/* ADDED 2026-10-01 -- City/State/Zip row on the New Record sub-panel (see
+   uploadfilesdialog.xhtml). Same pattern as ufd-field-grid-2, just a third
+   column; state/zip get a narrower share than city since they're always
+   short values. */
+.ufd-field-grid-3 {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 0 0.75rem;
+}
 .ufd-input {
   width: 100%;
   border: 1px solid #D6D2C7;
@@ -330,6 +339,7 @@
   .ufd-body { grid-template-columns: 1fr; }
   .ufd-left { border-right: none; border-bottom: 1px solid #E5E2D9; }
   .ufd-field-grid-2 { grid-template-columns: 1fr; }
+  .ufd-field-grid-3 { grid-template-columns: 1fr; }
 }
 
 /* ---------- p:fileUpload (advanced mode) light reskin ----------

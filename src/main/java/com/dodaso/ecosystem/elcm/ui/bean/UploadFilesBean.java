@@ -21,6 +21,7 @@ import com.dodaso.ecosystem.common.dto.FileUploadDTO;
 import com.dodaso.ecosystem.common.dto.FileUploadRequestDTO;
 import com.dodaso.ecosystem.elcm.ui.constant.DestinationChoiceEnum;
 import com.dodaso.ecosystem.elcm.ui.constant.FileStorageControllerAPIEnum;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractRecordOptionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.StagedFileUploadRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.UploadFilesService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.WorkspaceOptionRow;
@@ -203,11 +204,31 @@ public class UploadFilesBean extends BaseBean {
     private String newRecordPropertyAddress;
     private String newRecordContractType = DEFAULT_NEW_RECORD_CONTRACT_TYPE;
 
+    /** ADDED 2026-10-01 -- New Record sub-panel's Address Line 2/City/
+     * State/Zip fields (uploadfilesdialog.xhtml's ufd-field-grid-3 row).
+     * City is marked required (*) on the dialog but, same as the rest of
+     * this increment, not yet enforced in validateDestinationSpecificFields()
+     * below -- see chat note to revisit that consistently. */
+    private String newRecordAddressLine2;
+    private String newRecordCity;
+    private String newRecordState;
+    private String newRecordZip;
+
     /** Existing Record sub-panel's search field -- only meaningful when
-     * destinationChoice == EXISTING_RECORD. Not yet backed by a real
-     * record search (see UploadFilesService.submitToPipeline()'s Javadoc);
-     * captured as free text for a Preparer to act on. */
+     * destinationChoice == EXISTING_RECORD. Kept only as an audit trail on
+     * staged_document now (see that entity's Javadoc) -- the actual link
+     * to a real record is existingRecordId below, the id the user picked
+     * from the autocomplete, not this raw search text. */
     private String existingRecordQuery;
+
+    /** ADDED 2026-10-01 -- the record actually selected from
+     * ufdExistingRecordSearch's p:autoComplete (itemValue="#{rec.id}"), as
+     * opposed to existingRecordQuery above, which only ever holds
+     * whatever free text the user last typed into the box. This is what
+     * elcm-service's StageDocumentService.resolveTargetRecord() actually
+     * looks up -- see validateDestinationSpecificFields() below, which
+     * requires this to be non-null for EXISTING_RECORD. */
+    private Long existingRecordId;
 
     /** Files received so far via handleFileUpload(), one entry per file --
      * p:fileUpload's advanced/multiple mode invokes the listener once per
@@ -307,7 +328,12 @@ public class UploadFilesBean extends BaseBean {
         newRecordCounterparty = null;
         newRecordPropertyAddress = null;
         newRecordContractType = DEFAULT_NEW_RECORD_CONTRACT_TYPE;
+        newRecordAddressLine2 = null;
+        newRecordCity = null;
+        newRecordState = null;
+        newRecordZip = null;
         existingRecordQuery = null;
+        existingRecordId = null;
         uploadedFiles = new ArrayList<>();
         persistedFiles = new ArrayList<>();
         submissionSuccessful = true;
@@ -398,7 +424,8 @@ public class UploadFilesBean extends BaseBean {
             uploadFilesService.submitToPipeline(destinationChoice,
                 assignedWorkspaceCode, comments, assignToUser, loginId, persistedFiles,
                 newRecordName, newRecordCounterparty, newRecordPropertyAddress, newRecordContractType,
-                existingRecordQuery);
+                newRecordAddressLine2, newRecordCity, newRecordState, newRecordZip,
+                existingRecordQuery, existingRecordId);
 
             resetState();
             submissionSuccessful = true;
@@ -435,6 +462,47 @@ public class UploadFilesBean extends BaseBean {
             if (newRecordPropertyAddress == null || newRecordPropertyAddress.isBlank()) {
                 throw new IllegalStateException("Property address is required for a new record.");
             }
+            // ADDED 2026-10-01 -- City is marked required (*) on the dialog
+            // now that it's a real column feeding Address/Property creation
+            // (see RecordProvisioningService.createNewRecord()); enforcing
+            // it here too rather than only in the markup.
+            if (newRecordCity == null || newRecordCity.isBlank()) {
+                throw new IllegalStateException("City is required for a new record.");
+            }
+        } else if (destinationChoice == DestinationChoiceEnum.EXISTING_RECORD) {
+            // ADDED 2026-10-01 -- now that Existing Record is a real
+            // autocomplete bound to existingRecordId (not just free text),
+            // require an actual selection before submitting -- otherwise
+            // elcm-service's resolveTargetRecord() would reject the batch
+            // anyway (see StageDocumentService), just later and less
+            // helpfully.
+            if (existingRecordId == null) {
+                throw new IllegalStateException("Please select an existing record from the search results.");
+            }
+        }
+    }
+
+    /**
+     * ADDED 2026-10-01 -- completeMethod for uploadfilesdialog.xhtml's
+     * ufdExistingRecordSearch p:autoComplete. Delegates to
+     * UploadFilesService.searchExistingRecords() (a real elcm-service
+     * call, not a client-side filter); also stashes the raw query text
+     * into existingRecordQuery so it's still captured as an audit trail on
+     * staged_document even though existingRecordId (set by the
+     * autocomplete's own value binding once the user picks a suggestion)
+     * is what actually drives record linking.
+     */
+    public List<ContractRecordOptionRow> completeExistingRecords(final String query) {
+        existingRecordQuery = query;
+        try {
+            return uploadFilesService.searchExistingRecords(query);
+        } catch (final Exception e) {
+            // Same "don't block the dialog over a degraded lookup" stance
+            // as resetState()'s workspace/assignable-users load -- an
+            // autocomplete that errors out should look like "no matches"
+            // to the user, not blow up the ajax request.
+            log.error("Failed to search existing records for query '{}'", query, e);
+            return List.of();
         }
     }
 

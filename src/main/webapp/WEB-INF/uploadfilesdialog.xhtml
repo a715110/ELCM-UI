@@ -332,14 +332,26 @@
 
                     <!-- ============ New Record subpanel ============
                          Record Name / Counterparty sit side by side
-                         (ufd-field-grid-2); Property Address and Contract Type
-                         each take the full row, matching the reference
-                         screenshot. Conditional required-ness (Counterparty/
-                         Property Address only matter when destinationChoice ==
-                         NEW_RECORD) is deferred along with the rest of
-                         validation - see UploadFilesBean.addToPipeline() and
-                         validateDestinationSpecificFields(), currently unused
-                         pending that later phase. -->
+                         (ufd-field-grid-2); Address Line 1 takes the full
+                         row; City/State/Zip sit in their own row
+                         (ufd-field-grid-3). Conditional required-ness
+                         (Counterparty/Address Line 1/City only matter when
+                         destinationChoice == NEW_RECORD) is deferred along
+                         with the rest of validation - see
+                         UploadFilesBean.addToPipeline() and
+                         validateDestinationSpecificFields(), currently
+                         unused pending that later phase.
+
+                         REVISED 2026-10-01: "Property Address" split into
+                         Address Line 1 + City/State/Zip (previously one
+                         free-text field) so RecordProvisioningService can
+                         actually populate a real elcm.address row's
+                         separate columns at "Add to Pipeline" time instead
+                         of leaving everything crammed into address_line1 -
+                         see chat decision. newRecordPropertyAddress
+                         (UploadFilesBean field name kept as-is to avoid
+                         touching the already-shipped staged_document column
+                         it maps to) is now specifically address line 1. -->
                     <div class="ufd-dest-subpanel" data-dest-panel="new" style="display:none;">
                         <div class="ufd-field-grid-2">
                             <div>
@@ -359,11 +371,39 @@
                         </div>
 
                         <div class="ufd-field-label">
-                            PROPERTY ADDRESS <span class="ufd-required">*</span>
+                            ADDRESS LINE 1 <span class="ufd-required">*</span>
                         </div>
                         <p:inputText styleClass="ufd-input" id="ufdNewPropertyAddress"
                                      value="#{uploadFilesBean.newRecordPropertyAddress}"
-                                     placeholder="e.g. 123 Main St, New York NY 10001"/>
+                                     placeholder="e.g. 123 Main St"/>
+
+                        <div class="ufd-field-label">ADDRESS LINE 2 <span class="ufd-optional">(OPTIONAL)</span></div>
+                        <p:inputText styleClass="ufd-input" id="ufdNewAddressLine2"
+                                     value="#{uploadFilesBean.newRecordAddressLine2}"
+                                     placeholder="Suite, unit, floor, etc."/>
+
+                        <div class="ufd-field-grid-3">
+                            <div>
+                                <div class="ufd-field-label" style="margin-top:1rem;">
+                                    CITY <span class="ufd-required">*</span>
+                                </div>
+                                <p:inputText styleClass="ufd-input" id="ufdNewCity"
+                                             value="#{uploadFilesBean.newRecordCity}"
+                                             placeholder="e.g. New York"/>
+                            </div>
+                            <div>
+                                <div class="ufd-field-label" style="margin-top:1rem;">STATE</div>
+                                <p:inputText styleClass="ufd-input" id="ufdNewState"
+                                             value="#{uploadFilesBean.newRecordState}"
+                                             placeholder="e.g. NY"/>
+                            </div>
+                            <div>
+                                <div class="ufd-field-label" style="margin-top:1rem;">ZIP</div>
+                                <p:inputText styleClass="ufd-input" id="ufdNewZip"
+                                             value="#{uploadFilesBean.newRecordZip}"
+                                             placeholder="e.g. 10001"/>
+                            </div>
+                        </div>
 
                         <div class="ufd-field-label">CONTRACT TYPE</div>
                         <p:selectOneMenu id="ufdNewContractType" styleClass="ufd-workspace-select"
@@ -376,19 +416,33 @@
                     </div>
 
                     <!-- ============ Existing Record subpanel ============
-                         Plain search input for now - becoming a real
-                         autocomplete against elcm-service's contract-record
-                         search is Java-side follow-up work, not part of this
-                         pass; the typed text is captured as-is for a Preparer
-                         to act on (see UploadFilesService.submitToPipeline()'s
-                         Javadoc). -->
+                         REVISED 2026-10-01: was a plain free-text input
+                         whose typed value was never resolved to a real
+                         record (see UploadFilesService.submitToPipeline()'s
+                         old Javadoc) - now a real p:autoComplete against
+                         ContractRecordController.search() (elcm-service),
+                         via UploadFilesService.searchExistingRecords() /
+                         UploadFilesBean.completeExistingRecords(). value
+                         binds straight to existingRecordId (a plain Long -
+                         itemValue="#{rec.id}" is extracted the same way
+                         f:selectItems' itemValue is on a selectOneMenu, no
+                         converter needed), NOT existingRecordQuery, which is
+                         now only what the user physically typed (see that
+                         field's Javadoc on StagedDocument) - the id is what
+                         StageDocumentService.resolveTargetRecord() actually
+                         looks up on submit. forceSelection="true" so a
+                         partial, never-selected search string can't be
+                         submitted as if it were a real pick. -->
                     <div class="ufd-dest-subpanel" data-dest-panel="existing" style="display:none;">
                         <div class="ufd-field-label" style="margin-top:1rem;">FIND RECORD</div>
                         <div class="ufd-search-input-wrap">
                             <i class="pi pi-search"/>
-                            <p:inputText styleClass="ufd-input ufd-search-input" id="ufdExistingRecordSearch"
-                                         value="#{uploadFilesBean.existingRecordQuery}"
-                                         placeholder="Counterparty name, address, or contract number"/>
+                            <p:autoComplete styleClass="ufd-input ufd-search-input" id="ufdExistingRecordSearch"
+                                         value="#{uploadFilesBean.existingRecordId}"
+                                         completeMethod="#{uploadFilesBean.completeExistingRecords}"
+                                         var="rec" itemLabel="#{rec.recordCode}" itemValue="#{rec.id}"
+                                         forceSelection="true" scrollHeight="200"
+                                         placeholder="Record code (e.g. RETAIL-00001)"/>
                         </div>
 
                         <a href="#" class="ufd-change-selection">&#8592; Change selection</a>
