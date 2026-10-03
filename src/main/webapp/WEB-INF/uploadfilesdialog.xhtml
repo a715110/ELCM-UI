@@ -411,8 +411,9 @@
                             <f:selectItem itemLabel="Property Lease" itemValue="PROPERTY_LEASE"/>
                             <f:selectItem itemLabel="Equipment Lease" itemValue="EQUIPMENT_LEASE"/>
                         </p:selectOneMenu>
-
-                        <a href="#" class="ufd-change-selection">&#8592; Change selection</a>
+                        <div>
+                            <a href="#" class="ufd-change-selection">&#8592; Change selection</a>
+                        </div>
                     </div>
 
                     <!-- ============ Existing Record subpanel ============
@@ -437,13 +438,77 @@
                         <div class="ufd-field-label" style="margin-top:1rem;">FIND RECORD</div>
                         <div class="ufd-search-input-wrap">
                             <i class="pi pi-search"/>
-                            <p:autoComplete styleClass="ufd-input ufd-search-input" id="ufdExistingRecordSearch"
+                            <!-- REVISED 2026-10-02 - search now also matches
+                                 counterparty name (substring, anywhere - see
+                                 elcm-service's RecordProvisioningService.search()),
+                                 not just record code, so itemLabel appends the
+                                 counterparty when present ("RETAIL-00003 - Acme
+                                 Corp") to show WHY a non-code-matching result
+                                 showed up. onItemSelect loads the detail panel
+                                 below via UploadFilesBean.onExistingRecordSelected()
+                                 - see that method's Javadoc for why it re-reads
+                                 existingRecordId instead of trusting the event
+                                 payload. -->
+                            <!-- REVISED 2026-10-03 - dropped "ufd-input" from styleClass:
+                                 p:autoComplete applies styleClass to its OUTER wrapper
+                                 <span>, never to the real <input> it renders inside, so
+                                 "ufd-input" was boxing that wrapper (border/background/
+                                 padding) while the actual input - now styled directly via
+                                 upload-files-dialog.css's ".ui-autocomplete-input" rule -
+                                 got its own box too, i.e. a visible box-inside-a-box.
+                                 "ufd-search-input" alone is kept as the CSS hook; see that
+                                 rule's comment in upload-files-dialog.css for the full
+                                 explanation. -->
+                            <p:autoComplete styleClass="ufd-search-input" id="ufdExistingRecordSearch" style="width:100%"
                                          value="#{uploadFilesBean.existingRecordId}"
                                          completeMethod="#{uploadFilesBean.completeExistingRecords}"
-                                         var="rec" itemLabel="#{rec.recordCode}" itemValue="#{rec.id}"
+                                         var="rec" itemValue="#{rec.id}"
+                                         itemLabel="#{rec.counterpartyName != null ? rec.recordCode.concat(' - ').concat(rec.counterpartyName) : rec.recordCode}"
                                          forceSelection="true" scrollHeight="200"
-                                         placeholder="Record code (e.g. RETAIL-00001)"/>
+                                         placeholder="Record code or counterparty (e.g. RETAIL-00001 or Acme Corp)">
+                                <p:ajax event="itemSelect" listener="#{uploadFilesBean.onExistingRecordSelected}"
+                                        update="ufdExistingRecordDetail"/>
+                            </p:autoComplete>
                         </div>
+
+                        <!-- ADDED 2026-10-02 - shows what was actually selected,
+                             so the user can confirm it's the right record before
+                             submitting, without leaving this dialog. Limited to
+                             counterparty for now per explicit decision in chat
+                             ("let's limit the extended feature to be counterparty,
+                             we will extend this one to support more fields based
+                             on user's feedback") - more fields (address,
+                             contract type, status) can be added the same way
+                             later by reading more of
+                             uploadFilesBean.existingRecordDetail, which already
+                             carries them all (same ContractRecordDTO as the
+                             document-viewer feature). Empty/not-yet-selected and
+                             lookup-failed states are both handled so this panel
+                             never shows stale or misleading data. -->
+                        <h:panelGroup id="ufdExistingRecordDetail" layout="block">
+                            <!-- REVISED 2026-10-02 - these were plain <div jsf:rendered="...">
+                                 (pass-through-element rendered), but this page never declares
+                                 xmlns:jsf, so that attribute is just inert markup here, not a
+                                 JSF rendered check - both blocks would always render (with EL
+                                 left unevaluated on the outer div, and NullPointerException-prone
+                                 unconditional EL inside once a detail object isn't there yet).
+                                 h:panelGroup (layout="block" renders it as a <div>) is the
+                                 standard component with real `rendered` support and needs no
+                                 extra namespace, matching every other conditional block already
+                                 in this dialog. -->
+                            <h:panelGroup layout="block" styleClass="ufd-record-detail"
+                                          rendered="#{uploadFilesBean.existingRecordId != null and uploadFilesBean.existingRecordDetail != null}">
+                                <div class="ufd-field">
+                                    <span class="ufd-field-label-inline">Counterparty</span>
+                                    <span class="ufd-field-value">#{uploadFilesBean.existingRecordDetail.counterpartyDTO != null ? uploadFilesBean.existingRecordDetail.counterpartyDTO.name : 'Not on file'}</span>
+                                </div>
+                            </h:panelGroup>
+                            <h:panelGroup layout="block" styleClass="ufd-warning-box"
+                                          rendered="#{uploadFilesBean.existingRecordId != null and uploadFilesBean.existingRecordDetailError != null}">
+                                <i class="pi pi-exclamation-triangle"/>
+                                <span>#{uploadFilesBean.existingRecordDetailError}</span>
+                            </h:panelGroup>
+                        </h:panelGroup>
 
                         <a href="#" class="ufd-change-selection">&#8592; Change selection</a>
                     </div>

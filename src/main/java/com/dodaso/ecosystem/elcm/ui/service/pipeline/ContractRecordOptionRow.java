@@ -15,7 +15,8 @@ import lombok.Setter;
  *
  * Bound by uploadfilesdialog.xhtml's Existing Record p:autoComplete:
  * completeMethod returns a List<ContractRecordOptionRow>, itemLabel shows
- * recordCode, itemValue submits id straight into
+ * recordCode (now with counterpartyName appended -- see the xhtml's
+ * itemLabel EL), itemValue submits id straight into
  * UploadFilesBean.existingRecordId (a plain Long -- no converter needed,
  * same mechanism as f:selectItems' itemValue on a selectOneMenu).
  *
@@ -23,6 +24,13 @@ import lombok.Setter;
  * StagedDocumentRow: Jackson's default deserialization (via
  * RestTemplate's message converter, used by UploadFilesService.
  * searchExistingRecords()) needs one or the other.
+ *
+ * ADDED 2026-10-02 -- counterpartyName, so a counterparty-matched search
+ * result shows WHY it matched (a bare record code gives no clue when the
+ * typed text was "Acme", not "RETAIL-"). Null for a record with no
+ * counterparty on file; the xhtml's itemLabel only appends it when
+ * non-null. See elcm-service's RecordProvisioningService.search() for how
+ * this is populated.
  */
 @Getter
 @Setter
@@ -31,4 +39,5 @@ import lombok.Setter;
 public class ContractRecordOptionRow implements Serializable {
     private Long id;
     private String recordCode;
+    private String counterpartyName;
 }

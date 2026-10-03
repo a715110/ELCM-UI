@@ -2,8 +2,13 @@
    Upload Files dialog — screen design only (see uploadfilesdialog.xhtml)
    ============================================================ */
 
+/* REVISED 2026-10-03 -- widened from 900px so the Find Record box (right
+   column) has more room; its placeholder ("Record code or counterparty
+   (e.g. RETAIL-00001 or Acme Corp)") was still clipping at 900px even after
+   the earlier padding/font tweaks, since the box's actual constraint is
+   width, not height. */
 .upload-files-dialog.ui-dialog {
-  width: 900px;
+  width: 980px;
   max-width: 95vw;
   border-radius: 10px;
   overflow: hidden;
@@ -40,7 +45,7 @@
 /* ---------- Body: two-column layout ---------- */
 .ufd-body {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
+  grid-template-columns: 1fr 1.1fr;
   gap: 0;
   overflow-y: auto;
   flex: 1;
@@ -268,8 +273,37 @@
   color: #8B8A82;
   font-size: 0.85rem;
 }
-.ufd-search-input-wrap .ufd-search-input {
-  padding-left: 2.1rem;
+/* REVISED 2026-10-03 -- root cause of the placeholder still clipping after
+   the width/height tweaks below: p:autoComplete applies styleClass
+   ("ufd-input ufd-search-input") to the component's OUTER wrapper <span
+   class="ui-autocomplete ...">, not to the real <input> it renders inside
+   that span. So every rule that targeted ".ufd-search-input" directly
+   (padding, font-size, the placeholder override) was styling an invisible
+   wrapper, never the actual text box -- confirmed by the user: adding
+   style="width:100%" on the component "worked" only because PrimeFaces'
+   own theme already stretches the inner input to 100% of its wrapper,
+   which is a coincidence, not these rules taking effect.
+   Fix: target the real input PrimeFaces renders inside that wrapper
+   (class "ui-autocomplete-input", standard across PrimeFaces' autoComplete
+   markup) with a descendant selector, and use !important since the
+   bundled PrimeFaces theme's own .ui-inputtext/.ui-state-default rules are
+   loaded as a separate stylesheet whose cascade order relative to this
+   file isn't guaranteed. ".ufd-search-input" itself is left in place (still
+   useful as a hook / for anything that genuinely does land on the wrapper,
+   like the flex layout in .ufd-search-input-wrap) but no longer carries
+   the sizing. */
+.ufd-search-input-wrap .ufd-search-input .ui-autocomplete-input {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  border: 1px solid #D6D2C7 !important;
+  border-radius: 8px !important;
+  background: #FDFCFA !important;
+  padding: 0.7rem 0.8rem 0.7rem 2.1rem !important;
+  font-size: 0.85rem !important;
+  font-family: inherit !important;
+}
+.ufd-search-input-wrap .ufd-search-input .ui-autocomplete-input::placeholder {
+  font-size: 0.78rem;
 }
 .ufd-warning-box {
   display: flex;
@@ -293,6 +327,34 @@
   cursor: pointer;
 }
 .ufd-change-selection:hover { text-decoration: underline; }
+
+/* ADDED 2026-10-02 -- record-detail panel shown under the Existing Record
+   search box once a result is selected (see UploadFilesBean.
+   onExistingRecordSelected() / existingRecordDetail, and
+   uploadfilesdialog.xhtml's ufdExistingRecordDetail panelGroup). Same
+   field-row pattern as document-viewer.css's .dv-field/.dv-field-label/
+   .dv-field-value, just renamed with the ufd- prefix used throughout this
+   dialog and given its own light card background so it reads as a distinct
+   block under the search input rather than more form chrome.
+   ".ufd-field-label-inline" (vs. the dialog's existing ".ufd-field-label",
+   which is an uppercase block-level section label) is a plain inline label
+   sized to match the value next to it. */
+.ufd-record-detail {
+  background: #F3F2ED;
+  border: 1px solid #E5E2D9;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  margin-top: 0.75rem;
+}
+.ufd-field {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  font-size: 0.85rem;
+}
+.ufd-field-label-inline { color: #8B8A82; flex-shrink: 0; }
+.ufd-field-value { color: #2B2A26; font-weight: 600; text-align: right; }
 
 .ufd-routing-divider {
   font-weight: 700;

@@ -28,6 +28,14 @@ import lombok.Setter;
  * service-side row of the same name -- see that class's Javadoc. Backs
  * dashboard.xhtml's eye icon, which links out to documentviewer.xhtml with
  * these three as query params.
+ *
+ * REVISED 2026-10-03 -- added recordCounterparty/recordContractType/
+ * recordStatus/recordWorkspace/uploadedBy/comments, mirroring the
+ * service-side row's own same-date revision -- backs dashboard.xhtml's new
+ * p:tooltip hover previews on the File Name and Record columns. Jackson
+ * only needs the field names to match (same as every other field here);
+ * see the service-side class's Javadoc for the null-handling rules (all
+ * four record* fields are null together whenever targetRecordId is null).
  */
 @Getter
 @Setter
@@ -43,4 +51,10 @@ public class StagedDocumentRow implements Serializable {
     private String uploadedAt;
     private Long fileUploadId;
     private Long targetRecordId;
+    private String recordCounterparty;
+    private String recordContractType;
+    private String recordStatus;
+    private String recordWorkspace;
+    private String uploadedBy;
+    private String comments;
 }

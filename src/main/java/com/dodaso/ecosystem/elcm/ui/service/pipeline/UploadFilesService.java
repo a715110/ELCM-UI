@@ -14,6 +14,7 @@ import com.dodaso.ecosystem.baseline.common.container.RESTReqContainer;
 import com.dodaso.ecosystem.baseline.common.proxy.RESTServiceClient;
 import com.dodaso.ecosystem.common.dto.FileUploadDTO;
 import com.dodaso.ecosystem.elcm.container.StagedDocumentDTOContainer;
+import com.dodaso.ecosystem.elcm.dto.ContractRecordDTO;
 import com.dodaso.ecosystem.elcm.dto.LkpContractTypeDTO;
 import com.dodaso.ecosystem.elcm.dto.LkpRoutingIntentDTO;
 import com.dodaso.ecosystem.elcm.dto.StagedDocumentDTO;
@@ -244,6 +245,26 @@ public class UploadFilesService {
         ContractRecordControllerAPIEnum.searchContractRecords.getEndPoint()
             + "?q=" + URLEncoder.encode(query, StandardCharsets.UTF_8),
         new ParameterizedTypeReference<List<ContractRecordOptionRow>>() {
+        });
+  }
+
+  /**
+   * ADDED 2026-10-02 -- backs the Existing Record autocomplete's new
+   * "show me what I just picked" detail panel. Reuses the exact same
+   * elcm-service endpoint (GET /api/v1/pipeline/contract-record/{id}) the
+   * Stage Documents dashboard's file-preview feature already calls via
+   * DocumentViewerService.getRecordDetail() -- same ContractRecordDTO
+   * shape (counterparty/contractType/status/workspace/property/address),
+   * same "call once the id is known" contract. Kept as its own method
+   * here (rather than having UploadFilesBean reach into
+   * DocumentViewerService) so this service's callers don't take on a
+   * dependency belonging to a different feature.
+   */
+  public ContractRecordDTO getRecordDetail(final Long recordId) throws Exception {
+    return restServiceClient.get(
+        ServiceDiscoveryEnum.elcm_service.getServiceDiscoveryName(),
+        ContractRecordControllerAPIEnum.contractRecordBase.getEndPoint() + "/" + recordId,
+        new ParameterizedTypeReference<ContractRecordDTO>() {
         });
   }
 }

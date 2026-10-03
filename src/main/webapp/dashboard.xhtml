@@ -90,6 +90,44 @@
       .metric-card { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
       .metric-card .pi { color: #2563EB; } /* default: blue */
       .metric-card .pi-check-circle { color: #166534; } /* Valid stays green */
+
+      /* ---- ADDED 2026-10-03 -- Stage Documents table hover previews ----
+         File Name and Record cells get a p:tooltip (see the dataTable
+         below); this is the tooltip's own content styling, not the cell's.
+         Assignee is intentionally NOT included yet -- per explicit decision
+         in chat, held for a later phase once user-role configuration is
+         defined, so there's nothing yet to preview there. Reuses the same
+         "label left, value right" row pattern already established in
+         document-viewer.css's .dv-field and upload-files-dialog.css's
+         .ufd-field, kept here instead of either of those files since this
+         is the only page that uses it inside a p:tooltip's own popup
+         chrome (PrimeFaces renders tooltip content into a floating
+         .ui-tooltip, detached from this page's normal layout, which is
+         why these rules can't just reuse .dv-field/.ufd-field as-is --
+         different container width/background to work against). */
+      .ui-tooltip .stage-doc-tooltip {
+        min-width: 220px;
+        padding: 0.25rem 0;
+      }
+      .stage-doc-tooltip-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #D6D2C7;
+        padding-bottom: 0.4rem;
+        margin-bottom: 0.4rem;
+        border-bottom: 1px solid rgba(255,255,255,0.15);
+      }
+      .stage-doc-tooltip-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.2rem 0;
+        font-size: 0.82rem;
+      }
+      .stage-doc-tooltip-label { color: #D6D2C7; flex-shrink: 0; }
+      .stage-doc-tooltip-value { color: #FFFFFF; font-weight: 600; text-align: right; }
     </style>
     <h:outputStylesheet name="css/upload-files-dialog.css" library="ext"/>
     <h:outputScript name="js/upload-files-dialog.js" library="ext"/>
@@ -195,8 +233,40 @@
 
           <p:column selectionMode="multiple" style="width:3rem" exportable="false"/>
 
+          <!-- ADDED 2026-10-03 - File Name hover preview. p:tooltip's
+               "for" is resolved relative to this row (p:dataTable rows are
+               their own NamingContainer), so a plain static id here is
+               enough - it does not need to be made unique per row by hand
+               (e.g. concatenating doc.id). Field set (Uploaded By/
+               Uploaded At/Comments/File Type) is a first cut - the user
+               specified the Record column's fields explicitly but not
+               this one; flag if a different set is wanted. No rendered
+               condition - every staged document has these by definition
+               (uploadedBy/uploadedAt are required columns), unlike Record
+               below. -->
           <p:column headerText="File Name">
-            <h:outputText value="#{doc.fileName}"/>
+            <h:outputText id="fileNameCell" value="#{doc.fileName}"/>
+            <p:tooltip for="fileNameCell" position="right" trackMouse="true">
+              <div class="stage-doc-tooltip">
+                <div class="stage-doc-tooltip-title">File Details</div>
+                <div class="stage-doc-tooltip-row">
+                  <span class="stage-doc-tooltip-label">Uploaded By</span>
+                  <span class="stage-doc-tooltip-value">#{doc.uploadedBy}</span>
+                </div>
+                <div class="stage-doc-tooltip-row">
+                  <span class="stage-doc-tooltip-label">Uploaded</span>
+                  <span class="stage-doc-tooltip-value">#{doc.uploadedAt}</span>
+                </div>
+                <div class="stage-doc-tooltip-row">
+                  <span class="stage-doc-tooltip-label">File Type</span>
+                  <span class="stage-doc-tooltip-value">#{doc.type}</span>
+                </div>
+                <div class="stage-doc-tooltip-row">
+                  <span class="stage-doc-tooltip-label">Comments</span>
+                  <span class="stage-doc-tooltip-value">#{(doc.comments != null and not empty doc.comments) ? doc.comments : 'None'}</span>
+                </div>
+              </div>
+            </p:tooltip>
           </p:column>
 
           <p:column headerText="Type">
@@ -207,10 +277,49 @@
             <p:tag value="#{doc.workspace}"/>
           </p:column>
 
+          <!-- ADDED 2026-10-03 - Record hover preview, per explicit
+               request in chat: Record Code/Counterparty/Contract Type/
+               Status/Workspace, all sourced off the same already-fetched
+               StagedDocumentRow - see that class's and
+               StageDocumentService.toDraft()'s Javadoc for where these
+               come from (no extra request on hover). rendered="false" when
+               targetRecordId is null (doc.record is then a free-text label
+               like "Unassigned" or whatever the user originally typed -
+               see StageDocumentService.deriveRecordLabel() - there's no
+               real linked record yet to preview). -->
           <p:column headerText="Record">
-            <h:outputText value="#{doc.record}"/>
+            <h:outputText id="recordCell" value="#{doc.record}"/>
+            <p:tooltip for="recordCell" position="right" trackMouse="true"
+                       rendered="#{doc.targetRecordId != null}">
+              <div class="stage-doc-tooltip">
+                <div class="stage-doc-tooltip-title">Record Details</div>
+                <div class="stage-doc-tooltip-row">
+                  <span class="stage-doc-tooltip-label">Record Code</span>
+                  <span class="stage-doc-tooltip-value">#{doc.record}</span>
+                </div>
+                <div class="stage-doc-tooltip-row">
+                  <span class="stage-doc-tooltip-label">Counterparty</span>
+                  <span class="stage-doc-tooltip-value">#{(doc.recordCounterparty != null) ? doc.recordCounterparty : 'Not on file'}</span>
+                </div>
+                <div class="stage-doc-tooltip-row">
+                  <span class="stage-doc-tooltip-label">Contract Type</span>
+                  <span class="stage-doc-tooltip-value">#{doc.recordContractType}</span>
+                </div>
+                <div class="stage-doc-tooltip-row">
+                  <span class="stage-doc-tooltip-label">Status</span>
+                  <span class="stage-doc-tooltip-value">#{doc.recordStatus}</span>
+                </div>
+                <div class="stage-doc-tooltip-row">
+                  <span class="stage-doc-tooltip-label">Workspace</span>
+                  <span class="stage-doc-tooltip-value">#{doc.recordWorkspace}</span>
+                </div>
+              </div>
+            </p:tooltip>
           </p:column>
 
+          <!-- Assignee: no hover preview yet - per explicit decision in
+               chat, held for a later phase until user-role configuration
+               is defined. -->
           <p:column headerText="Assignee">
             <h:outputText value="#{doc.assignee}"/>
           </p:column>

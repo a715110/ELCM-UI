@@ -19,6 +19,7 @@ import com.dodaso.ecosystem.common.container.FileUploadDTOContainer;
 import com.dodaso.ecosystem.common.dto.FileItemDTO;
 import com.dodaso.ecosystem.common.dto.FileUploadDTO;
 import com.dodaso.ecosystem.common.dto.FileUploadRequestDTO;
+import com.dodaso.ecosystem.elcm.dto.ContractRecordDTO;
 import com.dodaso.ecosystem.elcm.ui.constant.DestinationChoiceEnum;
 import com.dodaso.ecosystem.elcm.ui.constant.FileStorageControllerAPIEnum;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractRecordOptionRow;
@@ -230,6 +231,25 @@ public class UploadFilesBean extends BaseBean {
      * requires this to be non-null for EXISTING_RECORD. */
     private Long existingRecordId;
 
+    /** ADDED 2026-10-02 -- populated by onExistingRecordSelected() once the
+     * user picks a result from ufdExistingRecordSearch; shown in the
+     * dialog's new "Existing Record" detail panel (counterparty/address
+     * for now -- see uploadfilesdialog.xhtml). Reuses the same
+     * ContractRecordDTO shape the document-viewer feature already uses,
+     * via UploadFilesService.getRecordDetail() -- same underlying
+     * elcm-service endpoint, no new backend route. Null until a record is
+     * actually selected, and reset to null by resetState()/changing the
+     * selection. */
+    private ContractRecordDTO existingRecordDetail;
+
+    /** Set when onExistingRecordSelected()'s detail lookup fails (e.g.
+     * elcm-service down) -- shown as a small inline warning instead of
+     * silently leaving the detail panel blank. Does not block submission:
+     * existingRecordId is already known and valid (it came straight from
+     * the search result the user clicked), so a failed detail *lookup* is
+     * cosmetic, not a reason to stop the user from proceeding. */
+    private String existingRecordDetailError;
+
     /** Files received so far via handleFileUpload(), one entry per file --
      * p:fileUpload's advanced/multiple mode invokes the listener once per
      * file rather than once for the whole batch, so this accumulates
@@ -334,6 +354,8 @@ public class UploadFilesBean extends BaseBean {
         newRecordZip = null;
         existingRecordQuery = null;
         existingRecordId = null;
+        existingRecordDetail = null;
+        existingRecordDetailError = null;
         uploadedFiles = new ArrayList<>();
         persistedFiles = new ArrayList<>();
         submissionSuccessful = true;
@@ -503,6 +525,36 @@ public class UploadFilesBean extends BaseBean {
             // to the user, not blow up the ajax request.
             log.error("Failed to search existing records for query '{}'", query, e);
             return List.of();
+        }
+    }
+
+    /**
+     * ADDED 2026-10-02 -- itemSelect listener for ufdExistingRecordSearch,
+     * backing the new "show details once you've picked a record" panel.
+     * PrimeFaces fires itemSelect AFTER the component's own value binding
+     * has already set existingRecordId (forceSelection="true" on the
+     * autocomplete means the event's selected object is always one of the
+     * completeMethod's own results, never free text) -- so this reads
+     * existingRecordId directly rather than the event payload, keeping one
+     * source of truth for "which record is selected" instead of two that
+     * could disagree.
+     *
+     * A failed lookup here does NOT clear existingRecordId or block
+     * submission -- see existingRecordDetailError's own Javadoc -- it only
+     * means the detail panel shows a warning instead of the record's
+     * counterparty/address.
+     */
+    public void onExistingRecordSelected() {
+        existingRecordDetail = null;
+        existingRecordDetailError = null;
+        if (existingRecordId == null) {
+            return;
+        }
+        try {
+            existingRecordDetail = uploadFilesService.getRecordDetail(existingRecordId);
+        } catch (final Exception e) {
+            log.error("Failed to load existing record detail for id={}", existingRecordId, e);
+            existingRecordDetailError = "Couldn't load this record's details right now.";
         }
     }
 
