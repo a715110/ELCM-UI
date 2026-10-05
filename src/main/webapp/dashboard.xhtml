@@ -94,9 +94,9 @@
       /* ---- ADDED 2026-10-03 -- Stage Documents table hover previews ----
          File Name and Record cells get a p:tooltip (see the dataTable
          below); this is the tooltip's own content styling, not the cell's.
-         Assignee is intentionally NOT included yet -- per explicit decision
-         in chat, held for a later phase once user-role configuration is
-         defined, so there's nothing yet to preview there. Reuses the same
+         REVISED 2026-10-04 -- Assignee now has the same treatment (see
+         that column below), reusing these same classes rather than
+         defining new ones. Reuses the same
          "label left, value right" row pattern already established in
          document-viewer.css's .dv-field and upload-files-dialog.css's
          .ufd-field, kept here instead of either of those files since this
@@ -128,6 +128,30 @@
       }
       .stage-doc-tooltip-label { color: #D6D2C7; flex-shrink: 0; }
       .stage-doc-tooltip-value { color: #FFFFFF; font-weight: 600; text-align: right; }
+
+      /* ADDED 2026-10-03 -- the "no record linked" explanatory variant (see
+         the second p:tooltip on the Record column, rendered when
+         targetRecordId is null). Wider than the field-list tooltip above
+         since it holds a sentence, not short label/value pairs; title is a
+         plain bold heading ("Unassigned") rather than the uppercase
+         section label the field-list variant uses, matching the reference
+         mockup. */
+      .ui-tooltip .stage-doc-tooltip-message { min-width: 260px; max-width: 300px; }
+      .stage-doc-tooltip-message .stage-doc-tooltip-title {
+        text-transform: none;
+        letter-spacing: normal;
+        font-size: 0.95rem;
+        border-bottom: none;
+        margin-bottom: 0.3rem;
+        padding-bottom: 0;
+        color: #FFFFFF;
+      }
+      .stage-doc-tooltip-message-body {
+        margin: 0;
+        font-size: 0.82rem;
+        line-height: 1.5;
+        color: #D6D2C7;
+      }
     </style>
     <h:outputStylesheet name="css/upload-files-dialog.css" library="ext"/>
     <h:outputScript name="js/upload-files-dialog.js" library="ext"/>
@@ -207,8 +231,21 @@
       </div>
     </div>
 
+    <!-- ADDED 2026-10-04 - refreshStagedDocuments() reloads the Stage Documents
+         card after a successful Add to Pipeline (called from the upload
+         dialog's commitToPipeline oncomplete). Without it the table kept
+         whatever StageDocumentsBean loaded when the page opened, so a newly
+         added file only showed up after a reload or a fresh login. It lives
+         in its own form, outside the card it updates, so the form being
+         re-rendered is never the one that issued the request. process="@this"
+         keeps it from submitting the other forms on the page. -->
+    <h:form id="stageDocumentsRefreshForm">
+      <p:remoteCommand name="refreshStagedDocuments" action="#{stageDocumentsBean.refresh}"
+                       process="@this" update=":stageDocumentsCard"/>
+    </h:form>
+
     <!-- ==================== STAGE DOCUMENTS ==================== -->
-    <div class="dashboard-card">
+    <h:panelGroup id="stageDocumentsCard" layout="block" styleClass="dashboard-card">
       <div class="dashboard-card-header">
         <h2>Stage Documents (#{stageDocumentsBean.stagedDocuments.size()})</h2>
         <i class="pi pi-info-circle" title="Documents land here after upload and stay until grouped into a contract package."/>
@@ -228,7 +265,7 @@
                      var="doc"
                      value="#{stageDocumentsBean.stagedDocuments}"
                      selection="#{stageDocumentsBean.selectedDocuments}"
-                     rowKey="#{doc.fileName}"
+                     rowKey="#{doc.id}"
                      emptyMessage="No staged documents.">
 
           <p:column selectionMode="multiple" style="width:3rem" exportable="false"/>
@@ -315,13 +352,81 @@
                 </div>
               </div>
             </p:tooltip>
+
+            <!-- ADDED 2026-10-03 - the explanatory variant for a row with
+                 no linked record at all (targetRecordId null), per the
+                 attached mockup: same tooltip chrome, but a short message
+                 instead of a field list, explaining what "Unassigned"
+                 means and what to do about it rather than just leaving the
+                 cell with no hover feedback. Mutually exclusive with the
+                 tooltip above (exactly one of the two rendered conditions
+                 is ever true for a given row), so both safely target the
+                 same "for". -->
+            <p:tooltip for="recordCell" position="right" trackMouse="true"
+                       rendered="#{doc.targetRecordId == null}">
+              <div class="stage-doc-tooltip stage-doc-tooltip-message">
+                <div class="stage-doc-tooltip-title">#{doc.record}</div>
+                <p class="stage-doc-tooltip-message-body">No target Contract Record was specified at upload. A Preparer can assign this document to an existing record or create a new one before packaging.</p>
+              </div>
+            </p:tooltip>
           </p:column>
 
-          <!-- Assignee: no hover preview yet - per explicit decision in
-               chat, held for a later phase until user-role configuration
-               is defined. -->
+          <!-- ADDED 2026-10-04 - Assignee hover preview, extending the
+               File Name/Record tooltip feature per explicit request (the
+               "later phase" the old comment here referred to). Same
+               mutually-exclusive two-tooltip pattern as the Record column:
+               rendered="#{doc.assigneeLoginId != null}" when the assignee
+               resolved to an IAMS directory entry (User ID/Role(s)/Team/
+               Workspace Specialties), rendered="#{doc.assigneeLoginId == null}"
+               for everything else - both "Unassigned" and an assignee that
+               didn't match any directory entry fall into the second variant, with
+               the message body distinguishing the two cases. See
+               StageDocumentService.toDraft()'s and StagedDocumentRow's
+               Javadoc for where these fields come from (a separate IAMS
+               lookup, not the same JOIN FETCH as the Record fields). -->
           <p:column headerText="Assignee">
-            <h:outputText value="#{doc.assignee}"/>
+            <h:outputText id="assigneeCell" value="#{doc.assignee}"/>
+            <!-- REVISED 2026-10-04 (assigneeId -> loginId): the variant is now
+                 chosen by assigneeLoginId (non-null exactly when the assignee
+                 resolved to a directory entry), not assigneeRoles - a
+                 resolved person with no roles on file used to fall into the
+                 "could not be matched" variant by mistake. doc.assignee is
+                 now the resolved display name; User ID is shown so
+                 identically-named people can be told apart. -->
+            <p:tooltip for="assigneeCell" position="right" trackMouse="true"
+                       rendered="#{doc.assigneeLoginId != null}">
+              <div class="stage-doc-tooltip">
+                <div class="stage-doc-tooltip-title">Assignee Details</div>
+                <div class="stage-doc-tooltip-row">
+                  <span class="stage-doc-tooltip-label">User ID</span>
+                  <span class="stage-doc-tooltip-value">#{doc.assigneeLoginId}</span>
+                </div>
+                <div class="stage-doc-tooltip-row">
+                  <span class="stage-doc-tooltip-label">Role</span>
+                  <span class="stage-doc-tooltip-value">#{(doc.assigneeRoles != null) ? doc.assigneeRoles : 'Not on file'}</span>
+                </div>
+                <div class="stage-doc-tooltip-row">
+                  <span class="stage-doc-tooltip-label">Team</span>
+                  <span class="stage-doc-tooltip-value">#{(doc.assigneeTeamName != null) ? doc.assigneeTeamName : 'Not on file'}</span>
+                </div>
+                <div class="stage-doc-tooltip-row">
+                  <span class="stage-doc-tooltip-label">Workspace Specialties</span>
+                  <span class="stage-doc-tooltip-value">#{(doc.assigneeWorkspaceCodes != null) ? doc.assigneeWorkspaceCodes : 'Not on file'}</span>
+                </div>
+              </div>
+            </p:tooltip>
+
+            <p:tooltip for="assigneeCell" position="right" trackMouse="true"
+                       rendered="#{doc.assigneeLoginId == null}">
+              <div class="stage-doc-tooltip stage-doc-tooltip-message">
+                <div class="stage-doc-tooltip-title">#{doc.assignee}</div>
+                <p class="stage-doc-tooltip-message-body">
+                  #{(doc.assignee eq 'Unassigned')
+                    ? 'No one has been assigned to this document yet. A Preparer can assign it from the Upload Files dialog.'
+                    : 'This assignee could not be matched to a directory record.'}
+                </p>
+              </div>
+            </p:tooltip>
           </p:column>
 
           <p:column headerText="Uploaded">
@@ -370,7 +475,7 @@
                             disabled="#{empty stageDocumentsBean.selectedDocuments}"/>
         </div>
       </h:form>
-    </div>
+    </h:panelGroup>
 
     <!-- ==================== CONTRACT PACKAGES ==================== -->
     <div class="dashboard-card">

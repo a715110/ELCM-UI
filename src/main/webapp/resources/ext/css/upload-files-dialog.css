@@ -305,6 +305,34 @@
 .ufd-search-input-wrap .ufd-search-input .ui-autocomplete-input::placeholder {
   font-size: 0.78rem;
 }
+/* ADDED 2026-10-04 -- ufdAssignToSearch only (see the ufd-assign-autocomplete
+   hook added in uploadfilesdialog.xhtml). Per explicit request: the field
+   itself should be 90% width, with the dropdown arrow sitting right next to
+   it instead of wrapping onto its own line underneath.
+   Root cause of the arrow wrapping below: the outer <span class="ui-autocomplete">
+   PrimeFaces renders (the element ufd-search-input/ufd-assign-autocomplete
+   actually land on -- see the 2026-10-03 comment above) is a plain inline-block
+   with no flex layout of its own, and the input inside it was being forced to
+   width:100% of that span -- leaving zero room for the dropdown-toggle button,
+   which PrimeFaces renders as a sibling of the input within that same span, so
+   it fell onto the next line. Making that span a flex row (width 90% of the
+   field's own container, not 100%) and letting the input grow/shrink instead
+   of hard-coding its width puts the button inline, right after the input. */
+.ufd-search-input-wrap .ufd-assign-autocomplete {
+  display: flex !important;
+  align-items: center !important;
+  width: 90% !important;
+}
+.ufd-search-input-wrap .ufd-assign-autocomplete .ui-autocomplete-input {
+  width: auto !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+.ufd-search-input-wrap .ufd-assign-autocomplete .ui-autocomplete-dropdown {
+  flex: 0 0 auto !important;
+  margin-left: 0.4rem !important;
+  border-radius: 8px !important;
+}
 .ufd-warning-box {
   display: flex;
   align-items: flex-start;
@@ -376,17 +404,24 @@
   box-sizing: border-box;
 }
 
-.ufd-assign-select {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border: 1px solid #D6D2C7;
-  border-radius: 8px;
-  padding: 0.55rem 0.8rem;
-  background: #FDFCFA;
+/* ADDED 2026-10-03 -- live remaining-character count for .ufd-textarea
+   (Comments/Instructions), written by p:inputTextarea's counter/
+   counterTemplate into this span's id -- see uploadfilesdialog.xhtml.
+   Small/muted/right-aligned, same treatment as .ufd-helper-text, just
+   right-aligned under the textarea rather than left-aligned under a
+   field. */
+.ufd-textarea-counter {
+  display: block;
+  text-align: right;
+  font-size: 0.75rem;
   color: #8B8A82;
-  cursor: pointer;
+  margin-top: 0.3rem;
 }
+
+/* .ufd-assign-select (the old p:selectOneMenu styling) removed 2026-10-04 --
+   "Assign To" is now a p:autoComplete styled via .ufd-search-input-wrap/
+   .ufd-search-input like ufdExistingRecordSearch, not this class; see
+   uploadfilesdialog.xhtml's REVISED 2026-10-04 comment on that field. */
 
 /* ---------- Footer ---------- */
 .ufd-footer {

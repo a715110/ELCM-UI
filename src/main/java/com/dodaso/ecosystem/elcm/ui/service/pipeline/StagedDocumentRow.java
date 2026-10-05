@@ -36,6 +36,19 @@ import lombok.Setter;
  * only needs the field names to match (same as every other field here);
  * see the service-side class's Javadoc for the null-handling rules (all
  * four record* fields are null together whenever targetRecordId is null).
+ *
+ * REVISED 2026-10-04 -- added assigneeTeamName/assigneeRoles/
+ * assigneeWorkspaceCodes, mirroring the service-side row's own same-date
+ * revision -- backs dashboard.xhtml's new Assignee-column hover preview.
+ * All three null together whenever the assignee didn't resolve to an IAMS
+ * directory entry (unassigned, or a display-name match miss) -- see the
+ * service-side class's Javadoc.
+ *
+ * REVISED 2026-10-04 (assigneeId -> loginId) -- added assigneeLoginId,
+ * mirroring the service-side row. "assignee" is now the resolved display
+ * name (server-side), and assigneeLoginId is non-null exactly when the
+ * assignee resolved to an IAMS directory entry -- dashboard.xhtml keys its
+ * Assignee hover-preview variants off that.
  */
 @Getter
 @Setter
@@ -57,4 +70,8 @@ public class StagedDocumentRow implements Serializable {
     private String recordWorkspace;
     private String uploadedBy;
     private String comments;
+    private String assigneeTeamName;
+    private String assigneeRoles;
+    private String assigneeWorkspaceCodes;
+    private String assigneeLoginId;
 }

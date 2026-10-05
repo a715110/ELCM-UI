@@ -133,9 +133,23 @@
                  need to actually be decoded into the bean on submit - "@this"
                  would only ever process this remoteCommand itself and silently
                  submit whatever the bean's fields already held. -->
+            <!-- REVISED 2026-10-04 - oncomplete now reads args.submissionSuccessful,
+                 the callback parameter UploadFilesBean.addToPipeline() adds at the
+                 end of every attempt, instead of embedding
+                 #{uploadFilesBean.submissionSuccessful}. An EL expression inside
+                 oncomplete is evaluated when this form is RENDERED, so the handler
+                 that runs for a request reflects the bean state from the previous
+                 render, not the request that just finished. After a failed attempt
+                 (for example a missing destination) the form re-renders with false
+                 baked in, so the next click, even when it succeeded, would neither
+                 close the dialog nor refresh the Stage Documents table, and a user
+                 could easily submit the same files twice. The callback parameter
+                 belongs to the request that just completed, so it is always current.
+                 refreshStagedDocuments is the remote command in dashboard.xhtml that
+                 reloads the Stage Documents card. -->
             <p:remoteCommand name="commitToPipeline" action="#{uploadFilesBean.addToPipeline}"
                              process="@form" update=":uploadFilesDialogForm"
-                             oncomplete="if (#{uploadFilesBean.submissionSuccessful}) { PF('uploadFilesDialog').hide(); }"/>
+                             oncomplete="if (args.submissionSuccessful) { PF('uploadFilesDialog').hide(); refreshStagedDocuments(); }"/>
 
             <!-- Shared by Cancel and the X close button - see
                  UploadFilesBean.reset()'s Javadoc for why closing/cancelling
@@ -525,17 +539,78 @@
 
                     <div class="ufd-routing-divider">Routing Context</div>
 
+                    <!-- ADDED 2026-10-03 - maxlength + counter, to match
+                         elcm.staged_document.comments' DB column size
+                         (VARCHAR(2000) - see StagedDocument.comments'
+                         @Column(length = 2000)). Previously nothing on the
+                         front end stopped a submission longer than that,
+                         so it could get silently truncated or fail on
+                         insert depending on the DB driver. counter/
+                         counterTemplate are p:inputTextarea's own built-in
+                         feature (no custom JS) - it writes the
+                         live remaining-count into the target id
+                         (ufdCommentsCounter) on every keystroke. -->
                     <div class="ufd-field-label">COMMENTS / INSTRUCTIONS <span class="ufd-optional">(OPTIONAL)</span></div>
                     <p:inputTextarea id="ufdComments" styleClass="ufd-textarea" rows="3"
                                      value="#{uploadFilesBean.comments}"
+                                     maxlength="2000"
+                                     counter="ufdCommentsCounter"
+                                     counterTemplate="{0} characters remaining"
                                      placeholder="Describe what these documents are and any context that helps the person processing them..."/>
+                    <h:outputText id="ufdCommentsCounter" styleClass="ufd-textarea-counter"/>
 
+                    <!-- REVISED 2026-10-04 - "Assign To" switched from a plain
+                         p:selectOneMenu to a p:autoComplete per explicit request
+                         ("enhance the drop-down to work as an autocomplete
+                         field"). itemLabel is AssignableUserOptionRow.getLabel()
+                         (computed in Java, not EL) so two people sharing a
+                         display name are told apart right in the suggestion
+                         list by loginId (and team, when on file). The value
+                         submitted is the loginId (itemValue), not the display
+                         name (REVISED 2026-10-04, assigneeId -> loginId) - see
+                         that class's Javadoc. dropdown="true" adds the small arrow
+                         button so the full roster can be browsed without
+                         typing, same as clicking into an empty select used to
+                         do. forceSelection="true" means a left-over partial/
+                         unmatched query reverts to blank on blur (same as
+                         ufdExistingRecordSearch below) rather than submitting
+                         free text as if it were a real pick - clearing the
+                         field is how "Unassigned" is expressed, same meaning
+                         as the old blank/no-selection option.
+
+                         Reuses the ufd-search-input-wrap/ufd-search-input
+                         classes (same markup shape as ufdExistingRecordSearch
+                         below), NOT the old ufd-assign-select class - see the
+                         2026-10-03 CSS comment on .ufd-search-input-wrap
+                         .ufd-search-input .ui-autocomplete-input for why a
+                         styleClass on p:autoComplete has to be targeted with
+                         that descendant selector (it lands on the component's
+                         outer wrapper span, not the real <input>) rather than
+                         styled directly the way a plain select could be. -->
                     <div class="ufd-field-label">ASSIGN TO <span class="ufd-optional">(OPTIONAL)</span></div>
-                    <p:selectOneMenu id="ufdAssignToSelect" styleClass="ufd-assign-select"
-                                     value="#{uploadFilesBean.assignToUser}">
-                        <f:selectItem itemLabel="Unassigned" itemValue="#{null}" noSelectionOption="true"/>
-                        <f:selectItems value="#{uploadFilesBean.assignableUsers}" var="u" itemValue="#{u}" itemLabel="#{u}"/>
-                    </p:selectOneMenu>
+                    <div class="ufd-search-input-wrap">
+                        <!-- pi-search, not pi-user, deliberately - the
+                             positioning rule is scoped to ".pi-search"
+                             specifically (see the CSS's 2026-10-03 comment
+                             just below .ufd-search-input-wrap), and reusing
+                             the exact same icon/selector here avoids adding
+                             a near-duplicate rule for one field. -->
+                        <i class="pi pi-search"/>
+                        <!-- ADDED 2026-10-04 - ufd-assign-autocomplete is an
+                             extra, field-specific hook (on top of the shared
+                             ufd-search-input) so the 90%-width/inline-dropdown-
+                             button layout below applies only to this field,
+                             not to ufdExistingRecordSearch, which shares the
+                             same ufd-search-input/ufd-search-input-wrap base
+                             classes but wasn't asked to change. -->
+                        <p:autoComplete id="ufdAssignToSearch" styleClass="ufd-search-input ufd-assign-autocomplete"
+                                         value="#{uploadFilesBean.assignToUser}"
+                                         completeMethod="#{uploadFilesBean.completeAssignableUsers}"
+                                         var="au" itemValue="#{au.loginId}" itemLabel="#{au.label}"
+                                         forceSelection="true" dropdown="true" scrollHeight="200"
+                                         emptyMessage="No matching people"
+                                         placeholder="Search by name or ID, or leave blank for Unassigned"/>
+                    </div>
                 </div>
             </div>
 

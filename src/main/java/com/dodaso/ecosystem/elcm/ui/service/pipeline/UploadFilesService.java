@@ -9,6 +9,8 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 
+import com.dodaso.ecosystem.auth.constant.UserControllerAPIEnum;
+import com.dodaso.ecosystem.auth.container.UserDirectoryDTOContainer;
 import com.dodaso.ecosystem.baseline.common.constant.ServiceDiscoveryEnum;
 import com.dodaso.ecosystem.baseline.common.container.RESTReqContainer;
 import com.dodaso.ecosystem.baseline.common.proxy.RESTServiceClient;
@@ -21,6 +23,7 @@ import com.dodaso.ecosystem.elcm.dto.StagedDocumentDTO;
 import com.dodaso.ecosystem.elcm.dto.WorkspaceDTO;
 import com.dodaso.ecosystem.elcm.ui.constant.ContractRecordControllerAPIEnum;
 import com.dodaso.ecosystem.elcm.ui.constant.DestinationChoiceEnum;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Business logic + data access for the Upload Files dialog (FC-1 Pipeline).
@@ -42,8 +45,28 @@ import com.dodaso.ecosystem.elcm.ui.constant.DestinationChoiceEnum;
  * NEW_RECORD; StageDocumentService.createStagedDocuments() on the
  * elcm-service side falls back to its own default contract type when it's
  * null (Existing Record / Not Sure).
+ *
+ * REVISED 2026-10-04: findAssignableUsers() now calls IAMS's directory
+ * endpoint (ADEV-IAMS-SERVICE UserController.getUserDirectories(), added
+ * for Option 1 -- see the IAMS RBAC/Directory ERD) instead of returning a
+ * hardcoded placeholder list.
+ *
+ * REVISED 2026-10-04 (later same day): findAssignableUsers() now returns
+ * AssignableUserOptionRow (loginId + displayName + teamName), not a bare
+ * List<String> of display names -- backs the "Assign To" field's new
+ * autocomplete, which shows loginId alongside displayName so the user can
+ * tell identically-named people apart before picking.
+ *
+ * REVISED 2026-10-04 (assigneeId -> loginId): the value the autocomplete
+ * submits, and submitToPipeline() sends as StagedDocumentDTO.assigneeId, is
+ * now the picked person's loginId, not their display name -- so identically-
+ * named people are distinct assignments, not merely distinct picks. See
+ * AssignableUserOptionRow and elcm-service's AssigneeDirectoryLookupService
+ * (which resolves it back to a display name on read, with a fallback for
+ * rows written before this change).
  */
 @Service
+@Slf4j
 public class UploadFilesService {
 
   private final RESTServiceClient restServiceClient;
@@ -59,11 +82,52 @@ public class UploadFilesService {
     return new WorkspaceOptionRow("RETAIL", "Retail", "Retail Portfolio");
   }
 
-  public List<String> findAssignableUsers() {
-    // TODO: real preparer/reviewer list, likely from IAMS. Placeholder
-    // names only, matching the ones already used elsewhere in the
-    // Stage Documents mock data (StageDocumentService).
-    return List.of("L. Nguyen", "M. Okonkwo");
+  /**
+   * Populates the "Assign To" field's autocomplete from IAMS's directory,
+   * replacing the former hardcoded ("L. Nguyen", "M. Okonkwo") placeholder.
+   *
+   * Called once per dialog reset (UploadFilesBean.resetState()), not per
+   * keystroke -- with IAMS's directory currently at ~14 synthetic entries,
+   * loading the full roster once and filtering in memory
+   * (UploadFilesBean.completeAssignableUsers()) is simpler and cheaper
+   * than a REST round trip on every character typed. Revisit if the
+   * directory ever grows large enough for that to matter -- same caveat
+   * AssigneeDirectoryLookupService's Javadoc already flags on the
+   * elcm-service side.
+   *
+   * Returns AssignableUserOptionRow (loginId + displayName + teamName),
+   * not a bare display-name string -- see that class's own Javadoc for
+   * what this does and does not fix about telling identically-named
+   * people apart.
+   *
+   * Fails open to an empty list (not an exception) on any IAMS error, so
+   * a directory outage degrades the field to "nothing to pick" rather
+   * than breaking the whole Upload Files dialog.
+   */
+  public List<AssignableUserOptionRow> findAssignableUsers() {
+    try {
+      UserDirectoryDTOContainer container = restServiceClient.get(
+          ServiceDiscoveryEnum.iams_service.getServiceDiscoveryName(),
+          UserControllerAPIEnum.userControllerAPIEnum_getUserDirectories.getEndPoint(),
+          new ParameterizedTypeReference<UserDirectoryDTOContainer>() {
+          });
+
+      if (container == null || container.getUserDirectoryDTOList() == null) {
+        return List.of();
+      }
+
+      // loginId is what actually gets stored as the assignment now (see
+      // AssignableUserOptionRow), so an entry without one can't be assigned
+      // to -- drop it rather than offer an option that would submit null.
+      return container.getUserDirectoryDTOList().stream()
+          .filter(dto -> dto.getLoginId() != null && !dto.getLoginId().isBlank())
+          .filter(dto -> dto.getDisplayName() != null && !dto.getDisplayName().isBlank())
+          .map(dto -> new AssignableUserOptionRow(dto.getLoginId(), dto.getDisplayName(), dto.getTeamName()))
+          .collect(Collectors.toList());
+    } catch (Exception e) {
+      log.error("Failed to load assignable users from IAMS directory", e);
+      return List.of();
+    }
   }
 
   /**
@@ -78,7 +142,9 @@ public class UploadFilesService {
    * @param workspaceCode              the dialog's (possibly overridden)
    *                                    workspace.
    * @param comments                   free-text instructions, may be null.
-   * @param assignToUser               may be null/"Unassigned".
+   * @param assignToUser               the assignee's IAMS loginId (what the
+   *                                    Assign To autocomplete submits), or
+   *                                    null/blank for Unassigned.
    * @param loginId                    current user, stored as
    *                                    staged_document.uploaded_by (no
    *                                    security context on elcm-service's

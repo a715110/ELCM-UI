@@ -22,6 +22,7 @@ import com.dodaso.ecosystem.common.dto.FileUploadRequestDTO;
 import com.dodaso.ecosystem.elcm.dto.ContractRecordDTO;
 import com.dodaso.ecosystem.elcm.ui.constant.DestinationChoiceEnum;
 import com.dodaso.ecosystem.elcm.ui.constant.FileStorageControllerAPIEnum;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.AssignableUserOptionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractRecordOptionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.StagedFileUploadRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.UploadFilesService;
@@ -186,10 +187,23 @@ public class UploadFilesBean extends BaseBean {
      * "selected workspace" field to keep in sync. */
     private List<WorkspaceOptionRow> availableWorkspaces;
 
-    private List<String> assignableUsers;
+    /** REVISED 2026-10-04 -- full directory roster loaded once per dialog
+     * reset (see resetState()), filtered in memory by completeAssignableUsers()
+     * as the user types in the "Assign To" autocomplete. See
+     * AssignableUserOptionRow's own Javadoc for why this is a row (loginId +
+     * displayName + teamName), not a bare List<String> of display names
+     * anymore -- the autocomplete shows loginId alongside displayName so
+     * identically-named people can be told apart before picking. */
+    private List<AssignableUserOptionRow> assignableUsers;
 
     private DestinationChoiceEnum destinationChoice;
     private String comments;
+
+    /** The picked person's IAMS loginId (REVISED 2026-10-04, assigneeId ->
+     * loginId; previously their display name) once something is selected
+     * from the "Assign To" autocomplete, null while the field is blank
+     * (= Unassigned). Sent as StagedDocument.assigneeId; see
+     * AssignableUserOptionRow's Javadoc. */
     private String assignToUser;
 
     @Override
@@ -526,6 +540,41 @@ public class UploadFilesBean extends BaseBean {
             log.error("Failed to search existing records for query '{}'", query, e);
             return List.of();
         }
+    }
+
+    /**
+     * ADDED 2026-10-04 -- completeMethod for uploadfilesdialog.xhtml's new
+     * ufdAssignToSearch p:autoComplete (replacing the old plain
+     * p:selectOneMenu). Unlike completeExistingRecords() above, this does
+     * NOT call out to elcm-service/IAMS on every keystroke -- the full
+     * roster is already sitting in assignableUsers (loaded once by
+     * resetState()), and with IAMS's directory at only ~14 synthetic
+     * entries today, filtering that in memory is simpler and cheaper than
+     * a REST round trip per character. See findAssignableUsers()'s own
+     * Javadoc on the service side for the same reasoning, and revisit if
+     * the directory ever grows large enough for a per-keystroke call to
+     * make more sense.
+     *
+     * Matches on EITHER displayName or loginId, case-insensitively, so
+     * typing part of the ID works just as well as typing part of the name
+     * -- the whole point of showing loginId in the picker is to let a user
+     * disambiguate by ID when two names collide, so the search has to
+     * honor that too. A blank/null query (the dropdown-arrow click, not
+     * typing) returns the full roster rather than nothing, same as
+     * p:autoComplete's dropdown="true" convention elsewhere in this app.
+     */
+    public List<AssignableUserOptionRow> completeAssignableUsers(final String query) {
+        if (assignableUsers == null || assignableUsers.isEmpty()) {
+            return List.of();
+        }
+        if (query == null || query.isBlank()) {
+            return assignableUsers;
+        }
+        final String needle = query.trim().toLowerCase();
+        return assignableUsers.stream()
+            .filter(u -> (u.getDisplayName() != null && u.getDisplayName().toLowerCase().contains(needle))
+                || (u.getLoginId() != null && u.getLoginId().toLowerCase().contains(needle)))
+            .collect(Collectors.toList());
     }
 
     /**
