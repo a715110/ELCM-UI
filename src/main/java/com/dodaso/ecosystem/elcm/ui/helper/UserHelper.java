@@ -75,6 +75,11 @@ public class UserHelper {
 //    return userDTOContainer.getUserDTO();
 //  }
 
+  /** Login id of the authenticated user from the security context; needs no IAMS call. */
+  public String getCurrentLoginId() {
+    return authenticationUtil.getUsername();
+  }
+
   public UserProfileDTO getActiveUserProfile() throws Exception {
     UserDTOContainer userDTOContainer = getUserDTOContainer();
 

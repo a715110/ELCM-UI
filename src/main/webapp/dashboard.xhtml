@@ -183,6 +183,8 @@
            earlier pass). -->
       <h:form id="uploadFilesTriggerForm">
         <p:commandButton value="Upload Files" icon="pi pi-cloud-upload" styleClass="ui-button-primary"
+                          rendered="#{demoRoleBean.canSee('Upload Files')}"
+                          disabled="#{demoRoleBean.readOnly('Upload Files')}"
                           action="#{uploadFilesBean.reset}" process="@this"
                           update=":uploadFilesDialogForm"
                           oncomplete="PF('uploadFilesDialog').show();"/>
@@ -192,6 +194,13 @@
     <ui:include src="/WEB-INF/uploadfilesdialog.xhtml"/>
 
     <!-- ==================== TOP METRICS ==================== -->
+    <h:panelGroup layout="block" rendered="#{demoRoleBean.overrideActive}"
+                  style="margin:1rem 0 0;padding:0.6rem 1rem;border:1px solid #D6D2C7;border-radius:8px;background:#FFF8E1;">
+      <i class="pi pi-eye"/> Previewing as <strong>#{demoRoleBean.selectedRole}</strong>.
+      This changes what is shown on screen only; the data itself is not filtered.
+    </h:panelGroup>
+
+    <h:panelGroup id="metricCards" layout="block">
     <div class="metric-cards">
       <div class="metric-card">
         <i class="pi pi-upload" aria-hidden="true"/>
@@ -230,6 +239,7 @@
         </div>
       </div>
     </div>
+    </h:panelGroup>
 
     <!-- ADDED 2026-10-04 - refreshStagedDocuments() reloads the Stage Documents
          card after a successful Add to Pipeline (called from the upload
@@ -238,14 +248,18 @@
          added file only showed up after a reload or a fresh login. It lives
          in its own form, outside the card it updates, so the form being
          re-rendered is never the one that issued the request. process="@this"
-         keeps it from submitting the other forms on the page. -->
+         keeps it from submitting the other forms on the page. The same call
+         also reloads the four metric cards (metricCards) through the
+         pipelineMetricsBean.refresh listener, so the counts move too. -->
     <h:form id="stageDocumentsRefreshForm">
-      <p:remoteCommand name="refreshStagedDocuments" action="#{stageDocumentsBean.refresh}"
-                       process="@this" update=":stageDocumentsCard"/>
+      <p:remoteCommand name="refreshStagedDocuments" actionListener="#{pipelineMetricsBean.refresh}"
+                       action="#{stageDocumentsBean.refresh}"
+                       process="@this" update=":stageDocumentsCard :metricCards"/>
     </h:form>
 
     <!-- ==================== STAGE DOCUMENTS ==================== -->
-    <h:panelGroup id="stageDocumentsCard" layout="block" styleClass="dashboard-card">
+    <h:panelGroup id="stageDocumentsCard" layout="block" styleClass="dashboard-card"
+                  style="#{demoRoleBean.canSee('Stage Documents') ? '' : 'display:none;'}">
       <div class="dashboard-card-header">
         <h2>Stage Documents (#{stageDocumentsBean.stagedDocuments.size()})</h2>
         <i class="pi pi-info-circle" title="Documents land here after upload and stay until grouped into a contract package."/>
@@ -324,7 +338,7 @@
                like "Unassigned" or whatever the user originally typed -
                see StageDocumentService.deriveRecordLabel() - there's no
                real linked record yet to preview). -->
-          <p:column headerText="Record">
+          <p:column headerText="Record" rendered="#{demoRoleBean.canSeeField('Stage Documents', 'Record')}">
             <h:outputText id="recordCell" value="#{doc.record}"/>
             <p:tooltip for="recordCell" position="right" trackMouse="true"
                        rendered="#{doc.targetRecordId != null}">
@@ -384,7 +398,7 @@
                StageDocumentService.toDraft()'s and StagedDocumentRow's
                Javadoc for where these fields come from (a separate IAMS
                lookup, not the same JOIN FETCH as the Record fields). -->
-          <p:column headerText="Assignee">
+          <p:column headerText="Assignee" rendered="#{demoRoleBean.canSeeField('Stage Documents', 'Assignee')}">
             <h:outputText id="assigneeCell" value="#{doc.assignee}"/>
             <!-- REVISED 2026-10-04 (assigneeId -> loginId): the variant is now
                  chosen by assigneeLoginId (non-null exactly when the assignee
@@ -448,6 +462,7 @@
                  p:commandButton) since this is pure navigation - no
                  server-side action on dashboard.xhtml's own bean. -->
             <h:outputLink value="documentviewer" target="_blank"
+                          rendered="#{demoRoleBean.canSee('Document Viewer')}"
                           styleClass="rounded-button ui-button-text" title="View">
               <f:param name="fileUploadId" value="#{doc.fileUploadId}"/>
               <f:param name="recordId" value="#{doc.targetRecordId}"/>
@@ -459,7 +474,8 @@
               <f:param name="uploadedAt" value="#{doc.uploadedAt}"/>
               <i class="pi pi-eye"/>
             </h:outputLink>
-            <p:commandButton icon="pi pi-trash" styleClass="rounded-button ui-button-text" title="Delete"/>
+            <p:commandButton icon="pi pi-trash" styleClass="rounded-button ui-button-text" title="Delete"
+                             disabled="#{demoRoleBean.readOnly('Stage Documents')}"/>
           </p:column>
 
         </p:dataTable>
@@ -472,12 +488,13 @@
                exposes selectedDocuments as a List that's empty by default
                confirm the getter name if this doesn't compile as-is. -->
           <p:commandButton value="Create Document Set" icon="pi pi-arrow-right" iconPos="right"
-                            disabled="#{empty stageDocumentsBean.selectedDocuments}"/>
+                            disabled="#{empty stageDocumentsBean.selectedDocuments or demoRoleBean.readOnly('Stage Documents')}"/>
         </div>
       </h:form>
     </h:panelGroup>
 
     <!-- ==================== CONTRACT PACKAGES ==================== -->
+    <ui:fragment rendered="#{demoRoleBean.canSee('Contract Packages')}">
     <div class="dashboard-card">
       <div class="dashboard-card-header">
         <h2>Contract Packages (#{contractPackagesBean.contractPackages.size()})</h2>
@@ -530,13 +547,14 @@
 
           <p:column headerText="Actions" exportable="false">
             <p:commandButton value="Open" styleClass="ui-button-secondary"/>
-            <p:commandButton value="Reassign" icon="pi pi-user-edit" styleClass="ui-button-secondary"/>
-            <p:commandButton value="Submit for Extraction"/>
+            <p:commandButton value="Reassign" icon="pi pi-user-edit" styleClass="ui-button-secondary" disabled="#{demoRoleBean.readOnly('Contract Packages')}"/>
+            <p:commandButton value="Submit for Extraction" disabled="#{demoRoleBean.readOnly('Contract Packages')}"/>
           </p:column>
 
         </p:dataTable>
       </h:form>
     </div>
+    </ui:fragment>
 
   </ui:define>
 </ui:composition>

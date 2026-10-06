@@ -29,6 +29,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 @Data
 public abstract class BaseBean implements Serializable {
 
+  private static final org.slf4j.Logger BASE_LOG = org.slf4j.LoggerFactory.getLogger(BaseBean.class);
+
   protected String selectedTabName;
   @Autowired
   protected RESTServiceClient restServiceClient;
@@ -48,8 +50,16 @@ public abstract class BaseBean implements Serializable {
 
   @PostConstruct
   private void init() throws Exception {
-    userProfiles = userHelper.getUserProfileDTOList();
-    loginId = userHelper.getActiveUserProfile().getUserExtDTO().getLoginId();
+    // A user can authenticate in SSO yet have no IAMS profile (or no active one). Do not fail
+    // bean creation, which would break every page; degrade to the authenticated login id.
+    try {
+      userProfiles = userHelper.getUserProfileDTOList();
+      loginId = userHelper.getActiveUserProfile().getUserExtDTO().getLoginId();
+    } catch (Exception e) {
+      BASE_LOG.warn("IAMS profile unavailable, continuing with login id only: {}", e.getMessage());
+      userProfiles = java.util.Collections.emptyList();
+      loginId = userHelper.getCurrentLoginId();
+    }
 
     //TODO:  enhance this code to support various event types.
     eventDTODispatcher = new EventDTODispatcher();

@@ -197,6 +197,25 @@ public class DocumentViewerBean extends BaseBean {
         conversionStatus = (dto != null && dto.getStatusDTO() != null) ? dto.getStatusDTO().getCode() : null;
     }
 
+    /**
+     * Bound to the Retry button shown when conversion FAILED. On success the status
+     * flips back to PENDING, which re-enables the page's poll (isConversionPollingDone()
+     * becomes false) so the preview appears by itself once the retry completes. If the
+     * service refuses (already running, or unreachable), the status is re-read so the
+     * page shows the real state instead of a stale FAILED.
+     */
+    public void retryConversion() {
+        if (!isOfficeFormat() || fileUploadId == null) {
+            return;
+        }
+        final DocumentConversionDTO dto = documentViewerService.retryConversion(fileUploadId);
+        if (dto != null && dto.getStatusDTO() != null) {
+            conversionStatus = dto.getStatusDTO().getCode();
+        } else {
+            checkConversionStatus();
+        }
+    }
+
     public boolean isConversionInProgress() {
         return CONVERSION_PENDING_CODE.equals(conversionStatus) || CONVERSION_PROCESSING_CODE.equals(conversionStatus);
     }

@@ -1,18 +1,19 @@
 package com.dodaso.ecosystem.elcm.ui.service.pipeline;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.stereotype.Service;
-
 import com.dodaso.ecosystem.baseline.common.constant.ServiceDiscoveryEnum;
+import com.dodaso.ecosystem.baseline.common.container.DataContainer;
+import com.dodaso.ecosystem.baseline.common.container.RESTReqContainer;
 import com.dodaso.ecosystem.baseline.common.proxy.RESTServiceClient;
 import com.dodaso.ecosystem.common.dto.DocumentConversionDTO;
 import com.dodaso.ecosystem.common.dto.FileUploadDTO;
 import com.dodaso.ecosystem.elcm.dto.ContractRecordDTO;
 import com.dodaso.ecosystem.elcm.ui.constant.ContractRecordControllerAPIEnum;
 import com.dodaso.ecosystem.elcm.ui.constant.FileStorageControllerAPIEnum;
-
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
+import org.springframework.stereotype.Service;
 
 /**
  * ADDED 2026-10-01 -- data access for the Stage Documents dashboard's new
@@ -117,6 +118,29 @@ public class DocumentViewerService {
         } catch (final Exception e) {
             log.debug("No conversion status for fileUploadId={} (likely 404 -- not eligible for conversion)",
                 fileUploadId, e);
+            return null;
+        }
+    }
+
+    /**
+     * Asks common-service to re-queue a failed conversion (POST /{id}/conversion/retry).
+     * Returns the refreshed status, or null when the retry was refused (409: still
+     * running or already completed, 404: no conversion) or the service is unreachable.
+     * The request body is an empty DocumentConversionDTO because the REST client uses
+     * one type for both directions; the endpoint ignores it.
+     */
+    public DocumentConversionDTO retryConversion(final Long fileUploadId) {
+        try {
+            final RESTReqContainer<DocumentConversionDTO> request = new RESTReqContainer<>(
+                ServiceDiscoveryEnum.common_service.getServiceDiscoveryName(),
+                FileStorageControllerAPIEnum.files.getEndPoint() + "/" + fileUploadId + "/conversion/retry",
+                new DataContainer<DocumentConversionDTO>(),
+                new ParameterizedTypeReference<DocumentConversionDTO>() {
+                },
+                HttpMethod.POST);
+            return restServiceClient.callRESTService(request);
+        } catch (final Exception e) {
+            log.warn("Conversion retry was not accepted for fileUploadId={}: {}", fileUploadId, e.getMessage());
             return null;
         }
     }

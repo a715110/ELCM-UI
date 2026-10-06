@@ -27,6 +27,14 @@ dodaso:
 ecws:
   base-url: ${dodaso.instance.ecws-base-url}
 
+# Demo Role switcher (top bar). Shown only to users holding one of admin-roles
+# unless visible-to-all is true, which is meant for client demos. Display only;
+# it never filters data.
+elcm:
+  demo-role:
+    visible-to-all: ${ELCM_DEMO_ROLE_VISIBLE_TO_ALL:false}
+    admin-roles: System Admin,Super Admin
+
 spring:
   application:
     name: elcm-ui

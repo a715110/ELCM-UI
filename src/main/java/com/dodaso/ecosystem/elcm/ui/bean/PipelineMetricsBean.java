@@ -51,6 +51,16 @@ public class PipelineMetricsBean extends BaseBean {
      */
     @PostConstruct
     void init() {
+        refresh();
+    }
+
+    /**
+     * Re-reads the four counts. Called on page load via init() and again from
+     * the dashboard's refreshStagedDocuments remote command after a successful
+     * Add to Pipeline, so the cards move without a page reload.
+     */
+    @Override
+    public void refresh() {
         try {
             final Map<String, Object> response = restServiceClient.get(
                 ServiceDiscoveryEnum.elcm_service.getServiceDiscoveryName(),

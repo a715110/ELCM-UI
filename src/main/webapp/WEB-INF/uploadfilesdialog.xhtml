@@ -587,6 +587,7 @@
                          that descendant selector (it lands on the component's
                          outer wrapper span, not the real <input>) rather than
                          styled directly the way a plain select could be. -->
+                    <ui:fragment rendered="#{demoRoleBean.canSeeField('Upload Files', 'Assign To')}">
                     <div class="ufd-field-label">ASSIGN TO <span class="ufd-optional">(OPTIONAL)</span></div>
                     <div class="ufd-search-input-wrap">
                         <!-- pi-search, not pi-user, deliberately - the
@@ -608,9 +609,11 @@
                                          completeMethod="#{uploadFilesBean.completeAssignableUsers}"
                                          var="au" itemValue="#{au.loginId}" itemLabel="#{au.label}"
                                          forceSelection="true" dropdown="true" scrollHeight="200"
+                                         disabled="#{demoRoleBean.fieldReadOnly('Upload Files', 'Assign To')}"
                                          emptyMessage="No matching people"
                                          placeholder="Search by name or ID, or leave blank for Unassigned"/>
                     </div>
+                    </ui:fragment>
                 </div>
             </div>
 

@@ -66,6 +66,21 @@
                             </h:panelGroup>
                         </h:form>
                     </li>
+                    <ui:fragment rendered="#{demoRoleBean.available}">
+                        <li class="topbar-item demo-role-item">
+                            <h:form id="demoRoleForm" style="display:flex;align-items:center;gap:0.5rem;">
+                                <span style="font-size:0.8rem;white-space:nowrap;">Demo role</span>
+                                <p:selectOneMenu id="demoRoleSelect" value="#{demoRoleBean.selectedRole}"
+                                                 style="min-width:12rem;"
+                                                 title="Preview the screens as another role. Display only; data is not filtered.">
+                                    <f:selectItem itemLabel="My own role" itemValue="" noSelectionOption="true"/>
+                                    <f:selectItems value="#{demoRoleBean.roleOptions}"/>
+                                    <p:ajax listener="#{demoRoleBean.onRoleChange}"
+                                            oncomplete="window.location.reload();"/>
+                                </p:selectOneMenu>
+                            </h:form>
+                        </li>
+                    </ui:fragment>
                     <li class="topbar-item notifications">
                         <a href="#">
                             <i class="topbar-icon pi pi-bell"/>

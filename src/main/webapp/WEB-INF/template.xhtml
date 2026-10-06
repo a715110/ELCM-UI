@@ -67,6 +67,29 @@
         <!--        <div class="layout-mask modal-in"/>-->
     </div>
 
+    <!-- Captures the browser time zone into the dodaso_tz cookie. UserTimezoneFilter reads it
+         and forwards it to the services, which show timestamps in this zone. Reloads once on the
+         first visit so the first page already shows local times. -->
+    <script type="text/javascript">
+        //<![CDATA[
+        (function () {
+            try {
+                var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                if (!tz) { return; }
+                var m = document.cookie.match(/(?:^|; )dodaso_tz=([^;]*)/);
+                var cur = m ? decodeURIComponent(m[1]) : null;
+                if (cur === tz) { return; }
+                document.cookie = 'dodaso_tz=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; SameSite=Lax';
+                var seen = null;
+                try { seen = window.sessionStorage.getItem('dodaso_tz_reload'); } catch (e) { seen = '1'; }
+                if (seen !== '1') {
+                    try { window.sessionStorage.setItem('dodaso_tz_reload', '1'); } catch (e) { }
+                    window.location.reload();
+                }
+            } catch (e) { }
+        })();
+        //]]>
+    </script>
     <!-- Initialize Session Timeout Manager -->
     <script type="text/javascript">
         //<![CDATA[

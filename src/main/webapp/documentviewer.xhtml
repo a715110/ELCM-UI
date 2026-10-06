@@ -113,11 +113,26 @@
             <div class="dv-no-preview-sub">This usually takes a few seconds. The preview will appear automatically once it's ready.</div>
           </div>
 
-          <!-- Conversion FAILED, or this file turned out to have no
-               conversion row at all (checked, nothing came back) - same
-               fallback message/download link as any other non-previewable
-               type. -->
-          <div class="dv-no-preview" jsf:rendered="#{documentViewerBean.conversionChecked and (documentViewerBean.isConversionFailed() or documentViewerBean.conversionStatus == null)}">
+          <!-- Conversion FAILED: say so, offer a retry (transient causes such as
+               the converter restarting are retried automatically on the server;
+               this covers what is left), and keep the download link. -->
+          <div class="dv-no-preview" jsf:rendered="#{documentViewerBean.conversionChecked and documentViewerBean.isConversionFailed()}">
+            <i class="pi pi-exclamation-triangle dv-no-preview-icon"/>
+            <div class="dv-no-preview-title">The preview could not be created</div>
+            <div class="dv-no-preview-sub">The document could not be converted for preview. You can try again or download the original.</div>
+            <p:commandButton value="Try again" icon="pi pi-refresh" styleClass="mb-2"
+                             action="#{documentViewerBean.retryConversion}"
+                             process="@this" update="dvConversionWrapper"/>
+            <h:outputLink styleClass="dv-no-preview-download-btn"
+                          value="#{facesContext.externalContext.requestContextPath}/api/v1/pipeline/document-viewer/#{documentViewerBean.fileUploadId}/download">
+              <i class="pi pi-download"/> Download <h:outputText value="#{documentViewerBean.fileName}"/>
+            </h:outputLink>
+          </div>
+
+          <!-- This file turned out to have no conversion row at all (checked,
+               nothing came back) - same fallback message/download link as any
+               other non-previewable type. -->
+          <div class="dv-no-preview" jsf:rendered="#{documentViewerBean.conversionChecked and documentViewerBean.conversionStatus == null}">
             <i class="pi pi-file-o dv-no-preview-icon"/>
             <div class="dv-no-preview-title">Preview not available for this file type</div>
             <div class="dv-no-preview-sub"><h:outputText value="#{documentViewerBean.type}"/> files can't be rendered in the browser.</div>
