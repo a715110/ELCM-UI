@@ -103,13 +103,24 @@ public abstract class BaseBean implements Serializable {
   }
 
   protected EventLogDTO getEventLogDTO(CollaborationTaskDTO collaborationTaskDTO) throws Exception {
-    UserProfileDTO userProfileDTO = userHelper.getActiveUserProfile();
+    // Attribute the event to the logged-in user. The profile id needs an IAMS profile; a user
+    // without one is still attributed by login id and the profile id is left unset.
+    Integer userProfileId = null;
+    try {
+      UserProfileDTO userProfileDTO = userHelper.getActiveUserProfile();
+      userProfileId = userProfileDTO != null ? userProfileDTO.getId() : null;
+    } catch (Exception e) {
+      BASE_LOG.warn("No active IAMS profile for event log, using login id only: {}", e.getMessage());
+    }
+    String actor = (loginId != null && !loginId.isBlank()) ? loginId : userHelper.getCurrentLoginId();
+
     EventLogDTO eventLogDTO = new EventLogDTO();
     EventTypeDTO eventTypeDTO = new EventTypeDTO();
-    eventLogDTO.setUserProfileId(
-        3); //TODO:  need to integrate with IAMS --> userProfileDTO.getId());
+    if (userProfileId != null) {
+      eventLogDTO.setUserProfileId(userProfileId);
+    }
     eventLogDTO.setCreatedAt(Instant.now());
-    eventLogDTO.setCreatedBy("eric@dodaso.com"); //TODO:  need to enhance it holistically
+    eventLogDTO.setCreatedBy(actor);
     eventLogDTO.setEventTimestamp(Instant.now());
     eventLogDTO.setReadInd((byte) 0);
 
