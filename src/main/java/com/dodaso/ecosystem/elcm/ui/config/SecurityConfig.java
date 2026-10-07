@@ -22,10 +22,15 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
+import org.springframework.security.oauth2.client.AuthorizedClientServiceOAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
@@ -39,8 +44,6 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.cors.CorsConfiguration;
@@ -124,6 +127,20 @@ public class SecurityConfig {
     return accessTokenResponseClient;
   }
 
+  /**
+   * Gives the user's access token, refreshed when expired, to RESTServiceClient (through
+   * AccessTokenProvider) so it can be forwarded to services that validate it.
+   */
+  @Bean
+  public OAuth2AuthorizedClientManager authorizedClientManager(
+      ClientRegistrationRepository registrations, OAuth2AuthorizedClientService clients) {
+    AuthorizedClientServiceOAuth2AuthorizedClientManager manager =
+        new AuthorizedClientServiceOAuth2AuthorizedClientManager(registrations, clients);
+    manager.setAuthorizedClientProvider(
+        OAuth2AuthorizedClientProviderBuilder.builder().authorizationCode().refreshToken().build());
+    return manager;
+  }
+
   @Bean
   SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http
@@ -189,11 +206,11 @@ public class SecurityConfig {
             )
         )
         .logout(logout -> logout
-            .logoutRequestMatcher(new OrRequestMatcher(
-                new AntPathRequestMatcher("/api/logout", "POST"),
-                new AntPathRequestMatcher("/logout", "GET"),
-                new AntPathRequestMatcher("/logout", "POST")
-            ))
+            .logoutRequestMatcher(request ->
+                ("POST".equalsIgnoreCase(request.getMethod()) && "/api/logout".equals(request.getServletPath())) ||
+                ("GET".equalsIgnoreCase(request.getMethod()) && "/logout".equals(request.getServletPath())) ||
+                ("POST".equalsIgnoreCase(request.getMethod()) && "/logout".equals(request.getServletPath()))
+            )
             // Context-relative: Spring's redirect strategy adds the context path itself.
             .logoutSuccessUrl(OAUTH2_LOGIN_PATH)
             .invalidateHttpSession(true)
