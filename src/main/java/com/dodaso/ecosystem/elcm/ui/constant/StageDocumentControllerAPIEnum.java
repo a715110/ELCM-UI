@@ -10,7 +10,10 @@ import lombok.Getter;
  */
 @Getter
 public enum StageDocumentControllerAPIEnum {
-  getStagedDocuments("/api/v1/pipeline/staged-documents");
+  getStagedDocuments("/api/v1/pipeline/staged-documents"),
+
+  /** Base path; the call appends "/{id}/delete" (soft delete, reason in the body). */
+  deleteStagedDocument("/api/v1/pipeline/staged-documents");
 
   final String endPoint;
 

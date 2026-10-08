@@ -1,10 +1,13 @@
 package com.dodaso.ecosystem.elcm.ui.service.pipeline;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 
 import com.dodaso.ecosystem.baseline.common.constant.ServiceDiscoveryEnum;
 import com.dodaso.ecosystem.baseline.common.proxy.RESTServiceClient;
@@ -72,6 +75,42 @@ public class StageDocumentService {
             // it so the failure is visible in production logs.
             log.error("Failed to load staged documents from elcm-service", e);
             return List.of();
+        }
+    }
+
+    /**
+     * ADDED 2026-10-07 -- soft delete of one staged document through elcm-service
+     * (POST /api/v1/pipeline/staged-documents/{id}/delete). The reason is optional and travels in
+     * the body. Never throws: every failure becomes a DeleteOutcome so the bean can show a
+     * message and the page keeps working. elcm-service makes the real decisions (uploader only,
+     * not in a package, not submitted); the UI's own checks are only a convenience.
+     */
+    public DeleteOutcome deleteStaged(final Long id, final String reason) {
+        final Map<String, String> body = new HashMap<>();
+        if (reason != null && !reason.isBlank()) {
+            body.put("reason", reason.trim());
+        }
+        try {
+            restServiceClient.post(
+                ServiceDiscoveryEnum.elcm_service.getServiceDiscoveryName(),
+                StageDocumentControllerAPIEnum.deleteStagedDocument.getEndPoint() + "/" + id + "/delete",
+                body,
+                new ParameterizedTypeReference<Void>() {
+                });
+            return DeleteOutcome.DELETED;
+        } catch (final HttpStatusCodeException e) {
+            final int status = e.getStatusCode().value();
+            log.warn("Delete of staged document {} was refused by elcm-service: HTTP {}", id, status);
+            return switch (status) {
+                case 404 -> DeleteOutcome.NOT_FOUND;
+                case 403 -> DeleteOutcome.FORBIDDEN;
+                case 409 -> DeleteOutcome.CONFLICT;
+                case 400 -> DeleteOutcome.TOO_LONG;
+                default -> DeleteOutcome.FAILED;
+            };
+        } catch (final Exception e) {
+            log.error("Failed to delete staged document {} through elcm-service", id, e);
+            return DeleteOutcome.FAILED;
         }
     }
 }

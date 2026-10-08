@@ -257,6 +257,45 @@
                        process="@this" update=":stageDocumentsCard :metricCards"/>
     </h:form>
 
+    <!-- ADDED 2026-10-07 - soft delete of a staged document. The message
+         area shows the outcome (deleted, refused, failed). The dialog asks
+         the user to confirm and offers an optional reason (at most 500
+         characters, kept with the deleted row). Confirm calls
+         stageDocumentsBean.confirmDelete; when that reports reload, the page
+         runs refreshStagedDocuments() so the table and the metric cards
+         update. keepOpen is set only when the reason was rejected as too
+         long, so the user can shorten it. -->
+    <p:growl id="stageDocumentsGrowl" globalOnly="true" showDetail="true" life="6000"/>
+
+    <p:dialog widgetVar="deleteStagedDocumentDialog"
+              header="Delete document"
+              modal="true"
+              resizable="false"
+              draggable="false"
+              closeOnEscape="true"
+              width="32rem">
+      <h:form id="deleteStagedDocumentForm">
+        <p style="margin-top: 0;">
+          <h:outputText value="Delete "/>
+          <strong><h:outputText value="#{stageDocumentsBean.documentPendingDelete.fileName}"/></strong>
+          <h:outputText value="? It is removed from the pipeline and from the counts. A record of the deletion is kept."/>
+        </p>
+        <p:outputLabel for="deleteReason" value="Reason (optional)"/>
+        <p:inputTextarea id="deleteReason" value="#{stageDocumentsBean.deleteReason}"
+                         rows="3" maxlength="500" autoResize="false" style="width: 100%;"
+                         counter="deleteReasonCounter" counterTemplate="{0} characters remaining"/>
+        <small><h:outputText id="deleteReasonCounter"/></small>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+          <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                           onclick="PF('deleteStagedDocumentDialog').hide();"/>
+          <p:commandButton value="Delete" icon="pi pi-trash" styleClass="ui-button-danger"
+                           process="@form" update=":stageDocumentsGrowl"
+                           actionListener="#{stageDocumentsBean.confirmDelete}"
+                           oncomplete="if (args &amp;&amp; args.keepOpen) { return; } PF('deleteStagedDocumentDialog').hide(); if (args &amp;&amp; args.reload) { refreshStagedDocuments(); }"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
     <!-- ==================== STAGE DOCUMENTS ==================== -->
     <h:panelGroup id="stageDocumentsCard" layout="block" styleClass="dashboard-card"
                   style="#{demoRoleBean.canSee('Stage Documents') ? '' : 'display:none;'}">
@@ -458,24 +497,47 @@
                  already computed (fileName/type/workspace/record/
                  assignee/uploadedAt), so the viewer page doesn't need a
                  second "get one staged_document by id" endpoint just to
-                 redisplay values already in hand here. h:outputLink (not
+                 redisplay values already in hand here. p:button (not
                  p:commandButton) since this is pure navigation - no
-                 server-side action on dashboard.xhtml's own bean. -->
-            <h:outputLink value="documentviewer" target="_blank"
-                          rendered="#{demoRoleBean.canSee('Document Viewer')}"
-                          styleClass="rounded-button ui-button-text" title="View">
-              <f:param name="fileUploadId" value="#{doc.fileUploadId}"/>
-              <f:param name="recordId" value="#{doc.targetRecordId}"/>
-              <f:param name="fileName" value="#{doc.fileName}"/>
-              <f:param name="type" value="#{doc.type}"/>
-              <f:param name="workspace" value="#{doc.workspace}"/>
-              <f:param name="record" value="#{doc.record}"/>
-              <f:param name="assignee" value="#{doc.assignee}"/>
-              <f:param name="uploadedAt" value="#{doc.uploadedAt}"/>
-              <i class="pi pi-eye"/>
-            </h:outputLink>
-            <p:commandButton icon="pi pi-trash" styleClass="rounded-button ui-button-text" title="Delete"
-                             disabled="#{demoRoleBean.readOnly('Stage Documents')}"/>
+                 server-side action on dashboard.xhtml's own bean.
+                 REVISED 2026-10-07: was an h:outputLink, which the theme
+                 did not style as a button, so it looked greyed out next to
+                 the trash icon. p:button renders with the same button
+                 styling and still opens the viewer in a new tab with the same
+                 query params. The wrapping span stops the click from
+                 selecting the table row. -->
+            <span onclick="event.stopPropagation();">
+              <p:button outcome="documentviewer" target="_blank" icon="pi pi-eye"
+                        rendered="#{demoRoleBean.canSee('Document Viewer')}"
+                        styleClass="rounded-button ui-button-text" title="View">
+                <f:param name="fileUploadId" value="#{doc.fileUploadId}"/>
+                <f:param name="recordId" value="#{doc.targetRecordId}"/>
+                <f:param name="fileName" value="#{doc.fileName}"/>
+                <f:param name="type" value="#{doc.type}"/>
+                <f:param name="workspace" value="#{doc.workspace}"/>
+                <f:param name="record" value="#{doc.record}"/>
+                <f:param name="assignee" value="#{doc.assignee}"/>
+                <f:param name="uploadedAt" value="#{doc.uploadedAt}"/>
+              </p:button>
+            </span>
+            <!-- REVISED 2026-10-07 - the trash icon now opens the delete
+                 confirmation dialog below (deleteStagedDocumentDialog) after
+                 remembering this row. It is enabled only for documents the
+                 current user uploaded, which is also the server rule; the
+                 server has the final say. process="@this" is enough because
+                 prepareDelete only needs the row. The wrapping span stops the
+                 click from bubbling up to the table, whose row click handling
+                 would otherwise select the row (this happened on a click of
+                 the icon, including when the icon is disabled). The button's
+                 own handler runs first, so the dialog still opens. -->
+            <span onclick="event.stopPropagation();">
+              <p:commandButton icon="pi pi-trash" styleClass="rounded-button ui-button-text"
+                               title="#{stageDocumentsBean.canDelete(doc) ? 'Delete' : 'Only the person who uploaded this document can delete it'}"
+                               disabled="#{demoRoleBean.readOnly('Stage Documents') or not stageDocumentsBean.canDelete(doc)}"
+                               process="@this" update=":deleteStagedDocumentForm"
+                               actionListener="#{stageDocumentsBean.prepareDelete(doc)}"
+                               oncomplete="PF('deleteStagedDocumentDialog').show();"/>
+            </span>
           </p:column>
 
         </p:dataTable>
