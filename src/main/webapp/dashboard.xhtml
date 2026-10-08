@@ -254,7 +254,10 @@
     <h:form id="stageDocumentsRefreshForm">
       <p:remoteCommand name="refreshStagedDocuments" actionListener="#{pipelineMetricsBean.refresh}"
                        action="#{stageDocumentsBean.refresh}"
-                       process="@this" update=":stageDocumentsCard :metricCards"/>
+                       process="@this" update=":stageDocumentsCard :metricCards"
+                       oncomplete="refreshContractPackages();"/>
+      <p:remoteCommand name="refreshContractPackages" action="#{contractPackagesBean.refresh}"
+                       process="@this" update=":contractPackagesCard"/>
     </h:form>
 
     <!-- ADDED 2026-10-07 - soft delete of a staged document. The message
@@ -296,6 +299,154 @@
       </h:form>
     </p:dialog>
 
+    <!-- ADDED 2026-10-07 - Create Document Set. The dialog groups the ticked
+         Stage Documents into a new draft package (assignee chosen here) or
+         adds them to an existing draft package of the same workspace. A role
+         per document is optional. One workspace per package: a selection that
+         spans workspaces is refused before the dialog opens. -->
+    <p:dialog widgetVar="createDocumentSetDialog"
+              header="Create Document Set"
+              modal="true"
+              resizable="false"
+              draggable="false"
+              closeOnEscape="true"
+              width="46rem">
+      <h:form id="createDocumentSetForm">
+        <p style="margin-top: 0;">
+          <h:outputText value="Workspace: "/>
+          <strong><h:outputText value="#{createDocumentSetBean.workspace}"/></strong>
+        </p>
+
+        <p:selectOneRadio id="setMode" value="#{createDocumentSetBean.mode}" layout="lineDirection">
+          <f:selectItem itemLabel="New package" itemValue="NEW"/>
+          <f:selectItem itemLabel="Add to existing draft package" itemValue="EXISTING"
+                        itemDisabled="#{not createDocumentSetBean.existingAvailable}"/>
+          <p:ajax update="setNewPanel setExistingPanel"/>
+        </p:selectOneRadio>
+
+        <h:panelGroup id="setNewPanel" layout="block" style="margin: 0.75rem 0;">
+          <h:panelGroup rendered="#{not createDocumentSetBean.existingMode}">
+            <p:outputLabel for="setAssignee" value="Assignee"/>
+            <br/>
+            <p:autoComplete id="setAssignee" value="#{createDocumentSetBean.assigneeLoginId}"
+                            completeMethod="#{createDocumentSetBean.completeAssignableUsers}"
+                            var="au" itemValue="#{au.loginId}" itemLabel="#{au.label}"
+                            forceSelection="true" dropdown="true" scrollHeight="200"
+                            emptyMessage="No matching people" placeholder="Optional" style="width: 100%;"/>
+          </h:panelGroup>
+        </h:panelGroup>
+
+        <h:panelGroup id="setExistingPanel" layout="block" style="margin: 0.75rem 0;">
+          <h:panelGroup rendered="#{createDocumentSetBean.existingMode}">
+            <p:outputLabel for="setExistingPackage" value="Package"/>
+            <br/>
+            <p:selectOneMenu id="setExistingPackage" value="#{createDocumentSetBean.existingPackageId}" style="min-width: 20rem;">
+              <f:selectItem itemLabel="Select a package" itemValue="#{null}" noSelectionOption="true"/>
+              <f:selectItems value="#{createDocumentSetBean.eligiblePackages}" var="ep"
+                             itemValue="#{ep.id}" itemLabel="#{ep.packageCode} (#{ep.docCount} docs)"/>
+            </p:selectOneMenu>
+          </h:panelGroup>
+        </h:panelGroup>
+
+        <p:dataTable id="setDocumentsTable" var="sd" value="#{createDocumentSetBean.documents}"
+                     rowKey="#{sd.id}" emptyMessage="No documents selected.">
+          <p:column headerText="File Name">
+            <h:outputText value="#{sd.fileName}"/>
+          </p:column>
+          <p:column headerText="Role (optional)" style="width: 15rem;">
+            <p:selectOneMenu value="#{createDocumentSetBean.roleByDocument[sd.id]}" style="width: 100%;">
+              <f:selectItem itemLabel="Not defined yet" itemValue="" noSelectionOption="true"/>
+              <f:selectItems value="#{createDocumentSetBean.roleOptions}" var="ro"
+                             itemValue="#{ro.code}" itemLabel="#{ro.label}"/>
+            </p:selectOneMenu>
+          </p:column>
+        </p:dataTable>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+          <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                           onclick="PF('createDocumentSetDialog').hide();"/>
+          <p:commandButton value="Create" icon="pi pi-check"
+                           process="@form" update="@form :stageDocumentsGrowl"
+                           actionListener="#{createDocumentSetBean.submit}"
+                           oncomplete="if (args &amp;&amp; args.done) { PF('createDocumentSetDialog').hide(); refreshStagedDocuments(); }"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
+    <!-- ADDED 2026-10-07 - Open a package: lists its documents. Remove is
+         offered only while the package is a draft; the document then goes
+         back to Stage Documents. -->
+    <p:dialog widgetVar="packageDocumentsDialog"
+              header="Package documents"
+              modal="true"
+              resizable="false"
+              draggable="false"
+              closeOnEscape="true"
+              width="46rem">
+      <h:form id="packageDocumentsForm">
+        <p style="margin-top: 0;">
+          <strong><h:outputText value="#{contractPackagesBean.openPackage.packageCode}"/></strong>
+          <h:outputText value=" - #{contractPackagesBean.openPackage.status}"/>
+        </p>
+        <p:dataTable id="packageDocumentsTable" var="pd" value="#{contractPackagesBean.openDocuments}"
+                     emptyMessage="This package has no documents.">
+          <p:column headerText="File Name">
+            <h:outputText value="#{pd.fileName}"/>
+          </p:column>
+          <p:column headerText="Role">
+            <h:outputText value="#{pd.roleLabel}"/>
+          </p:column>
+          <p:column headerText="Target Record">
+            <h:outputText value="#{pd.targetRecord}"/>
+          </p:column>
+          <p:column headerText="Actions" exportable="false" style="width: 7rem;">
+            <p:commandButton value="Remove" icon="pi pi-times" styleClass="ui-button-secondary"
+                             rendered="#{contractPackagesBean.openPackageDraft}"
+                             disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                             process="@this" update="@form :stageDocumentsGrowl"
+                             actionListener="#{contractPackagesBean.removeDocument(pd.stagedDocumentId, pd.fileName)}"
+                             oncomplete="if (args &amp;&amp; args.reload) { refreshStagedDocuments(); }"/>
+          </p:column>
+        </p:dataTable>
+        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+          <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
+                           onclick="PF('packageDocumentsDialog').hide();"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
+    <!-- ADDED 2026-10-07 - Reassign a draft package. The person is picked the
+         same way as in Upload Files and Create Document Set. -->
+    <p:dialog widgetVar="reassignPackageDialog"
+              header="Reassign package"
+              modal="true"
+              resizable="false"
+              draggable="false"
+              closeOnEscape="true"
+              width="32rem">
+      <h:form id="reassignPackageForm">
+        <p style="margin-top: 0;">
+          <strong><h:outputText value="#{contractPackagesBean.reassignPackage.packageCode}"/></strong>
+          <h:outputText value=" - currently assigned to #{contractPackagesBean.reassignPackage.assignee}"/>
+        </p>
+        <p:outputLabel for="reassignAssignee" value="New assignee"/>
+        <br/>
+        <p:autoComplete id="reassignAssignee" value="#{contractPackagesBean.reassignLoginId}"
+                        completeMethod="#{contractPackagesBean.completeAssignableUsers}"
+                        var="au" itemValue="#{au.loginId}" itemLabel="#{au.label}"
+                        forceSelection="true" dropdown="true" scrollHeight="200"
+                        emptyMessage="No matching people" style="width: 100%;"/>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+          <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                           onclick="PF('reassignPackageDialog').hide();"/>
+          <p:commandButton value="Reassign" icon="pi pi-check"
+                           process="@form" update="@form :stageDocumentsGrowl :contractPackagesCard"
+                           actionListener="#{contractPackagesBean.confirmReassign}"
+                           oncomplete="if (args &amp;&amp; args.done) { PF('reassignPackageDialog').hide(); }"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
     <!-- ==================== STAGE DOCUMENTS ==================== -->
     <h:panelGroup id="stageDocumentsCard" layout="block" styleClass="dashboard-card"
                   style="#{demoRoleBean.canSee('Stage Documents') ? '' : 'display:none;'}">
@@ -320,6 +471,13 @@
                      selection="#{stageDocumentsBean.selectedDocuments}"
                      rowKey="#{doc.id}"
                      emptyMessage="No staged documents.">
+
+          <!-- ADDED 2026-10-07 - keep the Create Document Set button in step with the ticked rows. -->
+          <p:ajax event="rowSelect" update=":stageDocumentsForm:createSetButton"/>
+          <p:ajax event="rowUnselect" update=":stageDocumentsForm:createSetButton"/>
+          <p:ajax event="rowSelectCheckbox" update=":stageDocumentsForm:createSetButton"/>
+          <p:ajax event="rowUnselectCheckbox" update=":stageDocumentsForm:createSetButton"/>
+          <p:ajax event="toggleSelect" update=":stageDocumentsForm:createSetButton"/>
 
           <p:column selectionMode="multiple" style="width:3rem" exportable="false"/>
 
@@ -549,15 +707,18 @@
                greyed-out state shown there. Assumes stageDocumentsBean
                exposes selectedDocuments as a List that's empty by default
                confirm the getter name if this doesn't compile as-is. -->
-          <p:commandButton value="Create Document Set" icon="pi pi-arrow-right" iconPos="right"
-                            disabled="#{empty stageDocumentsBean.selectedDocuments or demoRoleBean.readOnly('Stage Documents')}"/>
+          <p:commandButton id="createSetButton" value="Create Document Set" icon="pi pi-arrow-right" iconPos="right"
+                            disabled="#{empty stageDocumentsBean.selectedDocuments or demoRoleBean.readOnly('Stage Documents')}"
+                            process="@form" update=":createDocumentSetForm :stageDocumentsGrowl"
+                            actionListener="#{createDocumentSetBean.prepare(stageDocumentsBean.selectedDocuments)}"
+                            oncomplete="if (args &amp;&amp; args.open) { PF('createDocumentSetDialog').show(); }"/>
         </div>
       </h:form>
     </h:panelGroup>
 
     <!-- ==================== CONTRACT PACKAGES ==================== -->
-    <ui:fragment rendered="#{demoRoleBean.canSee('Contract Packages')}">
-    <div class="dashboard-card">
+    <h:panelGroup id="contractPackagesCard" layout="block" styleClass="dashboard-card"
+                  style="#{demoRoleBean.canSee('Contract Packages') ? '' : 'display:none;'}">
       <div class="dashboard-card-header">
         <h2>Contract Packages (#{contractPackagesBean.contractPackages.size()})</h2>
         <i class="pi pi-info-circle" title="Packages group staged documents together before they're submitted for extraction."/>
@@ -568,12 +729,8 @@
         <p:dataTable id="contractPackagesTable"
                      var="pkg"
                      value="#{contractPackagesBean.contractPackages}"
-                     rowKey="#{pkg.packageCode}"
+                     rowKey="#{pkg.id}"
                      emptyMessage="No contract packages.">
-
-          <p:column headerText="Batch ID">
-            <h:outputText value="#{pkg.batchId}"/>
-          </p:column>
 
           <p:column headerText="Package ID">
             <h:outputText value="#{pkg.packageCode}"/>
@@ -581,10 +738,6 @@
 
           <p:column headerText="Docs">
             <h:outputText value="#{pkg.docCount}"/>
-          </p:column>
-
-          <p:column headerText="Target Record">
-            <h:outputText value="#{pkg.targetRecord}"/>
           </p:column>
 
           <p:column headerText="Workspace">
@@ -607,16 +760,29 @@
             <p:tag value="#{pkg.status}" severity="success"/>
           </p:column>
 
-          <p:column headerText="Actions" exportable="false">
-            <p:commandButton value="Open" styleClass="ui-button-secondary"/>
-            <p:commandButton value="Reassign" icon="pi pi-user-edit" styleClass="ui-button-secondary" disabled="#{demoRoleBean.readOnly('Contract Packages')}"/>
-            <p:commandButton value="Submit for Extraction" disabled="#{demoRoleBean.readOnly('Contract Packages')}"/>
+          <!-- REVISED 2026-10-07 - one row of icon buttons in the same style as the
+               Stage Documents row actions (rounded, text style, tooltip), instead of
+               three text buttons of different widths stacked in a narrow column. -->
+          <p:column headerText="Actions" style="width:9rem" exportable="false">
+            <div style="display: flex; flex-wrap: nowrap; gap: 0.25rem; align-items: center;">
+              <p:commandButton icon="pi pi-folder-open" styleClass="rounded-button ui-button-text" title="Open"
+                               process="@this" update=":packageDocumentsForm"
+                               actionListener="#{contractPackagesBean.open(pkg)}"
+                               oncomplete="PF('packageDocumentsDialog').show();"/>
+              <p:commandButton icon="pi pi-user-edit" styleClass="rounded-button ui-button-text"
+                               title="#{pkg.statusCode == 'ASSEMBLY' ? 'Reassign' : 'Only a draft package can be reassigned'}"
+                               disabled="#{demoRoleBean.readOnly('Contract Packages') or pkg.statusCode != 'ASSEMBLY'}"
+                               process="@this" update=":reassignPackageForm"
+                               actionListener="#{contractPackagesBean.prepareReassign(pkg)}"
+                               oncomplete="PF('reassignPackageDialog').show();"/>
+              <p:commandButton icon="pi pi-send" styleClass="rounded-button ui-button-text" title="Submit for Extraction"
+                               disabled="#{demoRoleBean.readOnly('Contract Packages')}"/>
+            </div>
           </p:column>
 
         </p:dataTable>
       </h:form>
-    </div>
-    </ui:fragment>
+    </h:panelGroup>
 
   </ui:define>
 </ui:composition>
