@@ -92,6 +92,16 @@ public class ContractPackageService {
         return post(BASE + "/" + packageId + "/documents", body, "add documents to package " + packageId);
     }
 
+    /** Submit for extraction. 400 means not ready (no documents, no assignee, or a missing role). */
+    public PackageOutcome submit(final Long packageId) {
+        return post(BASE + "/" + packageId + "/submit", new HashMap<String, Object>(), "submit package " + packageId);
+    }
+
+    /** Unsubmit while the submission is still pending. */
+    public PackageOutcome unsubmit(final Long packageId) {
+        return post(BASE + "/" + packageId + "/unsubmit", new HashMap<String, Object>(), "unsubmit package " + packageId);
+    }
+
     /** Changes the assignee of a draft package (IAMS login id). */
     public PackageOutcome reassign(final Long packageId, final String assigneeLoginId) {
         final Map<String, Object> body = new HashMap<>();

@@ -447,6 +447,37 @@
       </h:form>
     </p:dialog>
 
+    <!-- ADDED 2026-10-08 - Submit for Extraction and Unsubmit share one confirmation
+         dialog. Submit locks the package (no reassign, add or remove) and marks its
+         documents Submitted; Unsubmit, allowed while the submission is pending,
+         returns the package to a draft. When the call returns, the page runs
+         refreshStagedDocuments() so the Submitted count and the tables update. -->
+    <p:dialog widgetVar="packageSubmitDialog"
+              header="#{contractPackagesBean.unsubmitMode ? 'Unsubmit package' : 'Submit for Extraction'}"
+              modal="true"
+              resizable="false"
+              draggable="false"
+              closeOnEscape="true"
+              width="32rem">
+      <h:form id="packageSubmitForm">
+        <p style="margin-top: 0;">
+          <strong><h:outputText value="#{contractPackagesBean.submitPackage.packageCode}"/></strong>
+          <h:outputText rendered="#{not contractPackagesBean.unsubmitMode}"
+                        value=" will be submitted with #{contractPackagesBean.submitPackage.docCount} document(s). The package is locked until the submission is withdrawn: no reassigning, adding or removing documents."/>
+          <h:outputText rendered="#{contractPackagesBean.unsubmitMode}"
+                        value=" will go back to a draft. This works only while the submission has not been picked up."/>
+        </p>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+          <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                           onclick="PF('packageSubmitDialog').hide();"/>
+          <p:commandButton value="#{contractPackagesBean.unsubmitMode ? 'Unsubmit' : 'Submit'}" icon="pi pi-check"
+                           process="@form" update=":stageDocumentsGrowl"
+                           actionListener="#{contractPackagesBean.confirmSubmit}"
+                           oncomplete="PF('packageSubmitDialog').hide(); if (args &amp;&amp; args.reload) { refreshStagedDocuments(); }"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
     <!-- ==================== STAGE DOCUMENTS ==================== -->
     <h:panelGroup id="stageDocumentsCard" layout="block" styleClass="dashboard-card"
                   style="#{demoRoleBean.canSee('Stage Documents') ? '' : 'display:none;'}">
@@ -775,8 +806,20 @@
                                process="@this" update=":reassignPackageForm"
                                actionListener="#{contractPackagesBean.prepareReassign(pkg)}"
                                oncomplete="PF('reassignPackageDialog').show();"/>
-              <p:commandButton icon="pi pi-send" styleClass="rounded-button ui-button-text" title="Submit for Extraction"
-                               disabled="#{demoRoleBean.readOnly('Contract Packages')}"/>
+              <p:commandButton icon="pi pi-send" styleClass="rounded-button ui-button-text"
+                               rendered="#{pkg.statusCode == 'ASSEMBLY'}"
+                               title="#{contractPackagesBean.submitHint(pkg)}"
+                               disabled="#{demoRoleBean.readOnly('Contract Packages') or not contractPackagesBean.isReady(pkg)}"
+                               process="@this" update=":packageSubmitForm"
+                               actionListener="#{contractPackagesBean.prepareSubmit(pkg, false)}"
+                               oncomplete="PF('packageSubmitDialog').show();"/>
+              <p:commandButton icon="pi pi-undo" styleClass="rounded-button ui-button-text"
+                               rendered="#{pkg.statusCode == 'VALIDATED'}"
+                               title="Unsubmit"
+                               disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                               process="@this" update=":packageSubmitForm"
+                               actionListener="#{contractPackagesBean.prepareSubmit(pkg, true)}"
+                               oncomplete="PF('packageSubmitDialog').show();"/>
             </div>
           </p:column>
 

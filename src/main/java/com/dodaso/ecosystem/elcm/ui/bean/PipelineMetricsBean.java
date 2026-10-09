@@ -29,8 +29,8 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Named
 @ViewScoped
-@Getter 
-@Setter 
+@Getter
+@Setter
 @Slf4j
 public class PipelineMetricsBean extends BaseBean {
 
@@ -83,8 +83,4 @@ public class PipelineMetricsBean extends BaseBean {
         return value instanceof Number n ? n.intValue() : 0;
     }
 
-    public int getUploadingCount() { return uploadingCount; }
-    public int getValidatingCount() { return validatingCount; }
-    public int getValidCount() { return validCount; }
-    public int getSubmittedCount() { return submittedCount; }
 }

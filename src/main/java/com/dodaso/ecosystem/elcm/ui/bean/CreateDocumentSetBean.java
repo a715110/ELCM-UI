@@ -10,6 +10,7 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.UploadFilesService;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
+import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -20,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +44,8 @@ import org.primefaces.PrimeFaces;
 @Getter
 @Setter
 @Slf4j
-@RequiredArgsConstructor
+@NoArgsConstructor(force = true) // Allows CDI proxy creation
+@RequiredArgsConstructor(onConstructor_ = @Inject) // Generates constructor with @Inject
 public class CreateDocumentSetBean implements Serializable {
 
     public static final String MODE_NEW = "NEW";

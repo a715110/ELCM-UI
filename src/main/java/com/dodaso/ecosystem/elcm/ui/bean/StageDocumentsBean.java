@@ -7,9 +7,11 @@ import jakarta.annotation.PostConstruct;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
+import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.primefaces.PrimeFaces;
@@ -45,7 +47,8 @@ import org.primefaces.PrimeFaces;
 @ViewScoped
 @Getter
 @Setter
-@RequiredArgsConstructor
+@NoArgsConstructor(force = true) // Allows CDI proxy creation
+@RequiredArgsConstructor(onConstructor_ = @Inject) // Generates constructor with @Inject
 public class StageDocumentsBean extends BaseBean {
 
     private final StageDocumentService stageDocumentService;
