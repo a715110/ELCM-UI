@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
@@ -26,11 +27,11 @@ import org.springframework.security.oauth2.client.AuthorizedClientServiceOAuth2A
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProviderBuilder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
@@ -43,13 +44,21 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequ
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
+import org.springframework.security.web.session.InvalidSessionStrategy;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.util.UriComponentsBuilder;
+import java.net.URLEncoder;
 
 @Configuration
 @EnableWebSecurity
@@ -58,6 +67,25 @@ public class SecurityConfig {
 
   @Autowired
   private SimpleCORSFilter simpleCORSFileter;
+
+  @Autowired
+  private SessionCleanupLogoutHandler sessionCleanupLogoutHandler;
+
+  /** SSO base URL, where the identity provider's /logout lives. */
+  @Value("${dodaso.instance.auth-issuer-uri}")
+  private String authIssuerUri;
+
+  /** This app's public base URL (ends at the context path); where the SSO logout sends users back. */
+  @Value("${dodaso.instance.elcm-base-url}")
+  private String elcmBaseUrl;
+
+  /** Secret shared by ELCM and ECWS to sign the shared idle clock cookie (same value in both). */
+  @Value("${dodaso.session.idle-secret:}")
+  private String idleSecret;
+
+  /** Idle limit shared by both apps, in minutes. Must match the script (25 min warning + 5 min). */
+  @Value("${dodaso.session.idle-limit-minutes:30}")
+  private long idleLimitMinutes;
 
   // FIX: default added. Without it the app cannot start when no profile is set
   // explicitly (the profile is no longer baked into the build since Step 1).
@@ -145,15 +173,32 @@ public class SecurityConfig {
   SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http
         .addFilterBefore(oauth2DebugFilter(), OAuth2LoginAuthenticationFilter.class)
+        // Ends a session created before the shared logout marker (see LogoutMarkerFilter).
+        .addFilterBefore(new LogoutMarkerFilter(), SecurityContextHolderFilter.class)
+        // Idle limit judged from the clock both apps share (see IdleClockFilter).
+        .addFilterBefore(idleClockFilter(), SecurityContextHolderFilter.class)
         .sessionManagement(session -> session
             .sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
             .sessionFixation().migrateSession() // Better security than .none()
             .maximumSessions(1) // Limit to one session per user
             .maxSessionsPreventsLogin(false) // Allow new login to invalidate old session
             .sessionRegistry(sessionRegistry())
+            // A session ended from outside (back-channel logout, or a newer login) answers the
+            // session script with 401 and any page request with the login page.
+            .expiredSessionStrategy(event -> {
+              if (sessionApiMatcher().matches(event.getRequest())) {
+                event.getResponse().sendError(HttpServletResponse.SC_UNAUTHORIZED);
+              } else {
+                event.getResponse().sendRedirect(event.getRequest().getContextPath() + "/login");
+              }
+            })
             .and()
-            .invalidSessionUrl("/login") // Redirect to login on invalid session
+            .invalidSessionStrategy(invalidSessionStrategy())
         )
+        // The session script's two calls must get a plain 401 when there is no session, not the
+        // redirect to the SSO login page (a cross-origin redirect it cannot follow).
+        .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
+            new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED), sessionApiMatcher()))
         .csrf(csrf -> csrf.disable()) // Temporarily disable for testing
         // ADDED 2026-10-02 -- without this, Spring Security's own default
         // X-Frame-Options header-writer runs AFTER SimpleCORSFilter (which
@@ -174,6 +219,9 @@ public class SecurityConfig {
                 "/images/**").permitAll()
             // RootRedirect and error pages - allow all
             .requestMatchers("/", "/login/**", "/error").permitAll()
+            // OIDC back-channel logout: called by the SSO server, authenticated by the signed
+            // logout token itself (BackChannelLogoutController).
+            .requestMatchers("/logout/backchannel").permitAll()
             // Session management API endpoints - require authentication but allow access
             .requestMatchers("/api/extend-session", "/api/session-status").authenticated()
             // Debug and test endpoints - require authentication
@@ -206,19 +254,71 @@ public class SecurityConfig {
             )
         )
         .logout(logout -> logout
-            .logoutRequestMatcher(request ->
-                ("POST".equalsIgnoreCase(request.getMethod()) && "/api/logout".equals(request.getServletPath())) ||
-                ("GET".equalsIgnoreCase(request.getMethod()) && "/logout".equals(request.getServletPath())) ||
-                ("POST".equalsIgnoreCase(request.getMethod()) && "/logout".equals(request.getServletPath()))
-            )
-            // Context-relative: Spring's redirect strategy adds the context path itself.
-            .logoutSuccessUrl(OAUTH2_LOGIN_PATH)
+            .logoutRequestMatcher(new OrRequestMatcher(
+                new AntPathRequestMatcher("/api/logout", "POST"),
+                new AntPathRequestMatcher("/logout", "GET"),
+                new AntPathRequestMatcher("/logout", "POST")
+            ))
+            // Session, security context, stored tokens and the session cookie (see
+            // SessionCleanupLogoutHandler). The cookie is no longer cleared with deleteCookies():
+            // that expires it on the context path, while this app issues it on "/".
             .invalidateHttpSession(true)
             .clearAuthentication(true)
-            .deleteCookies("ELCMSESSIONID")   // FIX: was ECWSSESSIONID (copied from ECWS); ELCM's cookie is ELCMSESSIONID
+            .addLogoutHandler(sessionCleanupLogoutHandler)
+            // A script call (POST /api/logout) gets 204; a browser navigation to /logout is sent
+            // through the SSO logout, which ends the SSO session too and returns to the login page.
+            // Without that the SSO session would sign the user straight back in.
+            .defaultLogoutSuccessHandlerFor(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT),
+                new AntPathRequestMatcher("/api/logout", "POST"))
+            .logoutSuccessHandler(ssoLogoutRedirectHandler())
         );
 
     return http.build();
+  }
+
+  private IdleClockFilter idleClockFilter() {
+    String secret = idleSecret;
+    if (secret == null || secret.isBlank()) {
+      // Development fallback only: anyone who knows it can forge the clock. Set the same
+      // dodaso.session.idle-secret (Key Vault) in ELCM and ECWS in every real environment.
+      log.warn("dodaso.session.idle-secret is not set: using the development default");
+      secret = "dodaso-development-idle-clock-secret-change-me";
+    }
+    return new IdleClockFilter(secret, idleLimitMinutes * 60_000L);
+  }
+
+  private static OrRequestMatcher sessionApiMatcher() {
+    return new OrRequestMatcher(
+        new AntPathRequestMatcher("/api/session-status"),
+        new AntPathRequestMatcher("/api/extend-session"));
+  }
+
+  /** An invalid session: 401 for the session script's calls, the login page for everything else. */
+  private InvalidSessionStrategy invalidSessionStrategy() {
+    final OrRequestMatcher sessionApi = sessionApiMatcher();
+    return (request, response) -> {
+      if (sessionApi.matches(request)) {
+        response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+      } else {
+        response.sendRedirect(request.getContextPath() + "/login");
+      }
+    };
+  }
+
+  /**
+   * After the local logout, ends the SSO session: {issuer}/logout?post_logout_redirect_uri={this app}/.
+   * The SSO server only honors an exact match against its allow-list, which holds
+   * dodaso.instance.elcm-base-url plus "/" (AuthServerConfig.postLogoutRedirectHandler). With no
+   * SSO session left, landing on this app starts the login and shows the SSO login page.
+   */
+  private LogoutSuccessHandler ssoLogoutRedirectHandler() {
+    return (request, response, authentication) -> {
+      final String issuer = authIssuerUri.endsWith("/")
+          ? authIssuerUri.substring(0, authIssuerUri.length() - 1) : authIssuerUri;
+      final String returnTo = (elcmBaseUrl.endsWith("/") ? elcmBaseUrl : elcmBaseUrl + "/");
+      response.sendRedirect(issuer + "/logout?post_logout_redirect_uri="
+          + URLEncoder.encode(returnTo, StandardCharsets.UTF_8));
+    };
   }
 
   /**

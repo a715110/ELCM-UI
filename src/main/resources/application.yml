@@ -21,6 +21,10 @@ dodaso:
     ecws-base-url: ${DODASO_ECWS_BASE_URL}
     elcm-base-url: ${DODASO_ELCM_BASE_URL}
     auth-issuer-uri: ${DODASO_AUTH_ISSUER_URI}
+  session:
+    # Signs the shared idle clock cookie. The SAME value in ELCM and ECWS (Key Vault in the cloud).
+    idle-secret: ${DODASO_IDLE_SECRET:}
+    idle-limit-minutes: 30    # 25 min warning + 5 min countdown in session-timeout-manager.js
 
 # Task Rail (WEB-INF/taskrail.xhtml) cross-app links. Derived, so it is never
 # set per environment again.
@@ -89,7 +93,8 @@ server:
         same-site: None       # cross-site iframes / OAuth2 silent flow
         path: /
         secure: true          # browser always reaches the app over HTTPS
-      timeout: 1800
+      # Backstop only. The idle limit is the clock ELCM and ECWS share (IdleClockFilter, dodaso.session.*).
+      timeout: 28800        # 8 hours
       tracking-modes: cookie
   # Honor X-Forwarded-Proto/Host from nginx or the cloud ingress, so redirects,
   # the OAuth2 redirect URI and generated links use the public https URL.

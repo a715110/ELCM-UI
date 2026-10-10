@@ -90,10 +90,17 @@
         })();
         //]]>
     </script>
-    <!-- Initialize Session Timeout Manager -->
+    <!-- Initialize Session Timeout Manager. Warns after 25 minutes without activity, with a
+         5 minute countdown and Continue or Logout; at zero it logs out. The same code serves the
+         Logout item in the user menu (topbar.xhtml). -->
     <script type="text/javascript">
         //<![CDATA[
-
+        document.addEventListener('DOMContentLoaded', function () {
+            // A top-level class is not a window property, so test it with typeof.
+            if (typeof SessionTimeoutManager !== 'undefined' && !window.sessionManager) {
+                window.sessionManager = new SessionTimeoutManager({contextPath: '#{request.contextPath}'});
+            }
+        });
         //]]>
     </script>
     <h:outputStylesheet name="css/primeicons.css" library="rain-layout"/>
@@ -109,6 +116,7 @@
     <h:outputStylesheet name="css/quick-menu.css" library="ext" />
     <h:outputStylesheet name="css/task-rail.css" library="ext"/>
     <h:outputScript name="js/task-rail.js" library="ext"/>
+    <h:outputScript name="js/session-timeout-manager.js" library="ext"/>
     <!-- Custom ELCM brand override - warm neutral + sparingly-used forest
          green accent, chosen 2026-08-16. Loaded last so it cascades over
          everything above without needing !important anywhere. See

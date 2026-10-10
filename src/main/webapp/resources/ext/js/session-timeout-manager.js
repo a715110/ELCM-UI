@@ -8,11 +8,19 @@
  * - Coordinated logout across all tabs
  * - Activity synchronization between tabs
  *
- * @version 2.0.0
+ * Idle time is judged by the server from a clock that ELCM and ECWS share (/api/session-status
+ * returns idleSeconds), so this script lines its warning and countdown up with it: activity in
+ * the other app, a discarded tab, or a computer that slept are all reconciled on the next check.
+ *
+ * @version 2.1.0
  */
 class SessionTimeoutManager {
   constructor(options = {}) {
-    // Configuration
+    // Every URL below is relative to the application's context path (for example /elcm), which the
+    // page passes in. The logout URL is the server's own /logout: it invalidates the session,
+    // clears the cookie and the stored tokens, then sends the browser through the SSO logout and
+    // back to the login page, so no host or port is written in this file.
+    const ctx = options.contextPath || '';
     this.config = {
       warningTime: options.warningTime || 25 * 60 * 1000,        // 25 minutes
       graceTime: options.graceTime || 5 * 60 * 1000,              // 5 minutes
@@ -20,11 +28,11 @@ class SessionTimeoutManager {
       throttleDelay: options.throttleDelay || 30 * 1000,          // 30 seconds
       pollingInterval: options.pollingInterval || 60 * 1000,      // 60 seconds
       heartbeatInterval: options.heartbeatInterval || 3 * 1000,   // 2 seconds
-      loginUrl: options.loginUrl || '/oauth2/authorization/sso',
-      logoutUrl: options.logoutUrl || '/api/logout',
-      extendSessionUrl: options.extendSessionUrl || '/api/extend-session',
-      sessionStatusUrl: options.sessionStatusUrl || '/api/session-status',
-      contextPath: options.contextPath || ''
+      loginUrl: ctx + (options.loginUrl || '/oauth2/authorization/sso'),
+      logoutUrl: ctx + (options.logoutUrl || '/logout'),
+      extendSessionUrl: ctx + (options.extendSessionUrl || '/api/extend-session'),
+      sessionStatusUrl: ctx + (options.sessionStatusUrl || '/api/session-status'),
+      contextPath: ctx
     };
 
     // State management
@@ -65,9 +73,15 @@ class SessionTimeoutManager {
   init() {
     console.log(`[Session Manager] Initializing tab: ${this.tabId}`);
 
+    // A page that loads while authenticated belongs to a fresh session: drop the short-lived
+    // markers a previous logout left behind, so they cannot block this session's extensions.
+    this.expireCookie('noExtend');
+    this.expireCookie('loginReason');
+
     this.createWarningDialog();
     this.attachActivityListeners();
     this.setupCrossTabCommunication();
+    this.attachWakeListeners();
     this.startHeartbeat();
     this.startServerPolling();
     this.resetTimers();
@@ -257,7 +271,7 @@ class SessionTimeoutManager {
   syncWarningFromOtherTab(data) {
     console.log(`[Session Manager] Warning shown in ${data.tabId}`);
     if (!this.isWarningShown) {
-      this.showWarning();
+      this.showWarning(data.graceMs);
     }
   }
 
@@ -291,11 +305,11 @@ class SessionTimeoutManager {
     // Show notification
     this.showNotification('Logged out from another tab. Redirecting...', 'info');
 
-    // REDIRECT THIS TAB TOO! ✅
+    this.clearBrowserSessionState();
+
+    // Same exit as the tab that started the logout.
     setTimeout(() => {
-      window.location.href = 'https://localhost:8081/logout?post_logout_redirect_uri='
-          +
-          encodeURIComponent('https://localhost:443/');
+      window.location.href = this.config.logoutUrl;
     }, 500);
   }
 
@@ -373,6 +387,15 @@ class SessionTimeoutManager {
         credentials: 'same-origin'
       });
 
+      // An expired or replaced session is answered with a redirect to the login page or a plain
+      // text page, not JSON. Treat that as an expired session.
+      const contentType = response.headers.get('content-type') || '';
+      if (response.redirected || (response.ok && !contentType.includes('json'))) {
+        console.warn('[Session Manager] Session status was not JSON: session expired');
+        this.logout('server-expired');
+        return {active: false, reason: 'not_json'};
+      }
+
       if (response.ok) {
         const data = await response.json();
 
@@ -383,8 +406,12 @@ class SessionTimeoutManager {
         } else {
           console.log('[Session Manager] Server session validated:', {
             sessionId: data.sessionId,
-            maxInactiveInterval: data.maxInactiveInterval
+            maxInactiveInterval: data.maxInactiveInterval,
+            idleSeconds: data.idleSeconds
           });
+          if (typeof data.idleSeconds === 'number') {
+            this.syncToSharedIdle(data.idleSeconds * 1000);
+          }
           return {active: true, ...data};
         }
       } else if (response.status === 401) {
@@ -537,21 +564,14 @@ class SessionTimeoutManager {
       return;
     }
 
-    const now = Date.now();
-    this.lastActivityTime = now;
-
-    // If warning is shown, hide it and reset timers
+    // While the warning is shown only the Continue button keeps the session; moving the mouse
+    // or typing must not dismiss it, nor count as activity.
     if (this.isWarningShown) {
-      this.hideWarning();
-      this.resetTimers();
-
-      // Notify other tabs
-      this.broadcastMessage({
-        type: 'activity',
-        timestamp: now
-      });
       return;
     }
+
+    const now = Date.now();
+    this.lastActivityTime = now;
 
     // Broadcast activity to other tabs
     this.broadcastMessage({
@@ -674,16 +694,165 @@ class SessionTimeoutManager {
   /**
    * Reset warning and logout timers
    */
-  resetTimers() {
+  resetTimers(delay) {
     this.clearTimers();
 
+    const wait = Math.max(typeof delay === 'number' ? delay : this.config.warningTime, 0);
     this.warningTimer = setTimeout(() => {
-      this.showWarning();
-    }, this.config.warningTime);
+      this.onWarningDue();
+    }, wait);
 
-    console.log(
-        `[Session Manager] Timers reset. Warning in: ${this.config.warningTime
-        / 1000}s`);
+    console.log(`[Session Manager] Timers reset. Warning check in: ${wait / 1000}s`);
+  }
+
+  // ============ SHARED IDLE CLOCK ============
+
+  /**
+   * GET the status and return the idle time, in ms, of the clock ELCM and ECWS share, or null
+   * when it is unknown. A 401 or a non-JSON answer means the session is gone: logs out.
+   */
+  async fetchSharedIdleMillis() {
+    try {
+      const response = await fetch(this.config.sessionStatusUrl, {
+        method: 'GET',
+        headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+        credentials: 'same-origin'
+      });
+      const contentType = response.headers.get('content-type') || '';
+      if (response.status === 401 || response.redirected
+          || (response.ok && !contentType.includes('json'))) {
+        this.logout('server-expired');
+        return null;
+      }
+      if (!response.ok) {
+        return null;
+      }
+      const data = await response.json();
+      if (!data.active) {
+        this.logout('server-expired');
+        return null;
+      }
+      return typeof data.idleSeconds === 'number' ? data.idleSeconds * 1000 : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * The server clock shows more recent activity than this tab knows about (the other app was
+   * used): adopt it and move the warning back.
+   */
+  syncToSharedIdle(serverIdle) {
+    if (this.isLoggingOut) {
+      return;
+    }
+    const localIdle = Date.now() - this.lastActivityTime;
+    if (serverIdle + 5000 < localIdle) {
+      this.lastActivityTime = Date.now() - serverIdle;
+      if (this.isWarningShown) {
+        this.hideWarning();
+      }
+      this.resetTimers(Math.max(this.config.warningTime - serverIdle, 1000));
+    }
+  }
+
+  /**
+   * Lines this tab up with the server clock: logout when the total is used up, the warning when
+   * the warning time is, otherwise the timers are moved. Returns false when the clock is unknown.
+   */
+  async reconcileWithServer() {
+    const serverIdle = await this.fetchSharedIdleMillis();
+    if (this.isLoggingOut || serverIdle === null) {
+      return false;
+    }
+    const warning = this.config.warningTime;
+    const total = warning + this.config.graceTime;
+    const idle = Math.min(serverIdle, Date.now() - this.lastActivityTime);
+    if (idle >= total) {
+      this.logout('timeout');
+      return true;
+    }
+    this.lastActivityTime = Date.now() - idle;
+    if (idle >= warning) {
+      if (!this.isWarningShown) {
+        this.showWarning(total - idle);
+      }
+      return true;
+    }
+    if (this.isWarningShown) {
+      this.hideWarning();
+    }
+    this.resetTimers(Math.max(warning - idle, 1000));
+    return true;
+  }
+
+  /** The warning timer fired: confirm with the server clock before showing the warning. */
+  async onWarningDue() {
+    this.warningTimer = null;
+    if (this.isLoggingOut || this.isWarningShown) {
+      return;
+    }
+    const handled = await this.reconcileWithServer();
+    if (!handled && !this.isLoggingOut && !this.isWarningShown
+        && Date.now() - this.lastActivityTime >= this.config.warningTime - 1000) {
+      this.showWarning();
+    }
+  }
+
+  /** The countdown ran out: log out only if the server clock agrees. */
+  async onGraceExpired() {
+    if (this.isLoggingOut || this._graceChecking) {
+      return;
+    }
+    this._graceChecking = true;
+    try {
+      const serverIdle = await this.fetchSharedIdleMillis();
+      if (this.isLoggingOut) {
+        return;
+      }
+      const warning = this.config.warningTime;
+      const total = warning + this.config.graceTime;
+      if (serverIdle === null || serverIdle >= total - 1000) {
+        this.logout('timeout');
+      } else if (serverIdle < warning - 5000) {
+        // Active in the other app, or continued there: back to normal.
+        this.lastActivityTime = Date.now() - serverIdle;
+        this.hideWarning();
+        this.resetTimers(Math.max(warning - serverIdle, 1000));
+      } else {
+        // Still inside the countdown according to the server clock.
+        this.startGrace(total - serverIdle);
+      }
+    } finally {
+      this._graceChecking = false;
+    }
+  }
+
+  // ============ WAKE (tab visible again, computer resumed) ============
+
+  attachWakeListeners() {
+    this._onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        this.handleWake();
+      }
+    };
+    this._onWake = () => this.handleWake();
+    document.addEventListener('visibilitychange', this._onVisibility);
+    window.addEventListener('focus', this._onWake);
+    window.addEventListener('pageshow', this._onWake);
+  }
+
+  /** Timers freeze while a computer sleeps; ask the server clock as soon as the tab is back. */
+  handleWake() {
+    if (this.isLoggingOut) {
+      return;
+    }
+    const now = Date.now();
+    if (now - (this._lastWakeCheck || 0) < 2000) {
+      return;
+    }
+    this._lastWakeCheck = now;
+    this.reconcileWithServer();
   }
 
   /**
@@ -709,22 +878,21 @@ class SessionTimeoutManager {
   /**
    * Show warning dialog
    */
-  showWarning() {
+  showWarning(graceMs) {
     if (this.isWarningShown) {
       return;
     }
 
+    const grace = typeof graceMs === 'number'
+        ? Math.max(graceMs, 1000) : this.config.graceTime;
     this.isWarningShown = true;
     document.getElementById('sessionWarningDialog').style.display = 'block';
-    this.startCountdown();
-
-    this.logoutTimer = setTimeout(() => {
-      this.logout('timeout');
-    }, this.config.graceTime);
+    this.startGrace(grace);
 
     // Notify other tabs
     this.broadcastMessage({
-      type: 'warning-shown'
+      type: 'warning-shown',
+      graceMs: grace
     });
 
     console.log('[Session Manager] Warning displayed');
@@ -745,6 +913,10 @@ class SessionTimeoutManager {
       clearInterval(this.countdownInterval);
       this.countdownInterval = null;
     }
+    if (this.logoutTimer) {
+      clearTimeout(this.logoutTimer);
+      this.logoutTimer = null;
+    }
 
     // Notify other tabs
     this.broadcastMessage({
@@ -757,22 +929,41 @@ class SessionTimeoutManager {
   /**
    * Start countdown timer
    */
-  startCountdown() {
+  startGrace(graceMs) {
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = null;
+    }
+    if (this.logoutTimer) {
+      clearTimeout(this.logoutTimer);
+      this.logoutTimer = null;
+    }
     const countdownElement = document.getElementById('countdownTimer');
-    let remainingTime = this.config.graceTime;
+    // Computed from a deadline, not by subtracting one second per tick: browsers slow timers in
+    // background tabs, which would make the displayed time drift.
+    const deadline = Date.now() + graceMs;
+    const render = (remaining) => {
+      const minutes = Math.floor(remaining / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+      countdownElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    };
+    render(graceMs);
 
     this.countdownInterval = setInterval(() => {
-      remainingTime -= 1000;
+      const remainingTime = deadline - Date.now();
       if (remainingTime <= 0) {
         clearInterval(this.countdownInterval);
-        this.logout('timeout');
+        this.countdownInterval = null;
+        this.onGraceExpired();
         return;
       }
-      const minutes = Math.floor(remainingTime / 60000);
-      const seconds = Math.floor((remainingTime % 60000) / 1000);
-      countdownElement.textContent = `${minutes}:${seconds.toString().padStart(
-          2, '0')}`;
+      render(remainingTime);
     }, 1000);
+
+    // Backup for throttled intervals in background tabs.
+    this.logoutTimer = setTimeout(() => {
+      this.onGraceExpired();
+    }, graceMs + 1000);
   }
 
   /**
@@ -782,6 +973,8 @@ class SessionTimeoutManager {
     console.log('[Session Manager] User requested session continuation');
 
     this.hideWarning();
+    // An explicit Continue is never throttled.
+    this.lastServerCall = 0;
     this.extendSessionOnServer();
     this.resetTimers();
     this.showNotification('Session extended successfully', 'success');
@@ -838,21 +1031,31 @@ class SessionTimeoutManager {
       this.showNotification('Logging out...', 'info');
     }
 
-    // Build the SSO logout URL
-    const ssoLogoutUrl = 'https://localhost:8081/logout?post_logout_redirect_uri='
-        +
-        encodeURIComponent('https://localhost:443/');
+    this.clearBrowserSessionState();
 
-    const logoutEndpoint = this.config.contextPath + this.config.logoutUrl;
+    // One navigation does the rest on the server: the session, the session cookie and the stored
+    // tokens are cleared, then the browser goes through the SSO logout and lands on the login page.
+    window.location.href = this.config.logoutUrl;
+  }
 
-    fetch(logoutEndpoint, {
-      method: 'POST',
-      credentials: 'same-origin',
-      keepalive: true
-    }).finally(() => {
-      // Go to SSO logout to clear IdP session
-      window.location.href = ssoLogoutUrl;
-    });
+  /**
+   * Remove what this page keeps in the browser for the session: the cross-tab heartbeat in local
+   * storage. The session cookie is HttpOnly, so the server clears it on /logout. The noExtend and
+   * loginReason cookies stay on purpose until the next authenticated page load (see init): the
+   * first blocks extensions while the logout is under way, the second lets the login page say why
+   * the user was signed out.
+   */
+  clearBrowserSessionState() {
+    try {
+      localStorage.removeItem(this.storageKey);
+    } catch (error) {
+      // storage can be blocked; nothing else to do
+    }
+  }
+
+  /** Expire a cookie that this script set. */
+  expireCookie(name) {
+    document.cookie = name + '=; path=/; max-age=0; secure; SameSite=None';
   }
 
   /**
@@ -927,6 +1130,9 @@ class SessionTimeoutManager {
       window.removeEventListener('storage', this.handleStorageEvent);
       this.storageListenerAttached = false;
     }
+    document.removeEventListener('visibilitychange', this._onVisibility);
+    window.removeEventListener('focus', this._onWake);
+    window.removeEventListener('pageshow', this._onWake);
 
     if (this.broadcastChannel) {
       this.broadcastChannel.close();
@@ -1131,3 +1337,6 @@ class SessionTimeoutManager {
     }, 2000);
   }
 }
+
+// A top-level class is not a window property; expose it for pages that test window.SessionTimeoutManager.
+window.SessionTimeoutManager = SessionTimeoutManager;
