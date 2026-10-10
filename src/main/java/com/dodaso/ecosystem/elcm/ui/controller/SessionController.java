@@ -1,6 +1,6 @@
 package com.dodaso.ecosystem.elcm.ui.controller;
 
-import com.dodaso.ecosystem.elcm.ui.config.IdleClockFilter;
+import com.dodaso.ecosystem.baseline.common.session.IdleClockFilter;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;

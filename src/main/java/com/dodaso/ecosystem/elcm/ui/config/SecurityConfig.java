@@ -1,5 +1,9 @@
 package com.dodaso.ecosystem.elcm.ui.config;
 
+import com.dodaso.ecosystem.baseline.common.session.IdleClockFilter;
+import com.dodaso.ecosystem.baseline.common.session.LogoutMarkerFilter;
+import com.dodaso.ecosystem.baseline.common.session.SessionCleanupLogoutHandler;
+import com.dodaso.ecosystem.baseline.common.session.SharedSessionConfiguration;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.net.URI;
@@ -12,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpMethod;
@@ -62,6 +67,8 @@ import java.net.URLEncoder;
 
 @Configuration
 @EnableWebSecurity
+// Logout marker, idle clock cleanup handler and back-channel logout receiver (baseline-common).
+@Import(SharedSessionConfiguration.class)
 @Slf4j
 public class SecurityConfig {
 
@@ -176,7 +183,8 @@ public class SecurityConfig {
         // Ends a session created before the shared logout marker (see LogoutMarkerFilter).
         .addFilterBefore(new LogoutMarkerFilter(), SecurityContextHolderFilter.class)
         // Idle limit judged from the clock both apps share (see IdleClockFilter).
-        .addFilterBefore(idleClockFilter(), SecurityContextHolderFilter.class)
+        .addFilterBefore(IdleClockFilter.create(idleSecret, idleLimitMinutes),
+            SecurityContextHolderFilter.class)
         .sessionManagement(session -> session
             .sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
             .sessionFixation().migrateSession() // Better security than .none()
@@ -274,17 +282,6 @@ public class SecurityConfig {
         );
 
     return http.build();
-  }
-
-  private IdleClockFilter idleClockFilter() {
-    String secret = idleSecret;
-    if (secret == null || secret.isBlank()) {
-      // Development fallback only: anyone who knows it can forge the clock. Set the same
-      // dodaso.session.idle-secret (Key Vault) in ELCM and ECWS in every real environment.
-      log.warn("dodaso.session.idle-secret is not set: using the development default");
-      secret = "dodaso-development-idle-clock-secret-change-me";
-    }
-    return new IdleClockFilter(secret, idleLimitMinutes * 60_000L);
   }
 
   private static OrRequestMatcher sessionApiMatcher() {
