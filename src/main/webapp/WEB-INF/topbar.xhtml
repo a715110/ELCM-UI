@@ -300,6 +300,16 @@
                                         <span>Notifications</span>
                                     </a>
                                 </li>
+                                <li>
+                                    <!-- Logout: asks for confirmation first, through the session script
+                                         when it is loaded (the other open tabs then sign out too),
+                                         otherwise through a browser confirm. -->
+                                    <a href="#{request.contextPath}/logout"
+                                       onclick="if (window.sessionManager &amp;&amp; window.sessionManager.confirmLogout) { window.sessionManager.confirmLogout(); return false; } return window.confirm('Are you sure you want to log out?');">
+                                        <i class="pi pi-sign-out"/>
+                                        <span>Logout</span>
+                                    </a>
+                                </li>
                             </ul>
                         </li>
                     </ui:fragment>
