@@ -32,6 +32,19 @@
   <h:outputStylesheet name="css/primeicons.css" library="rain-layout"/>
   <h:outputStylesheet name="css/theme-override.css" library="elcm-custom"/>
   <h:outputStylesheet name="css/document-viewer.css" library="ext"/>
+  <!-- This page is opened in its own tab and is not on template.xhtml, so it loads and
+       starts the shared session timeout manager itself. Without it, activity here would not
+       count towards the shared idle clock and the warning could not be shown in this tab. -->
+  <h:outputScript name="session-timeout-manager.js" library="dodaso-session"/>
+  <script type="text/javascript">
+    //<![CDATA[
+    document.addEventListener('DOMContentLoaded', function () {
+      if (typeof SessionTimeoutManager !== 'undefined' && !window.sessionManager) {
+        window.sessionManager = new SessionTimeoutManager({contextPath: '#{request.contextPath}'});
+      }
+    });
+    //]]>
+  </script>
 </h:head>
 <h:body>
 
