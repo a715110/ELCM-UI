@@ -52,6 +52,18 @@ public class ExtractionUiService {
         }
     }
 
+    /** The history of one field; null when it could not be loaded. */
+    public FieldHistoryRow history(final Long packageId, final Long resultId) {
+        try {
+            return restServiceClient.get(SERVICE, BASE + "/" + packageId + "/extraction/fields/" + resultId + "/history",
+                new ParameterizedTypeReference<FieldHistoryRow>() {
+                });
+        } catch (final Exception e) {
+            log.error("Failed to load the history of field {} of package {}", resultId, packageId, e);
+            return null;
+        }
+    }
+
     /** Failed extraction back in the queue. CONFLICT means it is not failed (anymore). */
     public PackageOutcome retry(final Long packageId) {
         try {

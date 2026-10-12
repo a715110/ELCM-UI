@@ -4,6 +4,7 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractPackageRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionResultsRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionStatusRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionUiService;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.FieldHistoryRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.PackageOutcome;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
@@ -36,6 +37,9 @@ public class ExtractionBean implements Serializable {
     private ExtractionStatusRow status;
     private ExtractionResultsRow results;
     private boolean loadFailed;
+
+    /** History of the field whose history icon was clicked; null when it could not be loaded. */
+    private FieldHistoryRow history;
 
     /** Reason typed in the Decline dialog. */
     @Setter
@@ -80,6 +84,18 @@ public class ExtractionBean implements Serializable {
     /** True while the reviewer can still change values: extraction done, review not completed. */
     public boolean isEditable() {
         return status != null && status.isDone() && results != null;
+    }
+
+    /** History icon clicked: load what reviewers did to this field. The page shows the dialog. */
+    public void openHistory(final ExtractionResultsRow.FieldRow field) {
+        history = null;
+        if (extractionPackage == null || field == null) {
+            return;
+        }
+        history = extractionUiService.history(extractionPackage.getId(), field.getResultId());
+        if (history == null) {
+            add(FacesMessage.SEVERITY_ERROR, "History not available", "Please try again.");
+        }
     }
 
     /** Decline is possible while the values wait for review, or after a failed extraction. */
@@ -154,10 +170,17 @@ public class ExtractionBean implements Serializable {
         if (extractionPackage == null || field == null) {
             return;
         }
+        // elcm-service strips $ , and spaces from numbers; mirror it so the box shows what was stored.
+        final String typed = field.getCorrectedValue();
+        final String cleaned = cleanNumber(field.getDataType(), typed);
+        final boolean reformatted = !java.util.Objects.equals(typed, cleaned);
+        if (reformatted) {
+            field.setCorrectedValue(cleaned);
+        }
         final PackageOutcome outcome = extractionUiService.saveField(extractionPackage.getId(), field);
         boolean reload = true;
         switch (outcome) {
-            case OK -> reload = false;
+            case OK -> reload = reformatted;
             case INVALID -> add(FacesMessage.SEVERITY_WARN, "Value not accepted",
                 "Numbers must be plain (15500 or 3.5), dates yyyy-mm-dd, yes/no fields true or false.");
             case CONFLICT -> add(FacesMessage.SEVERITY_WARN, "Review closed",
@@ -170,6 +193,15 @@ public class ExtractionBean implements Serializable {
             load();
         }
         PrimeFaces.current().ajax().addCallbackParam("reload", reload);
+    }
+
+    /** Same rule as ReviewRules.normalize in elcm-service: numbers lose $ , spaces and USD. */
+    private static String cleanNumber(final String dataType, final String value) {
+        if (!"NUMBER".equals(dataType) || value == null) {
+            return value;
+        }
+        final String cleaned = value.trim().replaceAll("(?i)usd", "").replaceAll("[$,\\s]", "");
+        return cleaned.isEmpty() ? value : cleaned;
     }
 
     /** Confirms every field the extractor verified, so the reviewer only looks at the rest. */
@@ -213,6 +245,7 @@ public class ExtractionBean implements Serializable {
         extractionPackage = null;
         status = null;
         results = null;
+        history = null;
         loadFailed = false;
     }
 

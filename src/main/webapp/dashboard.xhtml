@@ -495,7 +495,8 @@
               draggable="false"
               closeOnEscape="true"
               onHide="PF('extractionPoll').stop();"
-              width="72rem">
+              width="88rem"
+              style="max-width: 96vw;">
       <h:form id="extractionForm">
         <p:poll id="extractionPollCmd" widgetVar="extractionPoll" interval="5" autoStart="false"
                 listener="#{extractionBean.poll}" update="extractionPanel"
@@ -587,7 +588,8 @@
                 <h:outputText value="#{doc.fileName}"/>
                 <h:outputText value="  (#{doc.needsReviewCount} to review)" style="font-weight: normal;"/>
               </h4>
-              <p:dataTable var="f" value="#{doc.fields}" emptyMessage="No values were extracted.">
+              <p:dataTable var="f" value="#{doc.fields}" emptyMessage="No values were extracted."
+                           tableStyle="table-layout: auto; width: 100%;">
                 <p:column headerText="Field" style="width: 11rem;">
                   <h:outputText value="#{f.label}"/>
                   <h:outputText value=" *" rendered="#{f.critical}" title="Critical field"/>
@@ -609,10 +611,17 @@
                   <p:tag value="#{f.statusLabel}" severity="#{f.severity}"/>
                   <p:tag value="Review" severity="warn" rendered="#{f.needsReview}" style="margin-left: 0.25rem;"/>
                 </p:column>
-                <p:column headerText="Evidence from the document">
+                <p:column headerText="Evidence from the document" style="min-width: 24rem;">
                   <h:outputText value="#{f.quote}" style="font-size: 0.85rem;"/>
                   <h:outputText value="#{f.problem}" rendered="#{not empty f.problem}"
                                 style="display: block; color: #b45309; font-size: 0.85rem;"/>
+                </p:column>
+                <p:column headerText="History" style="width: 4.5rem; text-align: center;">
+                  <p:commandButton icon="pi pi-history" styleClass="rounded-button ui-button-text"
+                                   title="Show every change made to this field"
+                                   process="@this" update=":extractionHistoryForm"
+                                   actionListener="#{extractionBean.openHistory(f)}"
+                                   oncomplete="if (!args || !args.validationFailed) { PF('extractionHistoryDialog').show(); }"/>
                 </p:column>
                 <p:column headerText="Confirmed" style="width: 6rem; text-align: center;">
                   <p:selectBooleanCheckbox value="#{f.verified}"
@@ -662,6 +671,54 @@
                            process="@form" update="@form :stageDocumentsGrowl"
                            actionListener="#{extractionBean.confirmDecline}"
                            oncomplete="if (args &amp;&amp; args.done) { PF('extractionDeclineDialog').hide(); PF('extractionDialog').hide(); refreshStagedDocuments(); }"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
+    <!-- ADDED 2026-10-12 - History of one field: the extracted value, then every change a
+         reviewer made (value changed, confirmed, confirmation removed), oldest first. -->
+    <p:dialog widgetVar="extractionHistoryDialog"
+              header="Field history"
+              modal="true"
+              resizable="false"
+              draggable="false"
+              closeOnEscape="true"
+              width="62rem"
+              style="max-width: 96vw;">
+      <h:form id="extractionHistoryForm">
+        <h:panelGroup rendered="#{extractionBean.history != null}">
+          <p style="margin-top: 0;">
+            <strong><h:outputText value="#{extractionBean.history.label}"/></strong>
+            <br/>
+            <h:outputText value="Extracted by the model: "/>
+            <h:outputText value="#{empty extractionBean.history.extractedValue ? '(nothing)' : extractionBean.history.extractedValue}"/>
+          </p>
+          <p:dataTable var="rv" value="#{extractionBean.history.revisions}"
+                       tableStyle="table-layout: auto; width: 100%;"
+                       emptyMessage="Nobody has changed or confirmed this field yet.">
+            <p:column headerText="#" style="width: 3rem;">
+              <h:outputText value="#{rv.revisionNo}"/>
+            </p:column>
+            <p:column headerText="Change" style="min-width: 11rem;">
+              <h:outputText value="#{rv.actionLabel}"/>
+            </p:column>
+            <p:column headerText="From" style="min-width: 8rem; white-space: nowrap;">
+              <h:outputText value="#{empty rv.previousValue ? '(empty)' : rv.previousValue}"/>
+            </p:column>
+            <p:column headerText="To" style="min-width: 8rem; white-space: nowrap; font-weight: 600;">
+              <h:outputText value="#{empty rv.newValue ? '(empty)' : rv.newValue}"/>
+            </p:column>
+            <p:column headerText="By" style="min-width: 14rem;">
+              <h:outputText value="#{rv.changedBy}"/>
+            </p:column>
+            <p:column headerText="When" style="min-width: 11rem; white-space: nowrap;">
+              <h:outputText value="#{rv.changedAtText}"/>
+            </p:column>
+          </p:dataTable>
+        </h:panelGroup>
+        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+          <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
+                           onclick="PF('extractionHistoryDialog').hide();"/>
         </div>
       </h:form>
     </p:dialog>
