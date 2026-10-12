@@ -478,7 +478,7 @@
       </h:form>
     </p:dialog>
 
-    <!-- ADDED 2026-10-11 - Extraction progress and results of a submitted package.
+    <!-- ADDED 2026-10-11 - Extraction progress, results and review of a submitted package.
          Extraction runs in the background and takes minutes, so this dialog never
          waits on it: it shows the current progress, polls every 5 seconds while the
          extraction is queued or running, and shows the extracted values when done.
@@ -490,11 +490,12 @@
               draggable="false"
               closeOnEscape="true"
               onHide="PF('extractionPoll').stop();"
-              width="60rem">
+              width="72rem">
       <h:form id="extractionForm">
         <p:poll id="extractionPollCmd" widgetVar="extractionPoll" interval="5" autoStart="false"
                 listener="#{extractionBean.poll}" update="extractionPanel"
                 stop="#{not extractionBean.polling}"/>
+        <p:remoteCommand name="reloadExtraction" process="@this" update="extractionPanel"/>
         <h:panelGroup id="extractionPanel" layout="block" style="max-height: 68vh; overflow-y: auto; padding-right: 0.5rem;">
           <p style="margin-top: 0;">
             <strong><h:outputText value="#{extractionBean.extractionPackage.packageCode}"/></strong>
@@ -544,17 +545,47 @@
           </h:panelGroup>
 
           <h:panelGroup layout="block" rendered="#{extractionBean.results != null}" style="margin-top: 1rem;">
+            <h:panelGroup id="extractionReviewSummary" layout="block"
+                          style="position: sticky; top: 0; z-index: 2; background: #ffffff; padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb;">
+              <h:panelGroup rendered="#{extractionBean.editable}">
+                <h:outputText value="#{extractionBean.openCount} field(s) still to confirm (critical fields and fields marked Review). "/>
+                <p:commandButton value="Confirm all extractor-verified fields" icon="pi pi-check-circle"
+                                 styleClass="ui-button-secondary" style="margin-right: 0.5rem;"
+                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                 process="@this" update=":extractionForm:extractionPanel :stageDocumentsGrowl"
+                                 actionListener="#{extractionBean.confirmAll}"/>
+                <p:commandButton value="Complete review" icon="pi pi-check"
+                                 disabled="#{demoRoleBean.readOnly('Contract Packages') or extractionBean.openCount gt 0}"
+                                 process="@this" update=":extractionForm:extractionPanel :stageDocumentsGrowl"
+                                 actionListener="#{extractionBean.completeReview}"/>
+              </h:panelGroup>
+              <h:panelGroup rendered="#{extractionBean.status.reviewed}">
+                <p:tag value="Review completed" severity="success"/>
+                <h:outputText value="  The values below are confirmed and read only."/>
+              </h:panelGroup>
+            </h:panelGroup>
             <ui:repeat var="doc" value="#{extractionBean.results.documents}">
               <h4 style="margin: 1rem 0 0.25rem 0;">
                 <h:outputText value="#{doc.fileName}"/>
                 <h:outputText value="  (#{doc.needsReviewCount} to review)" style="font-weight: normal;"/>
               </h4>
               <p:dataTable var="f" value="#{doc.fields}" emptyMessage="No values were extracted.">
-                <p:column headerText="Field" style="width: 13rem;">
+                <p:column headerText="Field" style="width: 11rem;">
                   <h:outputText value="#{f.label}"/>
+                  <h:outputText value=" *" rendered="#{f.critical}" title="Critical field"/>
                 </p:column>
-                <p:column headerText="Value" style="width: 14rem;">
-                  <h:outputText value="#{f.shownValue}"/>
+                <p:column headerText="Extracted" style="width: 10rem;">
+                  <h:outputText value="#{f.value}"/>
+                </p:column>
+                <p:column headerText="Corrected value" style="width: 10rem;">
+                  <p:inputText value="#{f.correctedValue}" rendered="#{extractionBean.editable}"
+                               disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                               placeholder="same as extracted" style="width: 100%;">
+                    <p:ajax event="change" listener="#{extractionBean.saveField(f)}"
+                            update=":extractionForm:extractionReviewSummary :stageDocumentsGrowl"
+                            oncomplete="if (args &amp;&amp; args.reload) { reloadExtraction(); }"/>
+                  </p:inputText>
+                  <h:outputText value="#{f.correctedValue}" rendered="#{not extractionBean.editable}"/>
                 </p:column>
                 <p:column headerText="Result" style="width: 8rem;">
                   <p:tag value="#{f.statusLabel}" severity="#{f.severity}"/>
@@ -564,6 +595,14 @@
                   <h:outputText value="#{f.quote}" style="font-size: 0.85rem;"/>
                   <h:outputText value="#{f.problem}" rendered="#{not empty f.problem}"
                                 style="display: block; color: #b45309; font-size: 0.85rem;"/>
+                </p:column>
+                <p:column headerText="Confirmed" style="width: 6rem; text-align: center;">
+                  <p:selectBooleanCheckbox value="#{f.verified}"
+                                           disabled="#{not extractionBean.editable or demoRoleBean.readOnly('Contract Packages')}">
+                    <p:ajax listener="#{extractionBean.saveField(f)}"
+                            update=":extractionForm:extractionReviewSummary :stageDocumentsGrowl"
+                            oncomplete="if (args &amp;&amp; args.reload) { reloadExtraction(); }"/>
+                  </p:selectBooleanCheckbox>
                 </p:column>
               </p:dataTable>
             </ui:repeat>

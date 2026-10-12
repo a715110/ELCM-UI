@@ -12,6 +12,7 @@ import jakarta.inject.Named;
 import java.io.Serializable;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.primefaces.PrimeFaces;
 
 /**
  * Backing bean for the Extraction dialog on dashboard.xhtml (ADDED 2026-10-11).
@@ -25,6 +26,8 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public class ExtractionBean implements Serializable {
+
+    private static final String NO_REVIEW_PERMISSION = "Reviewing extracted values needs the review permission (Reviewer role).";
 
     private final ExtractionUiService extractionUiService;
 
@@ -69,6 +72,86 @@ public class ExtractionBean implements Serializable {
         load();
     }
 
+    /** True while the reviewer can still change values: extraction done, review not completed. */
+    public boolean isEditable() {
+        return status != null && status.isDone() && results != null;
+    }
+
+    /** Fields that must be confirmed before the review can be completed: critical ones and ones marked Review. */
+    public int getOpenCount() {
+        if (results == null) {
+            return 0;
+        }
+        int open = 0;
+        for (final ExtractionResultsRow.DocumentResult doc : results.getDocuments()) {
+            for (final ExtractionResultsRow.FieldRow f : doc.getFields()) {
+                if ((f.isCritical() || f.isNeedsReview()) && !f.isVerified()) {
+                    open++;
+                }
+            }
+        }
+        return open;
+    }
+
+    /** Called when the reviewer edits a value or ticks Confirmed. On a refusal the saved values are reloaded. */
+    public void saveField(final ExtractionResultsRow.FieldRow field) {
+        if (extractionPackage == null || field == null) {
+            return;
+        }
+        final PackageOutcome outcome = extractionUiService.saveField(extractionPackage.getId(), field);
+        boolean reload = true;
+        switch (outcome) {
+            case OK -> reload = false;
+            case INVALID -> add(FacesMessage.SEVERITY_WARN, "Value not accepted",
+                "Numbers must be plain (15500 or 3.5), dates yyyy-mm-dd, yes/no fields true or false.");
+            case CONFLICT -> add(FacesMessage.SEVERITY_WARN, "Review closed",
+                "The package can no longer be reviewed.");
+            case FORBIDDEN -> add(FacesMessage.SEVERITY_WARN, "No permission", NO_REVIEW_PERMISSION);
+            default -> add(FacesMessage.SEVERITY_ERROR, "Save failed", "Please try again.");
+        }
+        if (reload) {
+            results = null;
+            load();
+        }
+        PrimeFaces.current().ajax().addCallbackParam("reload", reload);
+    }
+
+    /** Confirms every field the extractor verified, so the reviewer only looks at the rest. */
+    public void confirmAll() {
+        if (extractionPackage == null) {
+            return;
+        }
+        final int confirmed = extractionUiService.confirmVerified(extractionPackage.getId());
+        if (confirmed == ExtractionUiService.CONFIRM_FORBIDDEN) {
+            add(FacesMessage.SEVERITY_WARN, "No permission", NO_REVIEW_PERMISSION);
+        } else if (confirmed < 0) {
+            add(FacesMessage.SEVERITY_ERROR, "Confirm failed", "Please try again.");
+        } else {
+            add(FacesMessage.SEVERITY_INFO, "Fields confirmed", confirmed + " field(s) the extractor verified were confirmed.");
+        }
+        results = null;
+        load();
+    }
+
+    public void completeReview() {
+        if (extractionPackage == null) {
+            return;
+        }
+        final PackageOutcome outcome = extractionUiService.completeReview(extractionPackage.getId());
+        switch (outcome) {
+            case OK -> add(FacesMessage.SEVERITY_INFO, "Review completed", extractionPackage.getPackageCode());
+            case WORKSPACE_MISMATCH -> add(FacesMessage.SEVERITY_WARN, "Not ready",
+                "Confirm every critical field and every field marked Review first.");
+            case CONFLICT -> add(FacesMessage.SEVERITY_WARN, "Cannot complete",
+                "The review was already completed or the extraction is not finished.");
+            case NOT_FOUND -> add(FacesMessage.SEVERITY_WARN, "Not available", "The package has no submission.");
+            case FORBIDDEN -> add(FacesMessage.SEVERITY_WARN, "No permission", NO_REVIEW_PERMISSION);
+            default -> add(FacesMessage.SEVERITY_ERROR, "Complete failed", "Please try again.");
+        }
+        results = null;
+        load();
+    }
+
     /** Dialog closed: forget everything so the next open starts clean. */
     public void close() {
         extractionPackage = null;
@@ -82,7 +165,7 @@ public class ExtractionBean implements Serializable {
         loadFailed = fresh == null;
         if (fresh != null) {
             status = fresh;
-            if (fresh.isDone() && results == null) {
+            if ((fresh.isDone() || fresh.isReviewed()) && results == null) {
                 results = extractionUiService.results(extractionPackage.getId());
             }
         }

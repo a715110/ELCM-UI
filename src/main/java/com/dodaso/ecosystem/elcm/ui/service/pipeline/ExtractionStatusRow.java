@@ -41,6 +41,11 @@ public class ExtractionStatusRow implements Serializable {
         return "DONE".equals(state);
     }
 
+    /** The reviewer has completed the review; values are read only. */
+    public boolean isReviewed() {
+        return "REVIEWED".equals(state);
+    }
+
     /** Whole-package progress for the bar: finished documents over all documents. */
     public int getPercent() {
         return documentsTotal <= 0 ? 0 : Math.min(100, (documentsDone + documentsFailed) * 100 / documentsTotal);

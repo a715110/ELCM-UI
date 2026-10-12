@@ -35,6 +35,7 @@ public class ExtractionResultsRow implements Serializable {
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class FieldRow implements Serializable {
+        private Long resultId;
         private String key;
         private String label;
         private String dataType;
@@ -49,6 +50,7 @@ public class ExtractionResultsRow implements Serializable {
         private String candidates;
         private boolean needsReview;
         private boolean verified;
+        private String verifiedBy;
 
         /** What the reviewer should see: the corrected value when there is one, else the extracted one. */
         public String getShownValue() {
