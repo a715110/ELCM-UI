@@ -388,6 +388,11 @@
           <strong><h:outputText value="#{contractPackagesBean.openPackage.packageCode}"/></strong>
           <h:outputText value=" - #{contractPackagesBean.openPackage.status}"/>
         </p>
+        <h:panelGroup layout="block" rendered="#{contractPackagesBean.openDeclineNotice != null}"
+                      style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
+          <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
+          <h:outputText value="#{contractPackagesBean.openDeclineNotice}"/>
+        </h:panelGroup>
         <p:dataTable id="packageDocumentsTable" var="pd" value="#{contractPackagesBean.openDocuments}"
                      emptyMessage="This package has no documents.">
           <p:column headerText="File Name">
@@ -541,6 +546,13 @@
                                process="@this" update="extractionPanel :stageDocumentsGrowl"
                                actionListener="#{extractionBean.retry}"
                                oncomplete="PF('extractionPoll').start();"/>
+              <p:commandButton value="Decline" icon="pi pi-undo" styleClass="ui-button-danger ui-button-outlined"
+                               style="margin-left: 0.5rem;"
+                               rendered="#{extractionBean.status.failed}"
+                               disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                               process="@this" update=":extractionDeclineForm"
+                               actionListener="#{extractionBean.prepareDecline}"
+                               oncomplete="PF('extractionDeclineDialog').show();"/>
             </div>
           </h:panelGroup>
 
@@ -558,6 +570,12 @@
                                  disabled="#{demoRoleBean.readOnly('Contract Packages') or extractionBean.openCount gt 0}"
                                  process="@this" update=":extractionForm:extractionPanel :stageDocumentsGrowl"
                                  actionListener="#{extractionBean.completeReview}"/>
+                <p:commandButton value="Decline" icon="pi pi-undo" styleClass="ui-button-danger ui-button-outlined"
+                                 style="margin-left: 0.5rem;"
+                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                 process="@this" update=":extractionDeclineForm"
+                                 actionListener="#{extractionBean.prepareDecline}"
+                                 oncomplete="PF('extractionDeclineDialog').show();"/>
               </h:panelGroup>
               <h:panelGroup rendered="#{extractionBean.status.reviewed}">
                 <p:tag value="Review completed" severity="success"/>
@@ -611,6 +629,39 @@
         <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
           <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
                            onclick="PF('extractionDialog').hide();"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
+    <!-- ADDED 2026-10-12 - Decline: the reviewer sends the package back to Assembly with a
+         reason. The submitter sees the reason on the package, fixes the documents and
+         submits again, which runs a fresh extraction. -->
+    <p:dialog widgetVar="extractionDeclineDialog"
+              header="Decline package"
+              modal="true"
+              resizable="false"
+              draggable="false"
+              closeOnEscape="true"
+              width="34rem">
+      <h:form id="extractionDeclineForm">
+        <p style="margin-top: 0;">
+          <strong><h:outputText value="#{extractionBean.extractionPackage.packageCode}"/></strong>
+          goes back to Assembly. The extracted values are discarded and the submitter sees your reason.
+        </p>
+        <p:outputLabel for="declineReasonText" value="Reason"/>
+        <br/>
+        <p:inputTextarea id="declineReasonText" value="#{extractionBean.declineReason}"
+                         rows="4" maxlength="1000" counter="declineReasonCounter"
+                         counterTemplate="{0} characters remaining" style="width: 100%;"/>
+        <br/>
+        <h:outputText id="declineReasonCounter" style="color: #6b7280; font-size: 0.85rem;"/>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+          <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                           onclick="PF('extractionDeclineDialog').hide();"/>
+          <p:commandButton value="Decline package" icon="pi pi-undo" styleClass="ui-button-danger"
+                           process="@form" update="@form :stageDocumentsGrowl"
+                           actionListener="#{extractionBean.confirmDecline}"
+                           oncomplete="if (args &amp;&amp; args.done) { PF('extractionDeclineDialog').hide(); PF('extractionDialog').hide(); refreshStagedDocuments(); }"/>
         </div>
       </h:form>
     </p:dialog>

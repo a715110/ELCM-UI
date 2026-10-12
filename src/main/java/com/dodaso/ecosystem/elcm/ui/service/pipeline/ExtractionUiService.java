@@ -109,6 +109,17 @@ public class ExtractionUiService {
             "complete the review of package " + packageId);
     }
 
+    /**
+     * Reviewer: send the package back to Assembly with a reason. INVALID is a missing or too long
+     * reason (400), CONFLICT means the package is not in a state that can be declined (409).
+     */
+    public PackageOutcome decline(final Long packageId, final String reason) {
+        final Map<String, Object> body = new HashMap<>();
+        body.put("reason", reason);
+        return post(BASE + "/" + packageId + "/extraction/decline", body,
+            "decline package " + packageId);
+    }
+
     private PackageOutcome post(final String endpoint, final Object body, final String what) {
         try {
             restServiceClient.post(SERVICE, endpoint, body, new ParameterizedTypeReference<Void>() {

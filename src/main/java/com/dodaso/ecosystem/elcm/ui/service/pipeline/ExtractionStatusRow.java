@@ -10,7 +10,7 @@ import lombok.Setter;
 
 /**
  * Progress of a submitted package's extraction. Mirrors elcm-service's ExtractionStatus; fields
- * the screen does not use (timestamps) are ignored. state: NOT_SUBMITTED, QUEUED, RUNNING, DONE, FAILED.
+ * the screen does not use (timestamps) are ignored. state: NOT_SUBMITTED, QUEUED, RUNNING, DONE, FAILED, REVIEWED, DECLINED.
  */
 @Getter
 @Setter
@@ -44,6 +44,11 @@ public class ExtractionStatusRow implements Serializable {
     /** The reviewer has completed the review; values are read only. */
     public boolean isReviewed() {
         return "REVIEWED".equals(state);
+    }
+
+    /** The reviewer sent the package back to Assembly; message holds who and why. */
+    public boolean isDeclined() {
+        return "DECLINED".equals(state);
     }
 
     /** Whole-package progress for the bar: finished documents over all documents. */

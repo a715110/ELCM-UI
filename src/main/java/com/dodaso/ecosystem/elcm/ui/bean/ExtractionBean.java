@@ -12,6 +12,7 @@ import jakarta.inject.Named;
 import java.io.Serializable;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.primefaces.PrimeFaces;
 
 /**
@@ -35,6 +36,10 @@ public class ExtractionBean implements Serializable {
     private ExtractionStatusRow status;
     private ExtractionResultsRow results;
     private boolean loadFailed;
+
+    /** Reason typed in the Decline dialog. */
+    @Setter
+    private String declineReason;
 
     /** Extraction icon clicked: load the progress. The page shows the dialog and starts polling. */
     public void open(final ContractPackageRow row) {
@@ -75,6 +80,57 @@ public class ExtractionBean implements Serializable {
     /** True while the reviewer can still change values: extraction done, review not completed. */
     public boolean isEditable() {
         return status != null && status.isDone() && results != null;
+    }
+
+    /** Decline is possible while the values wait for review, or after a failed extraction. */
+    public boolean isDeclinable() {
+        return status != null && (status.isDone() || status.isFailed());
+    }
+
+    /** Decline clicked: start with an empty reason. The page shows the dialog. */
+    public void prepareDecline() {
+        declineReason = null;
+    }
+
+    /**
+     * Decline confirmed. Callback parameter "done" is true when the package went back to
+     * Assembly; on a refusal the dialog stays open so the reviewer can fix the reason.
+     */
+    public void confirmDecline() {
+        if (extractionPackage == null) {
+            return;
+        }
+        final String reason = declineReason == null ? "" : declineReason.trim();
+        if (reason.isEmpty()) {
+            add(FacesMessage.SEVERITY_WARN, "Reason needed", "Tell the submitter why the package is sent back.");
+            PrimeFaces.current().ajax().addCallbackParam("done", false);
+            return;
+        }
+        final PackageOutcome outcome = extractionUiService.decline(extractionPackage.getId(), reason);
+        boolean done = false;
+        switch (outcome) {
+            case OK -> {
+                done = true;
+                add(FacesMessage.SEVERITY_INFO, "Package declined",
+                    extractionPackage.getPackageCode() + " is back in Assembly.");
+            }
+            case INVALID -> add(FacesMessage.SEVERITY_WARN, "Reason not accepted",
+                "The reason is required and at most 1000 characters.");
+            case CONFLICT -> {
+                add(FacesMessage.SEVERITY_WARN, "Cannot decline",
+                    "The package is not waiting for review (anymore).");
+                done = true;
+            }
+            case NOT_FOUND -> add(FacesMessage.SEVERITY_WARN, "Not available", "The package has no submission.");
+            case FORBIDDEN -> add(FacesMessage.SEVERITY_WARN, "No permission", NO_REVIEW_PERMISSION);
+            default -> add(FacesMessage.SEVERITY_ERROR, "Decline failed", "Please try again.");
+        }
+        if (done) {
+            declineReason = null;
+            results = null;
+            load();
+        }
+        PrimeFaces.current().ajax().addCallbackParam("done", done);
     }
 
     /** Fields that must be confirmed before the review can be completed: critical ones and ones marked Review. */

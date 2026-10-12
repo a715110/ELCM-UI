@@ -1,5 +1,7 @@
 package com.dodaso.ecosystem.elcm.ui.bean;
 
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionStatusRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionUiService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.AssignableUserOptionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractPackageRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractPackageService;
@@ -10,14 +12,12 @@ import jakarta.annotation.PostConstruct;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
-import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -36,17 +36,20 @@ import org.primefaces.PrimeFaces;
 @ViewScoped
 @Getter
 @Slf4j
-@NoArgsConstructor(force = true) // Allows CDI proxy creation
-@RequiredArgsConstructor(onConstructor_ = @Inject) // Generates constructor with @Inject
+@RequiredArgsConstructor
 public class ContractPackagesBean implements Serializable {
 
     private final ContractPackageService contractPackageService;
     private final UploadFilesService uploadFilesService;
+    private final ExtractionUiService extractionUiService;
 
     private List<ContractPackageRow> contractPackages;
 
     /** Package shown in the Open dialog. */
     private ContractPackageRow openPackage;
+
+    /** Why a reviewer sent the open package back to Assembly; null when it was not declined. */
+    private String openDeclineNotice;
 
     /** Documents of the package shown in the Open dialog. */
     private List<PackageDocumentRow> openDocuments;
@@ -77,6 +80,13 @@ public class ContractPackagesBean implements Serializable {
     public void open(final ContractPackageRow row) {
         openPackage = row;
         openDocuments = row != null ? contractPackageService.findPackageDocuments(row.getId()) : List.of();
+        openDeclineNotice = null;
+        if (row != null && "ASSEMBLY".equals(row.getStatusCode())) {
+            final ExtractionStatusRow ex = extractionUiService.status(row.getId());
+            if (ex != null && ex.isDeclined()) {
+                openDeclineNotice = ex.getMessage();
+            }
+        }
     }
 
     /** True while the open package is still a draft, so documents can be removed. */
