@@ -580,7 +580,15 @@
               </h:panelGroup>
               <h:panelGroup rendered="#{extractionBean.status.reviewed}">
                 <p:tag value="Review completed" severity="success"/>
-                <h:outputText value="  The values below are confirmed and read only."/>
+                <h:outputText value="  The values below are confirmed and read only. "/>
+                <p:commandButton value="Apply to contract record" icon="pi pi-download" type="button"
+                                 style="margin-left: 0.5rem;"
+                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                 onclick="PF('extractionApplyDialog').show();"/>
+              </h:panelGroup>
+              <h:panelGroup rendered="#{extractionBean.status.applied}">
+                <p:tag value="Applied" severity="success"/>
+                <h:outputText value="  #{extractionBean.status.message} The values below are read only."/>
               </h:panelGroup>
             </h:panelGroup>
             <ui:repeat var="doc" value="#{extractionBean.results.documents}">
@@ -719,6 +727,49 @@
         <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
           <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
                            onclick="PF('extractionHistoryDialog').hide();"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
+    <!-- ADDED 2026-10-12 - Confirmation before the reviewed values are written to the
+         contract record. Replaces the browser's own confirm box. When the package has no
+         target record the dialog says so and the Apply button stays disabled. -->
+    <p:dialog widgetVar="extractionApplyDialog"
+              header="Apply to contract record"
+              modal="true"
+              resizable="false"
+              draggable="false"
+              closeOnEscape="true"
+              width="36rem">
+      <h:form id="extractionApplyForm">
+        <p style="margin-top: 0;">
+          <strong><h:outputText value="#{extractionBean.extractionPackage.packageCode}"/></strong>
+          <i class="pi pi-arrow-right" style="margin: 0 0.5rem; font-size: 0.8rem;"></i>
+          <strong><h:outputText value="#{extractionBean.extractionPackage.targetRecord}"/></strong>
+        </p>
+        <h:panelGroup layout="block" rendered="#{extractionBean.extractionPackage.targetRecord == 'Unassigned'}"
+                      style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
+          <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
+          This package is not linked to a contract record yet. Link it to one first.
+        </h:panelGroup>
+        <h:panelGroup layout="block" rendered="#{extractionBean.extractionPackage.targetRecord != 'Unassigned'}">
+          <p style="margin: 0 0 0.5rem 0;">This writes the confirmed values to the contract record:</p>
+          <ul style="margin: 0 0 0.75rem 1.25rem; padding: 0; line-height: 1.5;">
+            <li>Your corrected value is used where you changed one, otherwise the extracted value.</li>
+            <li>A value that differs from the one on the record replaces it. The earlier value is kept as history.</li>
+            <li>The lessor is linked to the record as its counterparty, and created if it does not exist yet.</li>
+            <li>Fields without a value are skipped.</li>
+          </ul>
+          <p style="margin: 0; color: #6b7280;">After this the package is read only and cannot be applied again.</p>
+        </h:panelGroup>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+          <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                           onclick="PF('extractionApplyDialog').hide();"/>
+          <p:commandButton value="Apply" icon="pi pi-download"
+                           disabled="#{extractionBean.extractionPackage.targetRecord == 'Unassigned'}"
+                           process="@this" update=":extractionForm:extractionPanel :stageDocumentsGrowl"
+                           actionListener="#{extractionBean.applyToContract}"
+                           oncomplete="PF('extractionApplyDialog').hide(); refreshContractPackages();"/>
         </div>
       </h:form>
     </p:dialog>
@@ -1059,7 +1110,7 @@
                                actionListener="#{contractPackagesBean.prepareSubmit(pkg, false)}"
                                oncomplete="PF('packageSubmitDialog').show();"/>
               <p:commandButton icon="pi pi-chart-line" styleClass="rounded-button ui-button-text"
-                               rendered="#{pkg.statusCode == 'VALIDATED'}"
+                               rendered="#{pkg.statusCode == 'VALIDATED' or pkg.statusCode == 'COMPLETED'}"
                                title="Extraction progress and results"
                                process="@this" update=":extractionForm"
                                actionListener="#{extractionBean.open(pkg)}"

@@ -1,6 +1,7 @@
 package com.dodaso.ecosystem.elcm.ui.bean;
 
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractPackageRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.ApplyResultRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionResultsRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionStatusRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionUiService;
@@ -96,6 +97,42 @@ public class ExtractionBean implements Serializable {
         if (history == null) {
             add(FacesMessage.SEVERITY_ERROR, "History not available", "Please try again.");
         }
+    }
+
+    /** Apply to contract: write the reviewed values to the package's target contract record. */
+    public void applyToContract() {
+        if (extractionPackage == null) {
+            return;
+        }
+        final ApplyResultRow row = extractionUiService.apply(extractionPackage.getId());
+        switch (row.getOutcome()) {
+            case OK -> {
+                final StringBuilder detail = new StringBuilder();
+                detail.append(row.getWritten()).append(" value(s) written to ").append(row.getRecordCode());
+                if (row.getUnchanged() > 0) {
+                    detail.append(", ").append(row.getUnchanged()).append(" already up to date");
+                }
+                detail.append('.');
+                if ("CREATED".equals(row.getCounterpartyAction())) {
+                    detail.append(" Counterparty ").append(row.getCounterparty()).append(" was created and linked.");
+                } else if ("LINKED".equals(row.getCounterpartyAction())) {
+                    detail.append(" Counterparty ").append(row.getCounterparty()).append(" was linked.");
+                }
+                add(FacesMessage.SEVERITY_INFO, "Applied to contract record", detail.toString());
+                if (!row.getSkipped().isEmpty()) {
+                    add(FacesMessage.SEVERITY_WARN, "Not applied", String.join("; ", row.getSkipped()));
+                }
+            }
+            case WORKSPACE_MISMATCH -> add(FacesMessage.SEVERITY_WARN, "No contract record",
+                "This package is not linked to a contract record. Link it to one first.");
+            case CONFLICT -> add(FacesMessage.SEVERITY_WARN, "Cannot apply",
+                "The review is not completed, or the values were already applied.");
+            case NOT_FOUND -> add(FacesMessage.SEVERITY_WARN, "Not available", "The package has no submission.");
+            case FORBIDDEN -> add(FacesMessage.SEVERITY_WARN, "No permission", NO_REVIEW_PERMISSION);
+            default -> add(FacesMessage.SEVERITY_ERROR, "Apply failed", "Please try again.");
+        }
+        results = null;
+        load();
     }
 
     /** Decline is possible while the values wait for review, or after a failed extraction. */
@@ -254,7 +291,7 @@ public class ExtractionBean implements Serializable {
         loadFailed = fresh == null;
         if (fresh != null) {
             status = fresh;
-            if ((fresh.isDone() || fresh.isReviewed()) && results == null) {
+            if ((fresh.isDone() || fresh.isReviewed() || fresh.isApplied()) && results == null) {
                 results = extractionUiService.results(extractionPackage.getId());
             }
         }

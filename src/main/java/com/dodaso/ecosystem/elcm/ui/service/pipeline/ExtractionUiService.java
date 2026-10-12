@@ -132,6 +132,32 @@ public class ExtractionUiService {
             "decline package " + packageId);
     }
 
+    /**
+     * Reviewer: write the reviewed values to the package's target contract record. The outcome
+     * is CONFLICT when the review is not completed or was already applied, WORKSPACE_MISMATCH
+     * (422) when the package has no target record yet.
+     */
+    public ApplyResultRow apply(final Long packageId) {
+        try {
+            final ApplyResultRow row = restServiceClient.post(SERVICE, BASE + "/" + packageId + "/extraction/apply",
+                new HashMap<String, Object>(), new ParameterizedTypeReference<ApplyResultRow>() {
+                });
+            return row != null ? row : ApplyResultRow.failed(PackageOutcome.FAILED);
+        } catch (final HttpStatusCodeException e) {
+            log.warn("elcm-service refused to apply package {}: HTTP {}", packageId, e.getStatusCode().value());
+            return ApplyResultRow.failed(switch (e.getStatusCode().value()) {
+                case 404 -> PackageOutcome.NOT_FOUND;
+                case 409 -> PackageOutcome.CONFLICT;
+                case 422 -> PackageOutcome.WORKSPACE_MISMATCH;
+                case 403 -> PackageOutcome.FORBIDDEN;
+                default -> PackageOutcome.FAILED;
+            });
+        } catch (final Exception e) {
+            log.error("Failed to apply package {}", packageId, e);
+            return ApplyResultRow.failed(PackageOutcome.FAILED);
+        }
+    }
+
     private PackageOutcome post(final String endpoint, final Object body, final String what) {
         try {
             restServiceClient.post(SERVICE, endpoint, body, new ParameterizedTypeReference<Void>() {
