@@ -196,14 +196,14 @@
     <!-- ==================== TOP METRICS ==================== -->
     <h:panelGroup layout="block" rendered="#{demoRoleBean.overrideActive}"
                   style="margin:1rem 0 0;padding:0.6rem 1rem;border:1px solid #D6D2C7;border-radius:8px;background:#FFF8E1;">
-      <i class="pi pi-eye"/> Previewing as <strong>#{demoRoleBean.selectedRole}</strong>.
+      <i class="pi pi-eye"></i> Previewing as <strong>#{demoRoleBean.selectedRole}</strong>.
       This changes what is shown on screen only; the data itself is not filtered.
     </h:panelGroup>
 
     <h:panelGroup id="metricCards" layout="block">
     <div class="metric-cards">
       <div class="metric-card">
-        <i class="pi pi-upload" aria-hidden="true"/>
+        <i class="pi pi-upload" aria-hidden="true"></i>
         <div>
           <div class="metric-value">
             <h:outputText value="#{pipelineMetricsBean.uploadingCount}"/>
@@ -212,7 +212,7 @@
         </div>
       </div>
       <div class="metric-card">
-        <i class="pi pi-sync" aria-hidden="true"/>
+        <i class="pi pi-sync" aria-hidden="true"></i>
         <div>
           <div class="metric-value">
             <h:outputText value="#{pipelineMetricsBean.validatingCount}"/>
@@ -221,7 +221,7 @@
         </div>
       </div>
       <div class="metric-card">
-        <i class="pi pi-check-circle" aria-hidden="true"/>
+        <i class="pi pi-check-circle" aria-hidden="true"></i>
         <div>
           <div class="metric-value">
             <h:outputText value="#{pipelineMetricsBean.validCount}"/>
@@ -230,7 +230,7 @@
         </div>
       </div>
       <div class="metric-card">
-        <i class="pi pi-send" aria-hidden="true"/>
+        <i class="pi pi-send" aria-hidden="true"></i>
         <div>
           <div class="metric-value">
             <h:outputText value="#{pipelineMetricsBean.submittedCount}"/>
@@ -478,12 +478,110 @@
       </h:form>
     </p:dialog>
 
+    <!-- ADDED 2026-10-11 - Extraction progress and results of a submitted package.
+         Extraction runs in the background and takes minutes, so this dialog never
+         waits on it: it shows the current progress, polls every 5 seconds while the
+         extraction is queued or running, and shows the extracted values when done.
+         Closing the dialog does not stop anything. -->
+    <p:dialog widgetVar="extractionDialog"
+              header="Extraction"
+              modal="true"
+              resizable="false"
+              draggable="false"
+              closeOnEscape="true"
+              onHide="PF('extractionPoll').stop();"
+              width="60rem">
+      <h:form id="extractionForm">
+        <p:poll id="extractionPollCmd" widgetVar="extractionPoll" interval="5" autoStart="false"
+                listener="#{extractionBean.poll}" update="extractionPanel"
+                stop="#{not extractionBean.polling}"/>
+        <h:panelGroup id="extractionPanel" layout="block" style="max-height: 68vh; overflow-y: auto; padding-right: 0.5rem;">
+          <p style="margin-top: 0;">
+            <strong><h:outputText value="#{extractionBean.extractionPackage.packageCode}"/></strong>
+          </p>
+
+          <h:outputText rendered="#{extractionBean.status == null and extractionBean.loadFailed}"
+                        value="The progress could not be loaded. Close this window and open it again."/>
+          <h:outputText rendered="#{extractionBean.status == null and not extractionBean.loadFailed}"
+                        value="Loading..."/>
+
+          <h:panelGroup layout="block" rendered="#{extractionBean.status != null}">
+            <p style="margin: 0 0 0.5rem 0;">
+              <p:tag value="#{extractionBean.status.state}"
+                     severity="#{extractionBean.status.done ? 'success' : (extractionBean.status.failed ? 'danger' : 'warn')}"/>
+              <h:outputText value="  #{extractionBean.status.message}"/>
+            </p>
+            <p:progressBar value="#{extractionBean.status.percent}" labelTemplate="{value}%" displayOnly="true"
+                           style="margin-bottom: 0.75rem;"/>
+            <p:dataTable var="d" value="#{extractionBean.status.documents}" emptyMessage="No documents.">
+              <p:column headerText="Document">
+                <h:outputText value="#{d.fileName}"/>
+              </p:column>
+              <p:column headerText="Status" style="width: 8rem;">
+                <p:tag value="#{d.status}" severity="#{d.severity}"/>
+              </p:column>
+              <p:column headerText="Time" style="width: 5rem;">
+                <h:outputText value="#{d.elapsedText}"/>
+              </p:column>
+              <p:column headerText="To review" style="width: 6rem;">
+                <h:outputText value="#{d.needsReviewCount}"/>
+              </p:column>
+              <p:column headerText="Problem">
+                <h:outputText value="#{d.errorMessage}"/>
+              </p:column>
+            </p:dataTable>
+            <h:panelGroup layout="block" rendered="#{extractionBean.status.active}" style="color: #6b7280; margin-top: 0.75rem;">
+              You can close this window. Extraction continues in the background and takes a few minutes per document.
+            </h:panelGroup>
+            <div style="margin-top: 0.75rem;">
+              <p:commandButton value="Retry" icon="pi pi-refresh"
+                               rendered="#{extractionBean.status.failed}"
+                               disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                               process="@this" update="extractionPanel :stageDocumentsGrowl"
+                               actionListener="#{extractionBean.retry}"
+                               oncomplete="PF('extractionPoll').start();"/>
+            </div>
+          </h:panelGroup>
+
+          <h:panelGroup layout="block" rendered="#{extractionBean.results != null}" style="margin-top: 1rem;">
+            <ui:repeat var="doc" value="#{extractionBean.results.documents}">
+              <h4 style="margin: 1rem 0 0.25rem 0;">
+                <h:outputText value="#{doc.fileName}"/>
+                <h:outputText value="  (#{doc.needsReviewCount} to review)" style="font-weight: normal;"/>
+              </h4>
+              <p:dataTable var="f" value="#{doc.fields}" emptyMessage="No values were extracted.">
+                <p:column headerText="Field" style="width: 13rem;">
+                  <h:outputText value="#{f.label}"/>
+                </p:column>
+                <p:column headerText="Value" style="width: 14rem;">
+                  <h:outputText value="#{f.shownValue}"/>
+                </p:column>
+                <p:column headerText="Result" style="width: 8rem;">
+                  <p:tag value="#{f.statusLabel}" severity="#{f.severity}"/>
+                  <p:tag value="Review" severity="warn" rendered="#{f.needsReview}" style="margin-left: 0.25rem;"/>
+                </p:column>
+                <p:column headerText="Evidence from the document">
+                  <h:outputText value="#{f.quote}" style="font-size: 0.85rem;"/>
+                  <h:outputText value="#{f.problem}" rendered="#{not empty f.problem}"
+                                style="display: block; color: #b45309; font-size: 0.85rem;"/>
+                </p:column>
+              </p:dataTable>
+            </ui:repeat>
+          </h:panelGroup>
+        </h:panelGroup>
+        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+          <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
+                           onclick="PF('extractionDialog').hide();"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
     <!-- ==================== STAGE DOCUMENTS ==================== -->
     <h:panelGroup id="stageDocumentsCard" layout="block" styleClass="dashboard-card"
                   style="#{demoRoleBean.canSee('Stage Documents') ? '' : 'display:none;'}">
       <div class="dashboard-card-header">
         <h2>Stage Documents (#{stageDocumentsBean.stagedDocuments.size()})</h2>
-        <i class="pi pi-info-circle" title="Documents land here after upload and stay until grouped into a contract package."/>
+        <i class="pi pi-info-circle" title="Documents land here after upload and stay until grouped into a contract package."></i>
       </div>
       <p class="section-subtitle">Documents uploaded and awaiting grouping into a contract package.</p>
 
@@ -752,7 +850,7 @@
                   style="#{demoRoleBean.canSee('Contract Packages') ? '' : 'display:none;'}">
       <div class="dashboard-card-header">
         <h2>Contract Packages (#{contractPackagesBean.contractPackages.size()})</h2>
-        <i class="pi pi-info-circle" title="Packages group staged documents together before they're submitted for extraction."/>
+        <i class="pi pi-info-circle" title="Packages group staged documents together before they're submitted for extraction."></i>
       </div>
       <p class="section-subtitle">Group staged documents into packages, then submit for processing.</p>
 
@@ -794,7 +892,7 @@
           <!-- REVISED 2026-10-07 - one row of icon buttons in the same style as the
                Stage Documents row actions (rounded, text style, tooltip), instead of
                three text buttons of different widths stacked in a narrow column. -->
-          <p:column headerText="Actions" style="width:9rem" exportable="false">
+          <p:column headerText="Actions" style="width:11rem" exportable="false">
             <div style="display: flex; flex-wrap: nowrap; gap: 0.25rem; align-items: center;">
               <p:commandButton icon="pi pi-folder-open" styleClass="rounded-button ui-button-text" title="Open"
                                process="@this" update=":packageDocumentsForm"
@@ -813,6 +911,12 @@
                                process="@this" update=":packageSubmitForm"
                                actionListener="#{contractPackagesBean.prepareSubmit(pkg, false)}"
                                oncomplete="PF('packageSubmitDialog').show();"/>
+              <p:commandButton icon="pi pi-chart-line" styleClass="rounded-button ui-button-text"
+                               rendered="#{pkg.statusCode == 'VALIDATED'}"
+                               title="Extraction progress and results"
+                               process="@this" update=":extractionForm"
+                               actionListener="#{extractionBean.open(pkg)}"
+                               oncomplete="PF('extractionDialog').show(); PF('extractionPoll').start();"/>
               <p:commandButton icon="pi pi-undo" styleClass="rounded-button ui-button-text"
                                rendered="#{pkg.statusCode == 'VALIDATED'}"
                                title="Unsubmit"
