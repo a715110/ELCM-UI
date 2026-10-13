@@ -7,11 +7,14 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionStatusRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionUiService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.FieldHistoryRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.PackageOutcome;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.TargetCandidateRow;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Named;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -41,6 +44,11 @@ public class ExtractionBean implements Serializable {
 
     /** History of the field whose history icon was clicked; null when it could not be loaded. */
     private FieldHistoryRow history;
+
+    /** Apply dialog: the record chosen for a package that has no target, and the records to choose from. */
+    @Setter
+    private Long applyTargetId;
+    private List<TargetCandidateRow> applyCandidates = new ArrayList<>();
 
     /** Reason typed in the Decline dialog. */
     @Setter
@@ -99,12 +107,33 @@ public class ExtractionBean implements Serializable {
         }
     }
 
+    /** True when the open package has no target contract record and the reviewer must choose one. */
+    public boolean isApplyNeedsTarget() {
+        return extractionPackage != null && "Unassigned".equals(extractionPackage.getTargetRecord());
+    }
+
+    /** Apply clicked: load the records to choose from when the package has no target. The page shows the dialog. */
+    public void prepareApply() {
+        applyTargetId = null;
+        applyCandidates = new ArrayList<>();
+        if (extractionPackage == null || !isApplyNeedsTarget()) {
+            return;
+        }
+        final List<TargetCandidateRow> rows = extractionUiService.targetCandidates(extractionPackage.getId());
+        if (rows == null) {
+            add(FacesMessage.SEVERITY_ERROR, "Records not available", "Please try again.");
+        } else {
+            applyCandidates = rows;
+        }
+    }
+
     /** Apply to contract: write the reviewed values to the package's target contract record. */
     public void applyToContract() {
         if (extractionPackage == null) {
             return;
         }
-        final ApplyResultRow row = extractionUiService.apply(extractionPackage.getId());
+        final boolean chose = isApplyNeedsTarget() && applyTargetId != null;
+        final ApplyResultRow row = extractionUiService.apply(extractionPackage.getId(), chose ? applyTargetId : null);
         switch (row.getOutcome()) {
             case OK -> {
                 final StringBuilder detail = new StringBuilder();
@@ -124,7 +153,8 @@ public class ExtractionBean implements Serializable {
                 }
             }
             case WORKSPACE_MISMATCH -> add(FacesMessage.SEVERITY_WARN, "No contract record",
-                "This package is not linked to a contract record. Link it to one first.");
+                chose ? "The chosen contract record cannot be used (another workspace, or archived or superseded)."
+                    : "This package has no contract record. Choose one in the Apply dialog.");
             case CONFLICT -> add(FacesMessage.SEVERITY_WARN, "Cannot apply",
                 "The review is not completed, or the values were already applied.");
             case NOT_FOUND -> add(FacesMessage.SEVERITY_WARN, "Not available", "The package has no submission.");

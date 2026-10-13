@@ -132,15 +132,29 @@ public class ExtractionUiService {
             "decline package " + packageId);
     }
 
+    /** Records a package without a target can be applied to; null when they could not be loaded. */
+    public java.util.List<TargetCandidateRow> targetCandidates(final Long packageId) {
+        try {
+            return restServiceClient.get(SERVICE, BASE + "/" + packageId + "/extraction/target-candidates",
+                new ParameterizedTypeReference<java.util.List<TargetCandidateRow>>() {
+                });
+        } catch (final Exception e) {
+            log.error("Failed to load the target record candidates of package {}", packageId, e);
+            return null;
+        }
+    }
+
     /**
      * Reviewer: write the reviewed values to the package's target contract record. The outcome
      * is CONFLICT when the review is not completed or was already applied, WORKSPACE_MISMATCH
      * (422) when the package has no target record yet.
      */
-    public ApplyResultRow apply(final Long packageId) {
+    public ApplyResultRow apply(final Long packageId, final Long targetRecordId) {
         try {
+            final Map<String, Object> body = new HashMap<>();
+            body.put("targetRecordId", targetRecordId);
             final ApplyResultRow row = restServiceClient.post(SERVICE, BASE + "/" + packageId + "/extraction/apply",
-                new HashMap<String, Object>(), new ParameterizedTypeReference<ApplyResultRow>() {
+                body, new ParameterizedTypeReference<ApplyResultRow>() {
                 });
             return row != null ? row : ApplyResultRow.failed(PackageOutcome.FAILED);
         } catch (final HttpStatusCodeException e) {

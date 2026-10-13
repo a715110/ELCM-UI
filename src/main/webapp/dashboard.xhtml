@@ -581,10 +581,12 @@
               <h:panelGroup rendered="#{extractionBean.status.reviewed}">
                 <p:tag value="Review completed" severity="success"/>
                 <h:outputText value="  The values below are confirmed and read only. "/>
-                <p:commandButton value="Apply to contract record" icon="pi pi-download" type="button"
+                <p:commandButton value="Apply to contract record" icon="pi pi-download"
                                  style="margin-left: 0.5rem;"
                                  disabled="#{demoRoleBean.readOnly('Contract Packages')}"
-                                 onclick="PF('extractionApplyDialog').show();"/>
+                                 process="@this" update=":extractionApplyForm"
+                                 actionListener="#{extractionBean.prepareApply}"
+                                 oncomplete="PF('extractionApplyDialog').show();"/>
               </h:panelGroup>
               <h:panelGroup rendered="#{extractionBean.status.applied}">
                 <p:tag value="Applied" severity="success"/>
@@ -733,7 +735,7 @@
 
     <!-- ADDED 2026-10-12 - Confirmation before the reviewed values are written to the
          contract record. Replaces the browser's own confirm box. When the package has no
-         target record the dialog says so and the Apply button stays disabled. -->
+         target record the reviewer chooses one here; Apply stays disabled until chosen. -->
     <p:dialog widgetVar="extractionApplyDialog"
               header="Apply to contract record"
               modal="true"
@@ -745,14 +747,25 @@
         <p style="margin-top: 0;">
           <strong><h:outputText value="#{extractionBean.extractionPackage.packageCode}"/></strong>
           <i class="pi pi-arrow-right" style="margin: 0 0.5rem; font-size: 0.8rem;"></i>
-          <strong><h:outputText value="#{extractionBean.extractionPackage.targetRecord}"/></strong>
+          <strong><h:outputText value="#{extractionBean.applyNeedsTarget ? 'no record yet' : extractionBean.extractionPackage.targetRecord}"/></strong>
         </p>
-        <h:panelGroup layout="block" rendered="#{extractionBean.extractionPackage.targetRecord == 'Unassigned'}"
-                      style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
-          <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
-          This package is not linked to a contract record yet. Link it to one first.
+        <h:panelGroup layout="block" rendered="#{extractionBean.applyNeedsTarget}"
+                      style="margin-bottom: 0.75rem;">
+          <p style="margin: 0 0 0.5rem 0;">
+            This package is not linked to a contract record. Choose the record that receives the values.
+            The package is linked to it when you apply.
+          </p>
+          <p:selectOneMenu id="applyTarget" value="#{extractionBean.applyTargetId}" filter="true"
+                           filterMatchMode="contains" style="width: 100%;">
+            <f:selectItem itemLabel="Choose a contract record" noSelectionOption="true"/>
+            <f:selectItems value="#{extractionBean.applyCandidates}" var="c" itemValue="#{c.id}" itemLabel="#{c.label}"/>
+            <p:ajax update="applyConfirm"/>
+          </p:selectOneMenu>
+          <h:outputText rendered="#{empty extractionBean.applyCandidates}"
+                        value="No active or pending contract record exists in this workspace."
+                        style="color: #b45309; display: block; margin-top: 0.4rem;"/>
         </h:panelGroup>
-        <h:panelGroup layout="block" rendered="#{extractionBean.extractionPackage.targetRecord != 'Unassigned'}">
+        <h:panelGroup layout="block">
           <p style="margin: 0 0 0.5rem 0;">This writes the confirmed values to the contract record:</p>
           <ul style="margin: 0 0 0.75rem 1.25rem; padding: 0; line-height: 1.5;">
             <li>Your corrected value is used where you changed one, otherwise the extracted value.</li>
@@ -765,8 +778,8 @@
         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
           <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
                            onclick="PF('extractionApplyDialog').hide();"/>
-          <p:commandButton value="Apply" icon="pi pi-download"
-                           disabled="#{extractionBean.extractionPackage.targetRecord == 'Unassigned'}"
+          <p:commandButton id="applyConfirm" value="Apply" icon="pi pi-download"
+                           disabled="#{extractionBean.applyNeedsTarget and extractionBean.applyTargetId == null}"
                            process="@this" update=":extractionForm:extractionPanel :stageDocumentsGrowl"
                            actionListener="#{extractionBean.applyToContract}"
                            oncomplete="PF('extractionApplyDialog').hide(); refreshContractPackages();"/>
