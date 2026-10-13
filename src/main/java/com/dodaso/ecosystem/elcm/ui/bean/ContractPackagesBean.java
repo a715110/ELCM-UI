@@ -70,13 +70,65 @@ public class ContractPackagesBean implements Serializable {
     /** Shown in the submit dialog when some documents have no extraction template; null when all are covered. */
     private String submitWarning;
 
+    /** Finer progress for packages past Assembly, by package id: Queued, Extracting, Ready for review, and so on. */
+    private final java.util.Map<Long, String> stageByPackage = new java.util.HashMap<>();
+
     @PostConstruct
     void init() {
-        contractPackages = contractPackageService.findPackages();
+        reload();
     }
 
     public void refresh() {
+        reload();
+    }
+
+    private void reload() {
         contractPackages = contractPackageService.findPackages();
+        stageByPackage.clear();
+        if (contractPackages == null) {
+            return;
+        }
+        for (final ContractPackageRow row : contractPackages) {
+            if ("VALIDATED".equals(row.getStatusCode())) {
+                final ExtractionStatusRow ex = extractionUiService.status(row.getId());
+                if (ex != null && ex.getState() != null) {
+                    stageByPackage.put(row.getId(), stageLabel(ex.getState()));
+                }
+            }
+        }
+    }
+
+    private static String stageLabel(final String state) {
+        return switch (state) {
+            case "QUEUED" -> "Queued";
+            case "RUNNING" -> "Extracting";
+            case "DONE" -> "Ready for review";
+            case "FAILED" -> "Extraction failed";
+            case "REVIEWED" -> "Reviewed";
+            default -> null;
+        };
+    }
+
+    /** What the Status column shows: the finer stage while Validated, else the package status. */
+    public String statusText(final ContractPackageRow row) {
+        final String stage = row == null ? null : stageByPackage.get(row.getId());
+        return stage != null ? row.getStatus() + " - " + stage : row == null ? "" : row.getStatus();
+    }
+
+    /** Tag colour: green when finished or ready, amber while working, red when failed, blue otherwise. */
+    public String statusSeverity(final ContractPackageRow row) {
+        if (row == null) {
+            return "info";
+        }
+        final String stage = stageByPackage.get(row.getId());
+        if (stage != null) {
+            return switch (stage) {
+                case "Extraction failed" -> "danger";
+                case "Queued", "Extracting" -> "warn";
+                default -> "info";
+            };
+        }
+        return "VALIDATED".equals(row.getStatusCode()) ? "info" : "success";
     }
 
     /** Open clicked: load the package's documents. The dialog is shown by the page. */

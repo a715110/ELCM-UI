@@ -1112,7 +1112,7 @@
                  only mock status value - once real statuses exist (Failed,
                  Pending, etc.), this should map severity from pkg.status
                  rather than assume every status is success. -->
-            <p:tag value="#{pkg.status}" severity="success"/>
+            <p:tag value="#{contractPackagesBean.statusText(pkg)}" severity="#{contractPackagesBean.statusSeverity(pkg)}"/>
           </p:column>
 
           <!-- REVISED 2026-10-07 - one row of icon buttons in the same style as the
