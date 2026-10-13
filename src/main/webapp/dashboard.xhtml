@@ -554,7 +554,7 @@
                                oncomplete="PF('extractionPoll').start();"/>
               <p:commandButton value="Decline" icon="pi pi-undo" styleClass="ui-button-danger ui-button-outlined"
                                style="margin-left: 0.5rem;"
-                               rendered="#{extractionBean.status.failed}"
+                               rendered="#{extractionBean.status.failed and extractionBean.permitted}"
                                disabled="#{demoRoleBean.readOnly('Contract Packages')}"
                                process="@this" update=":extractionDeclineForm"
                                actionListener="#{extractionBean.prepareDecline}"
@@ -583,16 +583,23 @@
                                  actionListener="#{extractionBean.prepareDecline}"
                                  oncomplete="PF('extractionDeclineDialog').show();"/>
               </h:panelGroup>
+              <h:panelGroup layout="block" rendered="#{extractionBean.reviewBlocked}"
+                            style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.4rem 0.75rem;">
+                <i class="pi pi-lock" style="margin-right: 0.4rem;"></i>
+                <h:outputText value="#{extractionBean.accessReason} The values below are read only for you."/>
+              </h:panelGroup>
               <h:panelGroup rendered="#{extractionBean.status.reviewed}">
                 <p:tag value="Review completed" severity="success"/>
                 <h:outputText value="  The values below are confirmed and read only until you apply or reopen. "/>
                 <p:commandButton value="Apply to contract record" icon="pi pi-download"
+                                 rendered="#{extractionBean.canReview}"
                                  style="margin-left: 0.5rem;"
                                  disabled="#{demoRoleBean.readOnly('Contract Packages')}"
                                  process="@this" update=":extractionApplyForm"
                                  actionListener="#{extractionBean.prepareApply}"
                                  oncomplete="PF('extractionApplyDialog').show();"/>
                 <p:commandButton value="Reopen review" icon="pi pi-lock-open" styleClass="ui-button-secondary"
+                                 rendered="#{extractionBean.permitted}"
                                  style="margin-left: 0.5rem;"
                                  disabled="#{demoRoleBean.readOnly('Contract Packages')}"
                                  process="@this" update=":extractionForm:extractionPanel :stageDocumentsGrowl"

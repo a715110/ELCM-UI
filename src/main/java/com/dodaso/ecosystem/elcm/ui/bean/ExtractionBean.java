@@ -7,6 +7,7 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionStatusRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionUiService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.FieldHistoryRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.PackageOutcome;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.ReviewAccessRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.TargetCandidateRow;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
@@ -33,7 +34,7 @@ import org.primefaces.PrimeFaces;
 @RequiredArgsConstructor
 public class ExtractionBean implements Serializable {
 
-    private static final String NO_REVIEW_PERMISSION = "Reviewing extracted values needs the review permission (Reviewer role).";
+    private static final String NO_REVIEW_PERMISSION = "Reviewing needs the review permission (Reviewer role), and the reviewer must be someone other than the person who submitted the package.";
 
     private final ExtractionUiService extractionUiService;
 
@@ -41,6 +42,9 @@ public class ExtractionBean implements Serializable {
     private ExtractionStatusRow status;
     private ExtractionResultsRow results;
     private boolean loadFailed;
+
+    /** What the signed-in user may do in this review; null until read or when it could not be read. */
+    private ReviewAccessRow access;
 
     /** History of the field whose history icon was clicked; null when it could not be loaded. */
     private FieldHistoryRow history;
@@ -59,6 +63,7 @@ public class ExtractionBean implements Serializable {
         extractionPackage = row;
         status = null;
         results = null;
+        access = null;
         load();
     }
 
@@ -92,7 +97,30 @@ public class ExtractionBean implements Serializable {
 
     /** True while the reviewer can still change values: extraction done, review not completed. */
     public boolean isEditable() {
-        return status != null && status.isDone() && results != null;
+        return status != null && status.isDone() && results != null && isCanReview();
+    }
+
+    /**
+     * May edit, confirm, complete and apply: has the Reviewer role and did not submit the package.
+     * True when the access could not be read, since elcm-service enforces the rules anyway.
+     */
+    public boolean isCanReview() {
+        return access == null || access.isCanReview();
+    }
+
+    /** Has the review permission (decline, reopen); true when unknown, as above. */
+    public boolean isPermitted() {
+        return access == null || access.isPermitted();
+    }
+
+    /** Why the user cannot review, for the note above the values; null when they can. */
+    public String getAccessReason() {
+        return access == null ? null : access.getReason();
+    }
+
+    /** The package is ready for review but this user may not do it: show the reason. */
+    public boolean isReviewBlocked() {
+        return status != null && status.isDone() && results != null && !isCanReview();
     }
 
     /** History icon clicked: load what reviewers did to this field. The page shows the dialog. */
@@ -347,6 +375,7 @@ public class ExtractionBean implements Serializable {
         extractionPackage = null;
         status = null;
         results = null;
+        access = null;
         history = null;
         loadFailed = false;
     }
@@ -356,6 +385,9 @@ public class ExtractionBean implements Serializable {
         loadFailed = fresh == null;
         if (fresh != null) {
             status = fresh;
+            if (access == null && (fresh.isDone() || fresh.isReviewed() || fresh.isFailed())) {
+                access = extractionUiService.reviewAccess(extractionPackage.getId());
+            }
             if ((fresh.isDone() || fresh.isReviewed() || fresh.isApplied()) && results == null) {
                 results = extractionUiService.results(extractionPackage.getId());
             }

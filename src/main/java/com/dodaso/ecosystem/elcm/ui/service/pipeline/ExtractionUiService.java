@@ -41,6 +41,18 @@ public class ExtractionUiService {
         }
     }
 
+    /** What the signed-in user may do in the review; null when it could not be read (the service still enforces). */
+    public ReviewAccessRow reviewAccess(final Long packageId) {
+        try {
+            return restServiceClient.get(SERVICE, BASE + "/" + packageId + "/extraction/review-access",
+                new ParameterizedTypeReference<ReviewAccessRow>() {
+                });
+        } catch (final Exception e) {
+            log.error("Failed to read the review access of package {}", packageId, e);
+            return null;
+        }
+    }
+
     public ExtractionResultsRow results(final Long packageId) {
         try {
             return restServiceClient.get(SERVICE, BASE + "/" + packageId + "/extraction/results",
