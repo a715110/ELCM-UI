@@ -307,6 +307,25 @@ public class ExtractionBean implements Serializable {
         load();
     }
 
+    /** Reopen a completed review: the values become editable again. */
+    public void reopenReview() {
+        if (extractionPackage == null) {
+            return;
+        }
+        final PackageOutcome outcome = extractionUiService.reopenReview(extractionPackage.getId());
+        switch (outcome) {
+            case OK -> add(FacesMessage.SEVERITY_INFO, "Review reopened",
+                "You can change values again. Complete the review when you are done.");
+            case CONFLICT -> add(FacesMessage.SEVERITY_WARN, "Cannot reopen",
+                "The review is not completed, or the values were already applied.");
+            case NOT_FOUND -> add(FacesMessage.SEVERITY_WARN, "Not available", "The package has no submission.");
+            case FORBIDDEN -> add(FacesMessage.SEVERITY_WARN, "No permission", NO_REVIEW_PERMISSION);
+            default -> add(FacesMessage.SEVERITY_ERROR, "Reopen failed", "Please try again.");
+        }
+        results = null;
+        load();
+    }
+
     /** Dialog closed: forget everything so the next open starts clean. */
     public void close() {
         extractionPackage = null;

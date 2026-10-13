@@ -115,6 +115,12 @@ public class ExtractionUiService {
         }
     }
 
+    /** Reviewer: reopen a completed review. CONFLICT means it is not in the Reviewed state (anymore). */
+    public PackageOutcome reopenReview(final Long packageId) {
+        return post(BASE + "/" + packageId + "/extraction/reopen", new HashMap<String, Object>(),
+            "reopen the review of package " + packageId);
+    }
+
     /** Reviewer: complete the review. WORKSPACE_MISMATCH here means 422: fields still to confirm. */
     public PackageOutcome completeReview(final Long packageId) {
         return post(BASE + "/" + packageId + "/extraction/complete", new HashMap<String, Object>(),
