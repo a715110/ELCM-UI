@@ -64,13 +64,13 @@
 
     <div class="dv-header">
       <div class="dv-header-title">
-        <i class="pi pi-file"/>
+        <i class="pi pi-file"></i>
         <span><h:outputText value="#{documentViewerBean.fileName}"/></span>
       </div>
       <div class="dv-header-actions">
         <h:outputLink styleClass="dv-download-link"
                       value="#{facesContext.externalContext.requestContextPath}/api/v1/pipeline/document-viewer/#{documentViewerBean.fileUploadId}/download">
-          <i class="pi pi-download"/> Download
+          <i class="pi pi-download"></i> Download
         </h:outputLink>
       </div>
     </div>
@@ -121,7 +121,7 @@
           </p:fragment>
 
           <div class="dv-no-preview" jsf:rendered="#{documentViewerBean.isConversionInProgress() or !documentViewerBean.conversionChecked}">
-            <i class="pi pi-spin pi-spinner dv-no-preview-icon"/>
+            <i class="pi pi-spin pi-spinner dv-no-preview-icon"></i>
             <div class="dv-no-preview-title">Converting document for preview&#8230;</div>
             <div class="dv-no-preview-sub">This usually takes a few seconds. The preview will appear automatically once it's ready.</div>
           </div>
@@ -130,7 +130,7 @@
                the converter restarting are retried automatically on the server;
                this covers what is left), and keep the download link. -->
           <div class="dv-no-preview" jsf:rendered="#{documentViewerBean.conversionChecked and documentViewerBean.isConversionFailed()}">
-            <i class="pi pi-exclamation-triangle dv-no-preview-icon"/>
+            <i class="pi pi-exclamation-triangle dv-no-preview-icon"></i>
             <div class="dv-no-preview-title">The preview could not be created</div>
             <div class="dv-no-preview-sub">The document could not be converted for preview. You can try again or download the original.</div>
             <p:commandButton value="Try again" icon="pi pi-refresh" styleClass="mb-2"
@@ -138,7 +138,7 @@
                              process="@this" update="dvConversionWrapper"/>
             <h:outputLink styleClass="dv-no-preview-download-btn"
                           value="#{facesContext.externalContext.requestContextPath}/api/v1/pipeline/document-viewer/#{documentViewerBean.fileUploadId}/download">
-              <i class="pi pi-download"/> Download <h:outputText value="#{documentViewerBean.fileName}"/>
+              <i class="pi pi-download"></i> Download <h:outputText value="#{documentViewerBean.fileName}"/>
             </h:outputLink>
           </div>
 
@@ -146,12 +146,12 @@
                nothing came back) - same fallback message/download link as any
                other non-previewable type. -->
           <div class="dv-no-preview" jsf:rendered="#{documentViewerBean.conversionChecked and documentViewerBean.conversionStatus == null}">
-            <i class="pi pi-file-o dv-no-preview-icon"/>
+            <i class="pi pi-file-o dv-no-preview-icon"></i>
             <div class="dv-no-preview-title">Preview not available for this file type</div>
             <div class="dv-no-preview-sub"><h:outputText value="#{documentViewerBean.type}"/> files can't be rendered in the browser.</div>
             <h:outputLink styleClass="dv-no-preview-download-btn"
                           value="#{facesContext.externalContext.requestContextPath}/api/v1/pipeline/document-viewer/#{documentViewerBean.fileUploadId}/download">
-              <i class="pi pi-download"/> Download <h:outputText value="#{documentViewerBean.fileName}"/>
+              <i class="pi pi-download"></i> Download <h:outputText value="#{documentViewerBean.fileName}"/>
             </h:outputLink>
           </div>
 
@@ -162,12 +162,12 @@
              attempting to force a browser render that would usually just
              prompt a download or show a blank frame anyway. -->
         <div class="dv-no-preview" jsf:rendered="#{!documentViewerBean.isPreviewable() and !documentViewerBean.isOfficeFormat()}">
-          <i class="pi pi-file-o dv-no-preview-icon"/>
+          <i class="pi pi-file-o dv-no-preview-icon"></i>
           <div class="dv-no-preview-title">Preview not available for this file type</div>
           <div class="dv-no-preview-sub"><h:outputText value="#{documentViewerBean.type}"/> files can't be rendered in the browser.</div>
           <h:outputLink styleClass="dv-no-preview-download-btn"
                         value="#{facesContext.externalContext.requestContextPath}/api/v1/pipeline/document-viewer/#{documentViewerBean.fileUploadId}/download">
-            <i class="pi pi-download"/> Download <h:outputText value="#{documentViewerBean.fileName}"/>
+            <i class="pi pi-download"></i> Download <h:outputText value="#{documentViewerBean.fileName}"/>
           </h:outputLink>
         </div>
 
@@ -193,12 +193,12 @@
                label the dashboard table already computed instead of a
                broken/empty "record details" section. -->
           <div class="dv-record-unlinked" jsf:rendered="#{!documentViewerBean.isRecordLinked()}">
-            <i class="pi pi-info-circle"/>
+            <i class="pi pi-info-circle"></i>
             <span>Not yet linked to a record. (<h:outputText value="#{documentViewerBean.record}"/>)</span>
           </div>
 
           <div class="dv-warning-box" jsf:rendered="#{documentViewerBean.isRecordLinked() and documentViewerBean.recordDetailError != null}">
-            <i class="pi pi-exclamation-triangle"/>
+            <i class="pi pi-exclamation-triangle"></i>
             <span><h:outputText value="#{documentViewerBean.recordDetailError}"/></span>
           </div>
 
@@ -236,6 +236,28 @@
             </div>
           </p:fragment>
 
+        </div>
+
+        <!-- ADDED 2026-10-12 - the terms applied to this record from reviewed extractions. -->
+        <div class="dv-details-section" jsf:rendered="#{documentViewerBean.isRecordLinked()}">
+          <div class="dv-details-section-title">Applied terms</div>
+
+          <div class="dv-warning-box" jsf:rendered="#{documentViewerBean.appliedTermsFailed}">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>Couldn't load the applied terms right now.</span>
+          </div>
+
+          <div class="dv-record-unlinked" jsf:rendered="#{!documentViewerBean.appliedTermsFailed and empty documentViewerBean.appliedTerms}">
+            <i class="pi pi-info-circle"></i>
+            <span>No terms have been applied to this record yet.</span>
+          </div>
+
+          <ui:repeat xmlns:ui="http://java.sun.com/jsf/facelets" var="term" value="#{documentViewerBean.appliedTerms}">
+            <div class="dv-field" title="From package #{term.packageCode}, applied by #{term.appliedBy} on #{term.appliedAtText}">
+              <span class="dv-field-label"><h:outputText value="#{term.label}"/></span>
+              <span class="dv-field-value"><h:outputText value="#{term.value}"/></span>
+            </div>
+          </ui:repeat>
         </div>
 
       </div>

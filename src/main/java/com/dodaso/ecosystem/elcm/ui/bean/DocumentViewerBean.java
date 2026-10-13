@@ -9,7 +9,10 @@ import jakarta.inject.Named;
 
 import com.dodaso.ecosystem.common.dto.DocumentConversionDTO;
 import com.dodaso.ecosystem.elcm.dto.ContractRecordDTO;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractRecordTermsRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractRecordUiService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.DocumentViewerService;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.TermRow;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -81,6 +84,9 @@ public class DocumentViewerBean extends BaseBean {
 
     private final DocumentViewerService documentViewerService;
 
+    /** ADDED 2026-10-12 - reads the terms applied to the linked record (Applied terms section). */
+    private final ContractRecordUiService contractRecordUiService;
+
     private Long fileUploadId;
 
     /**
@@ -121,15 +127,25 @@ public class DocumentViewerBean extends BaseBean {
      * actual file lookup), so there's nothing to pre-fetch for the file
      * side.
      */
+    /** ADDED 2026-10-12 - terms in force on the linked record; empty when none were applied. */
+    private List<TermRow> appliedTerms = List.of();
+
+    /** True when the terms could not be loaded (the section then says so instead of showing none). */
+    private boolean appliedTermsFailed;
+
     public void loadRecordDetail() {
         if (!isRecordLinked()) {
             return;
         }
         try {
             recordDetail = documentViewerService.getRecordDetail(Long.valueOf(recordId));
+            final ContractRecordTermsRow terms = contractRecordUiService.terms(Long.valueOf(recordId), false);
+            appliedTermsFailed = terms == null;
+            appliedTerms = terms == null || terms.getTerms() == null ? List.of() : terms.getTerms();
         } catch (final Exception e) {
             log.error("Failed to load record detail for recordId={}", recordId, e);
             recordDetailError = "Couldn't load this record's details right now.";
+            appliedTermsFailed = true;
         }
     }
 
