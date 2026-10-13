@@ -107,6 +107,22 @@ public class ExtractionBean implements Serializable {
         }
     }
 
+    /** Fields that have a value but are not confirmed: Apply will not write them. */
+    public int getApplyUnconfirmedCount() {
+        if (results == null) {
+            return 0;
+        }
+        int count = 0;
+        for (final ExtractionResultsRow.DocumentResult doc : results.getDocuments()) {
+            for (final ExtractionResultsRow.FieldRow f : doc.getFields()) {
+                if (!f.isVerified() && !f.getShownValue().isBlank()) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
     /** True when the open package has no target contract record and the reviewer must choose one. */
     public boolean isApplyNeedsTarget() {
         return extractionPackage != null && "Unassigned".equals(extractionPackage.getTargetRecord());

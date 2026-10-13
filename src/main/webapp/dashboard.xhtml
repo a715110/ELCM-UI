@@ -781,8 +781,13 @@
             <li>Your corrected value is used where you changed one, otherwise the extracted value.</li>
             <li>A value that differs from the one on the record replaces it. The earlier value is kept as history.</li>
             <li>The lessor is linked to the record as its counterparty, and created if it does not exist yet.</li>
-            <li>Fields without a value are skipped.</li>
+            <li>Only confirmed fields with a value are written. The others are skipped and listed afterwards.</li>
           </ul>
+          <h:panelGroup layout="block" rendered="#{extractionBean.applyUnconfirmedCount gt 0}"
+                        style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
+            <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
+            <h:outputText value="#{extractionBean.applyUnconfirmedCount} field(s) have a value but are not confirmed and will not be written. Reopen the review to confirm them."/>
+          </h:panelGroup>
           <p style="margin: 0; color: #6b7280;">After this the package is read only and cannot be applied again.</p>
         </h:panelGroup>
         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
