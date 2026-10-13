@@ -1,0 +1,143 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                template="/WEB-INF/template.xhtml">
+  <!--
+      ADDED 2026-10-12 - Contract Records screen: the records, and for one record the terms that were
+      applied to it from reviewed extractions (source package, who applied, when). Read only.
+  -->
+  <ui:define name="title">Contract Records</ui:define>
+
+  <ui:define name="head">
+    <style>
+      .cr-card { background: #FFFFFF; border: 1px solid #E5E2D9; border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0; }
+      .cr-card h2 { font-size: 1.15rem; margin: 0 0 0.25rem 0; }
+      .cr-sub { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+      .cr-search { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1rem; }
+      .cr-search input { width: 22rem; max-width: 100%; }
+      .cr-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+      .cr-facts { display: flex; flex-wrap: wrap; gap: 0.4rem 2rem; margin: 0.5rem 0 1rem 0; font-size: 0.9rem; }
+      .cr-facts span.k { color: #6B6A63; margin-right: 0.35rem; }
+      .cr-old td { color: #8B8A82; background: #FAF9F6; }
+      .cr-note { color: #6B6A63; font-size: 0.85rem; margin-top: 0.5rem; }
+      .cr-warn { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+    </style>
+  </ui:define>
+
+  <ui:define name="content">
+    <h1>Contract Records</h1>
+    <p class="cr-sub">Contract records and the terms applied to them from reviewed extractions.</p>
+
+    <div class="cr-card">
+      <h2>Records (#{contractRecordsBean.records.size()})</h2>
+      <h:form id="recordsForm">
+        <div class="cr-search">
+          <p:inputText id="recordQuery" value="#{contractRecordsBean.query}"
+                       placeholder="Search by record, counterparty, workspace or type"
+                       onkeypress="if (event.keyCode === 13) { event.preventDefault(); PF('recordSearchBtn').jq.click(); }"/>
+          <p:commandButton widgetVar="recordSearchBtn" value="Search" icon="pi pi-search"
+                           process="@form" update="@form :detailCard"
+                           actionListener="#{contractRecordsBean.search}"/>
+        </div>
+        <h:panelGroup layout="block" styleClass="cr-warn" rendered="#{contractRecordsBean.loadFailed}">
+          <h:outputText value="The records could not be loaded. Try again in a moment."/>
+        </h:panelGroup>
+        <p:dataTable id="recordsTable" var="r" value="#{contractRecordsBean.records}" rowKey="#{r.id}"
+                     paginator="true" rows="15" paginatorPosition="bottom"
+                     emptyMessage="No contract records.">
+          <p:column headerText="Record" sortBy="#{r.recordCode}">
+            <h:outputText value="#{r.recordCode}"/>
+          </p:column>
+          <p:column headerText="Counterparty" sortBy="#{r.counterparty}">
+            <h:outputText value="#{r.counterparty}"/>
+          </p:column>
+          <p:column headerText="Type" sortBy="#{r.contractType}">
+            <h:outputText value="#{r.contractType}"/>
+          </p:column>
+          <p:column headerText="Workspace" sortBy="#{r.workspace}">
+            <h:outputText value="#{r.workspace}"/>
+          </p:column>
+          <p:column headerText="Status" sortBy="#{r.status}">
+            <p:tag value="#{r.status}" severity="info"/>
+          </p:column>
+          <p:column headerText="Applied terms" sortBy="#{r.termCount}">
+            <h:outputText value="#{r.termCount}"/>
+          </p:column>
+          <p:column headerText="Last applied" sortBy="#{r.lastAppliedAt}">
+            <h:outputText value="#{r.lastAppliedText}"/>
+          </p:column>
+          <p:column headerText="" style="width:4rem" exportable="false">
+            <p:commandButton icon="pi pi-eye" styleClass="rounded-button ui-button-text" title="Show applied terms"
+                             process="@this" update=":detailCard"
+                             actionListener="#{contractRecordsBean.select(r)}"
+                             oncomplete="window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});"/>
+          </p:column>
+        </p:dataTable>
+      </h:form>
+    </div>
+
+    <h:panelGroup id="detailCard" layout="block">
+      <h:panelGroup layout="block" styleClass="cr-card" rendered="#{contractRecordsBean.selected != null}">
+        <h:form id="detailForm">
+          <div class="cr-head">
+            <div>
+              <h2>Applied terms: <h:outputText value="#{contractRecordsBean.selected.recordCode}"/></h2>
+              <div class="cr-sub">Values applied from reviewed extractions. A newer Apply replaces an older value; the older one is kept.</div>
+            </div>
+            <p:commandButton value="Close" icon="pi pi-times" styleClass="ui-button-flat"
+                             process="@this" update=":detailCard"
+                             actionListener="#{contractRecordsBean.close}"/>
+          </div>
+          <div class="cr-facts">
+            <span><span class="k">Counterparty</span><h:outputText value="#{contractRecordsBean.selected.counterparty}"/></span>
+            <span><span class="k">Type</span><h:outputText value="#{contractRecordsBean.selected.contractType}"/></span>
+            <span><span class="k">Workspace</span><h:outputText value="#{contractRecordsBean.selected.workspace}"/></span>
+            <span><span class="k">Status</span><h:outputText value="#{contractRecordsBean.selected.status}"/></span>
+            <span><span class="k">Last applied</span><h:outputText value="#{contractRecordsBean.selected.lastAppliedText}"/></span>
+          </div>
+
+          <h:panelGroup layout="block" styleClass="cr-warn" rendered="#{contractRecordsBean.termsFailed}">
+            <h:outputText value="The terms could not be loaded. Try again in a moment."/>
+          </h:panelGroup>
+
+          <div style="margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+            <p:toggleSwitch value="#{contractRecordsBean.showHistory}">
+              <p:ajax process="@this" update="termsTable" listener="#{contractRecordsBean.reloadTerms}"/>
+            </p:toggleSwitch>
+            <h:outputText value="Show previous values"/>
+          </div>
+
+          <p:dataTable id="termsTable" var="t" value="#{contractRecordsBean.terms}" rowKey="#{t.id}"
+                       rowStyleClass="#{t.current ? '' : 'cr-old'}"
+                       emptyMessage="No terms have been applied to this record yet.">
+            <p:column headerText="Term">
+              <h:outputText value="#{t.label}"/>
+            </p:column>
+            <p:column headerText="Value">
+              <h:outputText value="#{t.value}" style="font-weight: 600;"/>
+            </p:column>
+            <p:column headerText="State" style="width:7rem">
+              <p:tag value="#{t.current ? 'Current' : 'Replaced'}" severity="#{t.current ? 'success' : 'secondary'}"/>
+            </p:column>
+            <p:column headerText="Source package">
+              <h:outputText value="#{t.packageCode}"/>
+              <h:outputText value=" (corrected by reviewer)" rendered="#{t.corrected}" style="color:#6B6A63; font-size:0.8rem;"/>
+            </p:column>
+            <p:column headerText="Applied by">
+              <h:outputText value="#{t.appliedBy}"/>
+            </p:column>
+            <p:column headerText="Applied at">
+              <h:outputText value="#{t.appliedAtText}"/>
+            </p:column>
+            <p:column headerText="Replaced at" rendered="#{contractRecordsBean.showHistory}">
+              <h:outputText value="#{t.supersededAtText}"/>
+            </p:column>
+          </p:dataTable>
+          <div class="cr-note">Times are UTC. Edits made during review are in the field history of the source package.</div>
+        </h:form>
+      </h:panelGroup>
+    </h:panelGroup>
+  </ui:define>
+</ui:composition>

@@ -55,28 +55,32 @@
                             class="layout-profile-name">Jordi Santiago</span> <span
                             class="layout-profile-mail">jordi@primetek.com.tr</span>
 						</span>
-					</span> <i class="layout-profile-icon pi pi-chevron-down"/>
+					</span> <i class="layout-profile-icon pi pi-chevron-down"></i>
                     </a>
                     <ul class="layout-profile-menu">
-                        <li><a href="#"> <i class="pi pi-user"/> <span>Profile</span>
+                        <li><a href="#"> <i class="pi pi-user"></i> <span>Profile</span>
                         </a></li>
-                        <li><a href="#"> <i class="pi pi-cog"/> <span>Settings</span>
+                        <li><a href="#"> <i class="pi pi-cog"></i> <span>Settings</span>
                         </a></li>
-                        <li><a href="#"> <i class="pi pi-envelope"/> <span>Messages</span>
+                        <li><a href="#"> <i class="pi pi-envelope"></i> <span>Messages</span>
                         </a></li>
-                        <li><a href="#"> <i class="pi pi-bell"/> <span>Notifications</span>
+                        <li><a href="#"> <i class="pi pi-bell"></i> <span>Notifications</span>
                         </a></li>
                         <li><a href="#{request.contextPath}/logout"
-                               onclick="if (window.sessionManager &amp;&amp; window.sessionManager.confirmLogout) { window.sessionManager.confirmLogout(); return false; } return window.confirm('Are you sure you want to log out?');"> <i class="pi pi-sign-out"/> <span>Logout</span>
+                               onclick="if (window.sessionManager &amp;&amp; window.sessionManager.confirmLogout) { window.sessionManager.confirmLogout(); return false; } return window.confirm('Are you sure you want to log out?');"> <i class="pi pi-sign-out"></i> <span>Logout</span>
                         </a></li>
                     </ul>
                 </div>
             </ui:fragment>
             <h:form id="menuform">
                 <pr:menu widgetVar="RainMenuWidget">
-                    <p:submenu id="om_homepage" label="Favorites" icon="pi pi-home">
+                    <p:submenu id="om_homepage" label="Favorites">
                         <p:menuitem id="dashboard" value="Dashboard"
-                                    outcome="/dashboard" styleClass="menu-icon menu-icon-dashboard">
+                                    outcome="/dashboard" icon="pi pi-home">
+                            <f:param name="Source" value="Menu"/>
+                        </p:menuitem>
+                        <p:menuitem id="contractRecords" value="Contract Records"
+                                    outcome="/contractrecords" icon="pi pi-folder">
                             <f:param name="Source" value="Menu"/>
                         </p:menuitem>
                     </p:submenu>
