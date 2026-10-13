@@ -472,6 +472,11 @@
           <h:outputText rendered="#{contractPackagesBean.unsubmitMode}"
                         value=" will go back to a draft. This works only while the submission has not been picked up."/>
         </p>
+        <h:panelGroup layout="block" rendered="#{contractPackagesBean.submitWarning != null}"
+                      style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
+          <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
+          <h:outputText value="#{contractPackagesBean.submitWarning}"/>
+        </h:panelGroup>
         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
           <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
                            onclick="PF('packageSubmitDialog').hide();"/>

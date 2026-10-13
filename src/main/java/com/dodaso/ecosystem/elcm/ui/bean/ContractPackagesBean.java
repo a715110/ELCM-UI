@@ -67,6 +67,9 @@ public class ContractPackagesBean implements Serializable {
     private ContractPackageRow submitPackage;
     private boolean unsubmitMode;
 
+    /** Shown in the submit dialog when some documents have no extraction template; null when all are covered. */
+    private String submitWarning;
+
     @PostConstruct
     void init() {
         contractPackages = contractPackageService.findPackages();
@@ -121,6 +124,14 @@ public class ContractPackagesBean implements Serializable {
     public void prepareSubmit(final ContractPackageRow row, final boolean unsubmit) {
         submitPackage = row;
         unsubmitMode = unsubmit;
+        submitWarning = null;
+        if (!unsubmit && row != null) {
+            final List<String> names = extractionUiService.documentsWithoutTemplate(row.getId());
+            if (!names.isEmpty()) {
+                submitWarning = "No extraction template exists for " + String.join(", ", names)
+                    + ". Those documents will not be read; the others will.";
+            }
+        }
     }
 
     /** Confirm clicked in the submit or unsubmit dialog. The dialog always closes; the table is reloaded. */

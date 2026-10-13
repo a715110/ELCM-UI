@@ -90,6 +90,7 @@ public class ExtractionStatusRow implements Serializable {
                 case "COMPLETED" -> "success";
                 case "RUNNING" -> "warn";
                 case "FAILED" -> "danger";
+                case "SKIPPED" -> "secondary";
                 default -> "info";
             };
         }

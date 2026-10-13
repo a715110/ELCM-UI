@@ -52,6 +52,21 @@ public class ExtractionUiService {
         }
     }
 
+    /** File names of the package's documents that have no extraction template; empty when all are covered or unknown. */
+    public java.util.List<String> documentsWithoutTemplate(final Long packageId) {
+        try {
+            final Map<String, java.util.List<String>> answer = restServiceClient.get(SERVICE,
+                BASE + "/" + packageId + "/extraction/coverage",
+                new ParameterizedTypeReference<Map<String, java.util.List<String>>>() {
+                });
+            final java.util.List<String> names = answer == null ? null : answer.get("withoutTemplate");
+            return names == null ? java.util.List.of() : names;
+        } catch (final Exception e) {
+            log.error("Failed to check the extraction coverage of package {}", packageId, e);
+            return java.util.List.of();
+        }
+    }
+
     /** The history of one field; null when it could not be loaded. */
     public FieldHistoryRow history(final Long packageId, final Long resultId) {
         try {
