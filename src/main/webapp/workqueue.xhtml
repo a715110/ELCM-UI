@@ -1,0 +1,108 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                template="/WEB-INF/template.xhtml">
+  <!--
+    ADDED 2026-10-14 - Work Queue: the submitted packages across workspaces, split by stage, so a
+    reviewer or approver sees what is waiting without opening each package. Read only; the
+    Review / Approve button opens the package on the Dashboard with its review dialog already open.
+  -->
+  <ui:define name="title">Work Queue</ui:define>
+
+  <ui:define name="head">
+    <style>
+      .wq-card { background: #FFFFFF; border: 1px solid #E5E2D9; border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0; }
+      .wq-sub { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+      .wq-filters { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: center; margin: 1rem 0; }
+      .wq-filters input[type=text] { width: 18rem; max-width: 100%; }
+      .wq-switch { display: flex; align-items: center; gap: 0.5rem; }
+      .wq-warn { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+      .wq-note { color: #6B6A63; font-size: 0.85rem; margin-top: 0.5rem; }
+      .wq-mine td { background: #F3F8F4; }
+    </style>
+  </ui:define>
+
+  <ui:define name="content">
+    <h1>Work Queue</h1>
+    <p class="wq-sub">Submitted packages by stage. Reviewers work from Ready for review, approvers from Awaiting approval.</p>
+
+    <div class="wq-card">
+      <h:form id="queueForm">
+        <p:selectOneButton id="stageTabs" value="#{workQueueBean.tab}">
+          <f:selectItems value="#{workQueueBean.tabItems}"/>
+          <p:ajax process="@this" update="queueTable stageTabs"/>
+        </p:selectOneButton>
+
+        <div class="wq-filters">
+          <span class="wq-switch">
+            <p:toggleSwitch value="#{workQueueBean.mineOnly}">
+              <p:ajax process="@this" update="queueTable stageTabs"/>
+            </p:toggleSwitch>
+            <h:outputText value="Assigned to me"/>
+          </span>
+          <p:selectOneMenu id="workspaceFilter" value="#{workQueueBean.workspace}">
+            <f:selectItem itemLabel="All workspaces" itemValue=""/>
+            <f:selectItems value="#{workQueueBean.workspaces}"/>
+            <p:ajax process="@this" update="queueTable stageTabs"/>
+          </p:selectOneMenu>
+          <p:inputText id="queueQuery" value="#{workQueueBean.query}"
+                       placeholder="Search package, record, assignee or submitter"
+                       onkeypress="if (event.keyCode === 13) { event.preventDefault(); PF('queueSearchBtn').jq.click(); }"/>
+          <p:commandButton widgetVar="queueSearchBtn" value="Search" icon="pi pi-search"
+                           process="@form" update="queueTable stageTabs"/>
+          <p:commandButton value="Refresh" icon="pi pi-refresh" styleClass="ui-button-flat"
+                           process="@this" update="queueTable stageTabs"
+                           actionListener="#{workQueueBean.refresh}"/>
+        </div>
+
+        <h:panelGroup layout="block" styleClass="wq-warn" rendered="#{workQueueBean.loadFailed}">
+          <h:outputText value="The work queue could not be loaded. Try Refresh in a moment."/>
+        </h:panelGroup>
+
+        <p:dataTable id="queueTable" var="r" value="#{workQueueBean.rows}" rowKey="#{r.packageId}"
+                     rowStyleClass="#{workQueueBean.isMine(r) ? 'wq-mine' : ''}"
+                     paginator="true" rows="15" paginatorPosition="bottom"
+                     emptyMessage="Nothing in this stage.">
+          <p:column headerText="Package" sortBy="#{r.packageCode}">
+            <h:outputText value="#{r.packageCode}" style="font-weight: 600;"/>
+          </p:column>
+          <p:column headerText="Contract record" sortBy="#{r.targetRecord}">
+            <h:outputText value="#{r.targetRecord}"/>
+          </p:column>
+          <p:column headerText="Workspace" sortBy="#{r.workspace}">
+            <h:outputText value="#{r.workspace}"/>
+          </p:column>
+          <p:column headerText="Docs" sortBy="#{r.docCount}" style="width:4.5rem">
+            <h:outputText value="#{r.docCount}"/>
+          </p:column>
+          <p:column headerText="Stage" sortBy="#{r.stageLabel}">
+            <p:tag value="#{r.stageLabel}"
+                   severity="#{r.stageCode == 'FAILED' ? 'danger' : (r.stageCode == 'APPLIED' ? 'success' : (r.stageCode == 'EXTRACTING' ? 'secondary' : 'warning'))}"/>
+          </p:column>
+          <p:column headerText="Assignee" sortBy="#{r.assignee}">
+            <h:outputText value="#{r.assignee}"/>
+          </p:column>
+          <p:column headerText="Submitted by" sortBy="#{r.submittedBy}">
+            <h:outputText value="#{r.submittedBy}"/>
+          </p:column>
+          <p:column headerText="Reviewed by" sortBy="#{r.reviewedBy}">
+            <h:outputText value="#{r.reviewedBy}"/>
+          </p:column>
+          <p:column headerText="In this stage since (UTC)" sortBy="#{r.since}">
+            <h:outputText value="#{r.sinceText}"/>
+          </p:column>
+          <p:column headerText="" style="width:8rem" exportable="false">
+            <p:button value="#{workQueueBean.actionLabel(r)}" outcome="/dashboard"
+                      icon="pi pi-arrow-right" styleClass="ui-button-outlined">
+              <f:param name="review" value="#{r.packageId}"/>
+              <f:param name="Source" value="WorkQueue"/>
+            </p:button>
+          </p:column>
+        </p:dataTable>
+        <div class="wq-note">Rows shaded green are assigned to you. The button opens the package on the Dashboard.</div>
+      </h:form>
+    </div>
+  </ui:define>
+</ui:composition>
