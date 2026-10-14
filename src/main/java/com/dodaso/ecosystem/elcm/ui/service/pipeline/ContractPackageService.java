@@ -102,6 +102,18 @@ public class ContractPackageService {
         return post(BASE + "/" + packageId + "/unsubmit", new HashMap<String, Object>(), "unsubmit package " + packageId);
     }
 
+    /**
+     * Sets the role of one document in a package; a blank code means not defined yet. INVALID is an
+     * unknown role (400), CONFLICT a completed package (409), NOT_FOUND an unknown package or
+     * document.
+     */
+    public PackageOutcome setDocumentRole(final Long packageId, final Long stagedDocumentId, final String roleCode) {
+        final Map<String, Object> body = new HashMap<>();
+        body.put("roleCode", roleCode == null ? "" : roleCode);
+        return post(BASE + "/" + packageId + "/documents/" + stagedDocumentId + "/role", body,
+            "set the role of document " + stagedDocumentId + " in package " + packageId);
+    }
+
     /** Changes the assignee of a draft package (IAMS login id). */
     public PackageOutcome reassign(final Long packageId, final String assigneeLoginId) {
         final Map<String, Object> body = new HashMap<>();
@@ -141,6 +153,7 @@ public class ContractPackageService {
         final int status = e.getStatusCode().value();
         log.warn("elcm-service refused to {}: HTTP {}", what, status);
         return switch (status) {
+            case 403 -> PackageOutcome.FORBIDDEN;
             case 404 -> PackageOutcome.NOT_FOUND;
             case 409 -> PackageOutcome.CONFLICT;
             case 422 -> PackageOutcome.WORKSPACE_MISMATCH;

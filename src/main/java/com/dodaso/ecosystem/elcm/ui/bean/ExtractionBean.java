@@ -2,6 +2,8 @@ package com.dodaso.ecosystem.elcm.ui.bean;
 
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractPackageRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractPackageService;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.DocumentRoleOptionRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.PackageDocumentRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ApplyResultRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionResultsRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionStatusRow;
@@ -17,7 +19,9 @@ import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Named;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -68,6 +72,17 @@ public class ExtractionBean implements Serializable {
   private List<TargetCandidateRow> applyCandidates = new ArrayList<>();
 
   /**
+   * Role code per document (staged document id), read when the results are loaded. "UNDEFINED" or
+   * blank means not set yet. The dropdown under each file name edits this map.
+   */
+  private Map<Long, String> roleByDocument = new HashMap<>();
+
+  /**
+   * The roles a document can be given (without "not defined yet", which the page adds).
+   */
+  private List<DocumentRoleOptionRow> roleOptions = new ArrayList<>();
+
+  /**
    * Why the approver sent the review back, newest first; empty when it never was.
    */
   private List<SendBackRow> sendBacks = new ArrayList<>();
@@ -93,6 +108,7 @@ public class ExtractionBean implements Serializable {
     results = null;
     access = null;
     sendBacks = new ArrayList<>();
+    roleByDocument = new HashMap<>();
     load();
   }
 
@@ -472,6 +488,8 @@ public class ExtractionBean implements Serializable {
           add(FacesMessage.SEVERITY_INFO, "Review completed", extractionPackage.getPackageCode());
       case WORKSPACE_MISMATCH -> add(FacesMessage.SEVERITY_WARN, "Not ready",
           "Confirm every critical field and every field marked Review first.");
+      case INVALID -> add(FacesMessage.SEVERITY_WARN, "Not ready",
+          "Every document needs a role. Set it under the file name.");
       case CONFLICT -> add(FacesMessage.SEVERITY_WARN, "Cannot complete",
           "The review was already completed or the extraction is not finished.");
       case NOT_FOUND ->
@@ -580,6 +598,7 @@ public class ExtractionBean implements Serializable {
     access = null;
     history = null;
     sendBacks = new ArrayList<>();
+    roleByDocument = new HashMap<>();
     loadFailed = false;
   }
 
@@ -596,7 +615,63 @@ public class ExtractionBean implements Serializable {
       }
       if ((fresh.isDone() || fresh.isReviewed() || fresh.isApplied()) && results == null) {
         results = extractionUiService.results(extractionPackage.getId());
+        loadRoles();
       }
+    }
+  }
+
+  private void loadRoles() {
+    roleByDocument = new HashMap<>();
+    for (final PackageDocumentRow d :
+        contractPackageService.findPackageDocuments(extractionPackage.getId())) {
+      roleByDocument.put(d.getStagedDocumentId(), d.getRoleCode());
+    }
+    roleOptions = new ArrayList<>();
+    for (final DocumentRoleOptionRow option : contractPackageService.findDocumentRoles()) {
+      if (!"UNDEFINED".equals(option.getCode())) {
+        roleOptions.add(option);
+      }
+    }
+  }
+
+  /**
+   * Documents of the package that have no role yet; Complete review needs this to be zero.
+   */
+  public int getUndefinedRoleCount() {
+    int count = 0;
+    for (final String code : roleByDocument.values()) {
+      if (code == null || code.isBlank() || "UNDEFINED".equals(code)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
+   * The role dropdown under a file name changed (the map already holds the new code): save it.
+   */
+  public void saveRole(final Long stagedDocumentId) {
+    if (extractionPackage == null || stagedDocumentId == null) {
+      return;
+    }
+    final PackageOutcome outcome = contractPackageService.setDocumentRole(
+        extractionPackage.getId(), stagedDocumentId, roleByDocument.get(stagedDocumentId));
+    switch (outcome) {
+      case OK -> {
+        // nothing to say; the dropdown shows the new value
+      }
+      case CONFLICT -> add(FacesMessage.SEVERITY_WARN, "Cannot change the role",
+          "The package is completed.");
+      case INVALID ->
+          add(FacesMessage.SEVERITY_WARN, "Role not accepted", "That role is not available.");
+      case FORBIDDEN -> add(FacesMessage.SEVERITY_WARN, "No permission",
+          "Setting a role needs the submitter or reviewer role.");
+      case NOT_FOUND -> add(FacesMessage.SEVERITY_WARN, "Not available",
+          "The package or the document no longer exists.");
+      default -> add(FacesMessage.SEVERITY_ERROR, "Role not saved", "Please try again.");
+    }
+    if (outcome != PackageOutcome.OK) {
+      loadRoles();
     }
   }
 

@@ -487,8 +487,21 @@
                     <p:column headerText="File Name">
                         <h:outputText value="#{pd.fileName}"/>
                     </p:column>
-                    <p:column headerText="Role">
-                        <h:outputText value="#{pd.roleLabel}"/>
+                    <p:column headerText="Role" style="width: 15rem;">
+                        <!-- CHANGED 2026-10-14 - roles are optional at submit, so the role can be set
+                             here until the package is completed. -->
+                        <h:outputText value="#{pd.roleLabel}"
+                                      rendered="#{not contractPackagesBean.openPackageClassifiable}"/>
+                        <p:selectOneMenu value="#{pd.roleCode}" style="width: 100%;"
+                                         rendered="#{contractPackagesBean.openPackageClassifiable}"
+                                         disabled="#{demoRoleBean.readOnly('Contract Packages')}">
+                            <f:selectItem itemLabel="Not defined yet" itemValue="UNDEFINED"/>
+                            <f:selectItems value="#{contractPackagesBean.roleOptions}" var="ro"
+                                           itemValue="#{ro.code}" itemLabel="#{ro.label}"/>
+                            <p:ajax process="@this" update=":stageDocumentsGrowl"
+                                    listener="#{contractPackagesBean.saveRole(pd)}"
+                                    oncomplete="refreshContractPackages();"/>
+                        </p:selectOneMenu>
                     </p:column>
                     <p:column headerText="Target Record">
                         <h:outputText value="#{pd.targetRecord}"/>
@@ -708,6 +721,8 @@
                             <h:panelGroup rendered="#{extractionBean.editable}">
                                 <h:outputText
                                         value="#{extractionBean.openCount} field(s) still to confirm (critical fields and fields marked Review). "/>
+                                <h:outputText rendered="#{extractionBean.undefinedRoleCount gt 0}"
+                                              value="#{extractionBean.undefinedRoleCount} document(s) still need a role (set it under the file name). "/>
                                 <p:commandButton value="Confirm all extractor-verified fields"
                                                  icon="pi pi-check-circle"
                                                  styleClass="ui-button-secondary"
@@ -717,7 +732,7 @@
                                                  update=":extractionForm:extractionPanel :stageDocumentsGrowl"
                                                  actionListener="#{extractionBean.confirmAll}"/>
                                 <p:commandButton value="Complete review" icon="pi pi-check"
-                                                 disabled="#{demoRoleBean.readOnly('Contract Packages') or extractionBean.openCount gt 0}"
+                                                 disabled="#{demoRoleBean.readOnly('Contract Packages') or extractionBean.openCount gt 0 or extractionBean.undefinedRoleCount gt 0}"
                                                  process="@this"
                                                  update=":extractionForm:extractionPanel :stageDocumentsGrowl"
                                                  actionListener="#{extractionBean.completeReview}"
@@ -784,6 +799,21 @@
                                 <h:outputText value="  (#{doc.needsReviewCount} to review)"
                                               style="font-weight: normal;"/>
                             </h4>
+                            <!-- ADDED 2026-10-14 - the role of the document, set here because roles are
+                                 optional at submit. Complete review needs every role to be set. -->
+                            <div style="margin: 0 0 0.5rem 0; display: flex; align-items: center; gap: 0.5rem;">
+                                <h:outputText value="Role" style="color: #6b7280;"/>
+                                <p:selectOneMenu value="#{extractionBean.roleByDocument[doc.stagedDocumentId]}"
+                                                 style="min-width: 14rem;"
+                                                 disabled="#{not extractionBean.editable or demoRoleBean.readOnly('Contract Packages')}">
+                                    <f:selectItem itemLabel="Not defined yet" itemValue="UNDEFINED"/>
+                                    <f:selectItems value="#{extractionBean.roleOptions}" var="ro"
+                                                   itemValue="#{ro.code}" itemLabel="#{ro.label}"/>
+                                    <p:ajax process="@this"
+                                            update=":extractionForm:extractionReviewSummary :stageDocumentsGrowl"
+                                            listener="#{extractionBean.saveRole(doc.stagedDocumentId)}"/>
+                                </p:selectOneMenu>
+                            </div>
                             <p:dataTable var="f" value="#{doc.fields}"
                                          emptyMessage="No values were extracted."
                                          tableStyle="table-layout: auto; width: 100%;">

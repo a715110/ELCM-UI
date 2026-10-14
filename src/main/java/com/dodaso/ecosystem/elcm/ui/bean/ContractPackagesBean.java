@@ -5,6 +5,7 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionUiService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.AssignableUserOptionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractPackageRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractPackageService;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.DocumentRoleOptionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.PackageDocumentRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.PackageOutcome;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.UploadFilesService;
@@ -54,6 +55,12 @@ public class ContractPackagesBean implements Serializable {
    * Why a reviewer sent the open package back to Assembly; null when it was not declined.
    */
   private String openDeclineNotice;
+
+  /**
+   * The roles a document can be given, for the dropdown in the Open dialog (without the "not defined
+   * yet" entry, which the page adds).
+   */
+  private List<DocumentRoleOptionRow> roleOptions = new ArrayList<>();
 
   /**
    * Documents of the package shown in the Open dialog.
@@ -175,11 +182,54 @@ public class ContractPackagesBean implements Serializable {
     openDocuments =
         row != null ? contractPackageService.findPackageDocuments(row.getId()) : List.of();
     openDeclineNotice = null;
+    roleOptions = new ArrayList<>();
+    for (final DocumentRoleOptionRow option : contractPackageService.findDocumentRoles()) {
+      if (!"UNDEFINED".equals(option.getCode())) {
+        roleOptions.add(option);
+      }
+    }
     if (row != null && "ASSEMBLY".equals(row.getStatusCode())) {
       final ExtractionStatusRow ex = extractionUiService.status(row.getId());
       if (ex != null && ex.isDeclined()) {
         openDeclineNotice = ex.getMessage();
       }
+    }
+  }
+
+  /**
+   * True while the open package can still be classified: before it is completed (applied).
+   */
+  public boolean isOpenPackageClassifiable() {
+    return openPackage != null && !"COMPLETED".equals(openPackage.getStatusCode());
+  }
+
+  /**
+   * The role dropdown of a document in the Open dialog changed: the row already holds the new code;
+   * save it, then refresh the package list so the roles count follows.
+   */
+  public void saveRole(final PackageDocumentRow doc) {
+    if (openPackage == null || doc == null) {
+      return;
+    }
+    final PackageOutcome outcome = contractPackageService.setDocumentRole(openPackage.getId(),
+        doc.getStagedDocumentId(), doc.getRoleCode());
+    switch (outcome) {
+      case OK -> {
+        // nothing to say; the dropdown shows the new value
+      }
+      case CONFLICT -> addMessage(FacesMessage.SEVERITY_WARN, "Cannot change the role",
+          "The package is completed.");
+      case INVALID -> addMessage(FacesMessage.SEVERITY_WARN, "Role not accepted",
+          "That role is not available.");
+      case NOT_FOUND -> addMessage(FacesMessage.SEVERITY_WARN, "Not available",
+          "The package or the document no longer exists.");
+      case FORBIDDEN -> addMessage(FacesMessage.SEVERITY_WARN, "No permission",
+          "Setting a role needs the submitter or reviewer role.");
+      default -> addMessage(FacesMessage.SEVERITY_ERROR, "Role not saved", "Please try again.");
+    }
+    reload();
+    if (outcome != PackageOutcome.OK) {
+      openDocuments = contractPackageService.findPackageDocuments(openPackage.getId());
     }
   }
 
@@ -191,13 +241,12 @@ public class ContractPackagesBean implements Serializable {
   }
 
   /**
-   * A package is ready to submit: a draft with documents, an assignee and a role on every
-   * document.
+   * A package is ready to submit: a draft with documents and an assignee. Roles are optional here
+   * (changed 2026-10-14); they must be set before the review is completed.
    */
   public boolean isReady(final ContractPackageRow row) {
     return row != null && "ASSEMBLY".equals(row.getStatusCode()) && row.getDocCount() > 0
-        && row.getAssigneeLoginId() != null && !row.getAssigneeLoginId().isBlank()
-        && row.getRolesAssigned() == row.getDocCount();
+        && row.getAssigneeLoginId() != null && !row.getAssigneeLoginId().isBlank();
   }
 
   /**
@@ -212,9 +261,6 @@ public class ContractPackagesBean implements Serializable {
     }
     if (row.getAssigneeLoginId() == null || row.getAssigneeLoginId().isBlank()) {
       return "Assign the package to someone before submitting";
-    }
-    if (row.getRolesAssigned() != row.getDocCount()) {
-      return "Every document needs a role before submitting";
     }
     return "Submit for Extraction";
   }
@@ -256,7 +302,7 @@ public class ContractPackagesBean implements Serializable {
           unsubmitMode ? "The submission was already picked up or the package is not submitted."
               : "Only a draft package can be submitted.");
       case INVALID -> addMessage(FacesMessage.SEVERITY_WARN, "Not ready",
-          "A package needs at least one document, an assignee and a role on every document.");
+          "A package needs at least one document and an assignee.");
       default -> addMessage(FacesMessage.SEVERITY_ERROR,
           unsubmitMode ? "Unsubmit failed" : "Submit failed", "Please try again.");
     }
