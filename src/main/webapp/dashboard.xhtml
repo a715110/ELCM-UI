@@ -499,7 +499,7 @@
               resizable="false"
               draggable="false"
               closeOnEscape="true"
-              onHide="PF('extractionPoll').stop();"
+              onHide="PF('extractionPoll').stop(); refreshContractPackages();"
               width="88rem"
               style="max-width: 96vw;">
       <h:form id="extractionForm">
@@ -575,7 +575,8 @@
                 <p:commandButton value="Complete review" icon="pi pi-check"
                                  disabled="#{demoRoleBean.readOnly('Contract Packages') or extractionBean.openCount gt 0}"
                                  process="@this" update=":extractionForm:extractionPanel :stageDocumentsGrowl"
-                                 actionListener="#{extractionBean.completeReview}"/>
+                                 actionListener="#{extractionBean.completeReview}"
+                                 oncomplete="refreshContractPackages();"/>
                 <p:commandButton value="Decline" icon="pi pi-undo" styleClass="ui-button-danger ui-button-outlined"
                                  style="margin-left: 0.5rem;"
                                  disabled="#{demoRoleBean.readOnly('Contract Packages')}"
@@ -603,7 +604,8 @@
                                  style="margin-left: 0.5rem;"
                                  disabled="#{demoRoleBean.readOnly('Contract Packages')}"
                                  process="@this" update=":extractionForm:extractionPanel :stageDocumentsGrowl"
-                                 actionListener="#{extractionBean.reopenReview}"/>
+                                 actionListener="#{extractionBean.reopenReview}"
+                                 oncomplete="refreshContractPackages();"/>
               </h:panelGroup>
               <h:panelGroup rendered="#{extractionBean.status.applied}">
                 <p:tag value="Applied" severity="success"/>
@@ -1069,7 +1071,7 @@
                greyed-out state shown there. Assumes stageDocumentsBean
                exposes selectedDocuments as a List that's empty by default
                confirm the getter name if this doesn't compile as-is. -->
-          <p:commandButton id="createSetButton" value="Create Document Set" icon="pi pi-arrow-right" iconPos="right"
+          <p:commandButton id="createSetButton" value="Create Contract Package" icon="pi pi-arrow-right" iconPos="right"
                             disabled="#{empty stageDocumentsBean.selectedDocuments or demoRoleBean.readOnly('Stage Documents')}"
                             process="@form" update=":createDocumentSetForm :stageDocumentsGrowl"
                             actionListener="#{createDocumentSetBean.prepare(stageDocumentsBean.selectedDocuments)}"
@@ -1088,6 +1090,10 @@
       <p class="section-subtitle">Group staged documents into packages, then submit for processing.</p>
 
       <h:form id="contractPackagesForm">
+        <!-- ADDED 2026-10-13 - refreshes the list every 10 seconds while a package is queued or
+             extracting. Once none is, the poll is no longer rendered and stops by itself. -->
+        <p:poll interval="10" listener="#{contractPackagesBean.refresh}" update=":contractPackagesCard"
+                rendered="#{contractPackagesBean.hasActiveStage}"/>
         <p:dataTable id="contractPackagesTable"
                      var="pkg"
                      value="#{contractPackagesBean.contractPackages}"

@@ -109,6 +109,16 @@ public class ContractPackagesBean implements Serializable {
         };
     }
 
+    /** True while any package is still queued or extracting, so the list should keep refreshing by itself. */
+    public boolean isHasActiveStage() {
+        for (final String stage : stageByPackage.values()) {
+            if ("Queued".equals(stage) || "Extracting".equals(stage)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** What the Status column shows: the finer stage while Validated, else the package status. */
     public String statusText(final ContractPackageRow row) {
         final String stage = row == null ? null : stageByPackage.get(row.getId());
