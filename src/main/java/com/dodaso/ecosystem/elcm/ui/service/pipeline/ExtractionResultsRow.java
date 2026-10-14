@@ -23,11 +23,19 @@ public class ExtractionResultsRow implements Serializable {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class DocumentResult implements Serializable {
         private Long stagedDocumentId;
+        private Long fileUploadId;
         private String fileName;
         private String jobStatus;
         private String model;
         private int needsReviewCount;
         private List<FieldRow> fields = new ArrayList<>();
+
+        /** True for a PDF or an image, which the browser can show beside the fields. */
+        public boolean isPreviewable() {
+            return fileName != null
+                && fileName.toLowerCase(java.util.Locale.ROOT)
+                    .matches(".*\\.(pdf|png|jpe?g|gif|bmp|webp)$");
+        }
     }
 
     @Getter

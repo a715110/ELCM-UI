@@ -1,0 +1,88 @@
+/* ============================================================
+   Extraction review: document preview beside the fields (ADDED 2026-10-14).
+   #extractionSplit holds the fields panel and the preview pane side by side.
+   The pane is hidden until a View document button is pressed.
+   ============================================================ */
+
+.ex-split {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.ex-split > .ex-fields {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.ex-preview {
+  display: none;
+  flex: 0 0 44%;
+  min-width: 26rem;
+  flex-direction: column;
+  border: 1px solid #D6D2C7;
+  border-radius: 8px;
+  background: #FDFCFA;
+  overflow: hidden;
+}
+
+.ex-split.ex-preview-open > .ex-preview {
+  display: flex;
+}
+
+.ex-preview-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: #F3F2ED;
+  border-bottom: 1px solid #E5E2D9;
+}
+
+.ex-preview-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.ex-preview-bar a,
+.ex-preview-bar button {
+  flex: 0 0 auto;
+  color: #2563EB;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: none;
+}
+
+.ex-preview-frame {
+  display: block;
+  width: 100%;
+  height: 68vh;
+  border: 0;
+  background: #FFFFFF;
+}
+
+.ex-preview-image {
+  display: block;
+  max-width: 100%;
+  max-height: 68vh;
+  margin: 0 auto;
+}
+
+/* On a narrow screen the preview goes below the fields instead of beside them. */
+@media (max-width: 1100px) {
+  .ex-split {
+    flex-direction: column;
+  }
+  .ex-split > .ex-fields,
+  .ex-preview {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+}

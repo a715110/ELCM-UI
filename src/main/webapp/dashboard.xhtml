@@ -2,6 +2,7 @@
                 xmlns:h="http://java.sun.com/jsf/html"
                 xmlns:ui="http://java.sun.com/jsf/facelets"
                 xmlns:p="http://primefaces.org/ui"
+                xmlns:jsf="http://xmlns.jcp.org/jsf"
                 xmlns:f="http://xmlns.jcp.org/jsf/core"
                 template="/WEB-INF/template.xhtml">
     <!--
@@ -226,6 +227,8 @@
         </style>
         <h:outputStylesheet name="css/upload-files-dialog.css" library="ext"/>
         <h:outputScript name="js/upload-files-dialog.js" library="ext"/>
+        <h:outputStylesheet name="css/extraction-preview.css" library="ext"/>
+        <h:outputScript name="js/extraction-preview.js" library="ext"/>
     </ui:define>
 
     <ui:define name="content">
@@ -635,7 +638,7 @@
                   resizable="false"
                   draggable="false"
                   closeOnEscape="true"
-                  onHide="PF('extractionPoll').stop(); refreshContractPackages();"
+                  onHide="PF('extractionPoll').stop(); hideDocPreview(); refreshContractPackages();"
                   width="88rem"
                   style="max-width: 96vw;">
             <h:form id="extractionForm">
@@ -644,7 +647,11 @@
                         listener="#{extractionBean.poll}" update="extractionPanel"
                         stop="#{not extractionBean.polling}"/>
                 <p:remoteCommand name="reloadExtraction" process="@this" update="extractionPanel"/>
-                <h:panelGroup id="extractionPanel" layout="block"
+                <!-- ADDED 2026-10-14 - fields on the left, the original document on the right once
+                     View document is pressed. The preview pane sits outside extractionPanel so a
+                     poll or a save never reloads the document. -->
+                <div id="extractionSplit" class="ex-split">
+                <h:panelGroup id="extractionPanel" layout="block" styleClass="ex-fields"
                               style="max-height: 68vh; overflow-y: auto; padding-right: 0.5rem;">
                     <p style="margin-top: 0;">
                         <strong><h:outputText
@@ -847,6 +854,16 @@
                                             update=":extractionForm:extractionReviewSummary :stageDocumentsGrowl"
                                             listener="#{extractionBean.saveRole(doc.stagedDocumentId)}"/>
                                 </p:selectOneMenu>
+                                <!-- ADDED 2026-10-14 - shows the original file beside the fields. -->
+                                <button type="button" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-outlined ui-button-sm"
+                                        style="margin-left: 1rem;"
+                                        data-file-upload-id="#{doc.fileUploadId}"
+                                        data-name="#{doc.fileName}"
+                                        data-base="#{request.contextPath}/api/v1/pipeline/document-viewer/"
+                                        onclick="showDocPreview(this);"
+                                        jsf:rendered="#{doc.fileUploadId != null and doc.previewable}">
+                                    <span class="ui-button-text ui-c"><i class="pi pi-eye"></i> View document</span>
+                                </button>
                                 <!-- ADDED 2026-10-14 - have this document read again, with a reason.
                                      The other documents keep their corrections. -->
                                 <p:commandButton value="Re-process" icon="pi pi-refresh"
@@ -919,6 +936,15 @@
                         </ui:repeat>
                     </h:panelGroup>
                 </h:panelGroup>
+                <div class="ex-preview">
+                    <div class="ex-preview-bar">
+                        <span id="extractionPreviewName" class="ex-preview-name"></span>
+                        <a id="extractionPreviewOpen" href="#" target="_blank" rel="noopener">Open in new tab</a>
+                        <button type="button" onclick="hideDocPreview();">Close</button>
+                    </div>
+                    <div id="extractionPreviewBody"></div>
+                </div>
+                </div>
                 <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
                     <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
                                      onclick="PF('extractionDialog').hide();"/>
