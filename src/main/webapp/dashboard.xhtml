@@ -586,6 +586,20 @@
                     <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
                     <h:outputText value="#{contractPackagesBean.submitWarning}"/>
                 </h:panelGroup>
+                <!-- ADDED 2026-10-14 - a package that was declined is submitted again with a note
+                     on what was corrected; the reviewer sees it next to the decline reason. -->
+                <h:panelGroup layout="block"
+                              rendered="#{contractPackagesBean.resubmit and not contractPackagesBean.unsubmitMode}"
+                              style="margin-bottom: 0.75rem;">
+                    <p:outputLabel for="correctionNoteText" value="What did you correct?"/>
+                    <br/>
+                    <p:inputTextarea id="correctionNoteText" value="#{contractPackagesBean.correctionNote}"
+                                     rows="4" maxlength="1000" counter="correctionNoteCounter"
+                                     counterTemplate="{0} characters remaining" style="width: 100%;"/>
+                    <br/>
+                    <h:outputText id="correctionNoteCounter"
+                                  style="color: #6b7280; font-size: 0.85rem;"/>
+                </h:panelGroup>
                 <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
                     <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
                                      onclick="PF('packageSubmitDialog').hide();"/>
@@ -594,7 +608,7 @@
                             icon="pi pi-check"
                             process="@form" update=":stageDocumentsGrowl"
                             actionListener="#{contractPackagesBean.confirmSubmit}"
-                            oncomplete="PF('packageSubmitDialog').hide(); if (args &amp;&amp; args.reload) { refreshStagedDocuments(); }"/>
+                            oncomplete="if (args &amp;&amp; args.keep) { return; } PF('packageSubmitDialog').hide(); if (args &amp;&amp; args.reload) { refreshStagedDocuments(); }"/>
                 </div>
             </h:form>
         </p:dialog>
@@ -696,6 +710,26 @@
 
                     <h:panelGroup layout="block" rendered="#{extractionBean.results != null}"
                                   style="margin-top: 1rem;">
+                        <!-- ADDED 2026-10-14 - the submitter's note when the package was submitted again
+                             after a decline, with the reason it was declined. -->
+                        <h:panelGroup layout="block" rendered="#{extractionBean.resubmitted}"
+                                      style="background: #eff6ff; border: 1px solid #60a5fa; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
+                            <i class="pi pi-refresh" style="margin-right: 0.4rem;"></i>
+                            <strong>Submitted again after a decline.</strong>
+                            <div style="margin-top: 0.4rem;">
+                                <span style="color: #6b7280;">
+                                    <h:outputText value="Correction note by #{extractionBean.resubmission.submittedBy}, #{extractionBean.resubmission.submittedAtText}: "/>
+                                </span>
+                                <h:outputText value="#{extractionBean.resubmission.correctionNote}"/>
+                            </div>
+                            <h:panelGroup layout="block" style="margin-top: 0.25rem;"
+                                          rendered="#{not empty extractionBean.resubmission.previousDeclineReason}">
+                                <span style="color: #6b7280;">
+                                    <h:outputText value="Declined by #{extractionBean.resubmission.previousDeclinedBy}, #{extractionBean.resubmission.previousDeclinedAtText}: "/>
+                                </span>
+                                <h:outputText value="#{extractionBean.resubmission.previousDeclineReason}"/>
+                            </h:panelGroup>
+                        </h:panelGroup>
                         <!-- ADDED 2026-10-14 - why an approver sent the review back, newest first. -->
                         <h:panelGroup layout="block" rendered="#{extractionBean.hasSendBacks}"
                                       style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">

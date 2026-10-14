@@ -10,6 +10,7 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionStatusRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionUiService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.FieldHistoryRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.PackageOutcome;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.ResubmissionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ReviewAccessRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.SendBackRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.TargetCandidateRow;
@@ -83,6 +84,12 @@ public class ExtractionBean implements Serializable {
   private List<DocumentRoleOptionRow> roleOptions = new ArrayList<>();
 
   /**
+   * The submitter's correction note when the package was submitted again after a decline; null for
+   * a first submission or when it could not be read.
+   */
+  private ResubmissionRow resubmission;
+
+  /**
    * Why the approver sent the review back, newest first; empty when it never was.
    */
   private List<SendBackRow> sendBacks = new ArrayList<>();
@@ -108,6 +115,7 @@ public class ExtractionBean implements Serializable {
     results = null;
     access = null;
     sendBacks = new ArrayList<>();
+    resubmission = null;
     roleByDocument = new HashMap<>();
     load();
   }
@@ -509,6 +517,13 @@ public class ExtractionBean implements Serializable {
   }
 
   /**
+   * True when the package was submitted again after a decline, so the banner is shown.
+   */
+  public boolean isResubmitted() {
+    return resubmission != null && resubmission.isResubmitted();
+  }
+
+  /**
    * True when the review was sent back at least once.
    */
   public boolean isHasSendBacks() {
@@ -598,6 +613,7 @@ public class ExtractionBean implements Serializable {
     access = null;
     history = null;
     sendBacks = new ArrayList<>();
+    resubmission = null;
     roleByDocument = new HashMap<>();
     loadFailed = false;
   }
@@ -612,6 +628,7 @@ public class ExtractionBean implements Serializable {
       }
       if (fresh.isDone() || fresh.isReviewed()) {
         sendBacks = extractionUiService.sendBacks(extractionPackage.getId());
+        resubmission = extractionUiService.resubmission(extractionPackage.getId());
       }
       if ((fresh.isDone() || fresh.isReviewed() || fresh.isApplied()) && results == null) {
         results = extractionUiService.results(extractionPackage.getId());

@@ -93,6 +93,18 @@ public class ContractPackagesBean implements Serializable {
   private String submitWarning;
 
   /**
+   * True when the package being submitted was declined before: the dialog then asks what was
+   * corrected.
+   */
+  private boolean resubmit;
+
+  /**
+   * What the submitter corrected; sent with a resubmission.
+   */
+  @Setter
+  private String correctionNote;
+
+  /**
    * Finer progress for packages past Assembly, by package id: Queued, Extracting, Ready for review,
    * and so on.
    */
@@ -269,7 +281,11 @@ public class ContractPackagesBean implements Serializable {
     submitPackage = row;
     unsubmitMode = unsubmit;
     submitWarning = null;
+    resubmit = false;
+    correctionNote = null;
     if (!unsubmit && row != null) {
+      final ExtractionStatusRow earlier = extractionUiService.status(row.getId());
+      resubmit = earlier != null && earlier.isDeclined();
       final List<String> names = extractionUiService.documentsWithoutTemplate(row.getId());
       if (!names.isEmpty()) {
         submitWarning = "No extraction template exists for " + String.join(", ", names)
@@ -279,17 +295,24 @@ public class ContractPackagesBean implements Serializable {
   }
 
   /**
-   * Confirm clicked in the submit or unsubmit dialog. The dialog always closes; the table is
-   * reloaded.
+   * Confirm clicked in the submit or unsubmit dialog. The dialog closes and the table is reloaded,
+   * except when a resubmission has no correction note: the dialog stays open (callback "keep").
    */
   public void confirmSubmit() {
     final ContractPackageRow row = submitPackage;
     if (row == null) {
       return;
     }
+    if (!unsubmitMode && resubmit
+        && (correctionNote == null || correctionNote.isBlank())) {
+      addMessage(FacesMessage.SEVERITY_WARN, "Correction note needed",
+          "Tell the reviewer what you corrected since the decline.");
+      PrimeFaces.current().ajax().addCallbackParam("keep", true);
+      return;
+    }
     final PackageOutcome outcome = unsubmitMode
         ? contractPackageService.unsubmit(row.getId())
-        : contractPackageService.submit(row.getId());
+        : contractPackageService.submit(row.getId(), correctionNote);
     final String code = row.getPackageCode();
     switch (outcome) {
       case OK -> addMessage(FacesMessage.SEVERITY_INFO,
@@ -302,12 +325,14 @@ public class ContractPackagesBean implements Serializable {
           unsubmitMode ? "The submission was already picked up or the package is not submitted."
               : "Only a draft package can be submitted.");
       case INVALID -> addMessage(FacesMessage.SEVERITY_WARN, "Not ready",
-          "A package needs at least one document and an assignee.");
+          "A package needs at least one document and an assignee, and a resubmission needs a correction note of at most 1000 characters.");
       default -> addMessage(FacesMessage.SEVERITY_ERROR,
           unsubmitMode ? "Unsubmit failed" : "Submit failed", "Please try again.");
     }
     refresh();
     submitPackage = null;
+    correctionNote = null;
+    resubmit = false;
     PrimeFaces.current().ajax().addCallbackParam("reload", true);
   }
 

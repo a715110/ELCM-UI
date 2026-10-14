@@ -92,9 +92,16 @@ public class ContractPackageService {
         return post(BASE + "/" + packageId + "/documents", body, "add documents to package " + packageId);
     }
 
-    /** Submit for extraction. 400 means not ready (no documents, no assignee, or a missing role). */
-    public PackageOutcome submit(final Long packageId) {
-        return post(BASE + "/" + packageId + "/submit", new HashMap<String, Object>(), "submit package " + packageId);
+    /**
+     * Submit for extraction. 400 (INVALID) means not ready: no documents, no assignee, or a
+     * resubmission without a correction note. The note is sent only when given.
+     */
+    public PackageOutcome submit(final Long packageId, final String correctionNote) {
+        final Map<String, Object> body = new HashMap<>();
+        if (correctionNote != null && !correctionNote.isBlank()) {
+            body.put("correctionNote", correctionNote.trim());
+        }
+        return post(BASE + "/" + packageId + "/submit", body, "submit package " + packageId);
     }
 
     /** Unsubmit while the submission is still pending. */

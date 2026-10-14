@@ -181,6 +181,21 @@ public class ExtractionUiService {
   }
 
   /**
+   * The correction note of a resubmission and the decline it answers; null when it could not be
+   * read (the reviewer can still work).
+   */
+  public ResubmissionRow resubmission(final Long packageId) {
+    try {
+      return restServiceClient.get(SERVICE, BASE + "/" + packageId + "/extraction/resubmission",
+          new ParameterizedTypeReference<ResubmissionRow>() {
+          });
+    } catch (final Exception e) {
+      log.error("Failed to load the resubmission note of package {}", packageId, e);
+      return null;
+    }
+  }
+
+  /**
    * The reasons the review was sent back, newest first; empty when it never was or could not be
    * read (the reviewer can still work).
    */
