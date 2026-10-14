@@ -30,11 +30,14 @@ public class ExtractionResultsRow implements Serializable {
         private int needsReviewCount;
         private List<FieldRow> fields = new ArrayList<>();
 
-        /** True for a PDF or an image, which the browser can show beside the fields. */
+        /**
+         * True when the pane beside the fields can show the file: PDF, image, TIFF, or an office
+         * file (shown through its converted PDF).
+         */
         public boolean isPreviewable() {
             return fileName != null
                 && fileName.toLowerCase(java.util.Locale.ROOT)
-                    .matches(".*\\.(pdf|png|jpe?g|gif|bmp|webp)$");
+                    .matches(".*\\.(pdf|png|jpe?g|gif|bmp|webp|tiff?|docx?|xlsx?|pptx?)$");
         }
     }
 
@@ -58,6 +61,7 @@ public class ExtractionResultsRow implements Serializable {
         private String candidates;
         private boolean needsReview;
         private boolean verified;
+        private Integer pageNo;
         private String verifiedBy;
 
         /** What the reviewer should see: the corrected value when there is one, else the extracted one. */

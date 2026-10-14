@@ -75,6 +75,24 @@
   margin: 0 auto;
 }
 
+.ex-preview-note {
+  padding: 2rem 1.5rem;
+  text-align: center;
+  color: #55544D;
+}
+
+.ex-preview-note-title {
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+  color: #2B2A26;
+}
+
+.ex-preview-note a {
+  display: inline-block;
+  margin-top: 0.75rem;
+  color: #2563EB;
+}
+
 /* On a narrow screen the preview goes below the fields instead of beside them. */
 @media (max-width: 1100px) {
   .ex-split {

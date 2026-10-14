@@ -3,6 +3,7 @@
                 xmlns:ui="http://java.sun.com/jsf/facelets"
                 xmlns:p="http://primefaces.org/ui"
                 xmlns:jsf="http://xmlns.jcp.org/jsf"
+                xmlns:pt="http://xmlns.jcp.org/jsf/passthrough"
                 xmlns:f="http://xmlns.jcp.org/jsf/core"
                 template="/WEB-INF/template.xhtml">
     <!--
@@ -855,15 +856,14 @@
                                             listener="#{extractionBean.saveRole(doc.stagedDocumentId)}"/>
                                 </p:selectOneMenu>
                                 <!-- ADDED 2026-10-14 - shows the original file beside the fields. -->
-                                <button type="button" class="ui-button ui-widget ui-state-default ui-corner-all ui-button-outlined ui-button-sm"
-                                        style="margin-left: 1rem;"
-                                        data-file-upload-id="#{doc.fileUploadId}"
-                                        data-name="#{doc.fileName}"
-                                        data-base="#{request.contextPath}/api/v1/pipeline/document-viewer/"
-                                        onclick="showDocPreview(this);"
-                                        jsf:rendered="#{doc.fileUploadId != null and doc.previewable}">
-                                    <span class="ui-button-text ui-c"><i class="pi pi-eye"></i> View document</span>
-                                </button>
+                                <p:commandButton type="button" value="View document" icon="pi pi-eye"
+                                                 styleClass="ui-button-outlined ui-button-sm"
+                                                 style="margin-left: 1rem;"
+                                                 rendered="#{doc.fileUploadId != null}"
+                                                 pt:data-file-upload-id="#{doc.fileUploadId}"
+                                                 pt:data-name="#{doc.fileName}"
+                                                 pt:data-base="#{request.contextPath}/api/v1/pipeline/document-viewer/"
+                                                 onclick="showDocPreview(this);"/>
                                 <!-- ADDED 2026-10-14 - have this document read again, with a reason.
                                      The other documents keep their corrections. -->
                                 <p:commandButton value="Re-process" icon="pi pi-refresh"
@@ -909,6 +909,18 @@
                                 </p:column>
                                 <p:column headerText="Evidence from the document"
                                           style="min-width: 24rem;">
+                                    <!-- ADDED 2026-10-14 - opens the document beside the fields on the page
+                                         where the quote was found. Shown only when the page is known. -->
+                                    <p:commandButton type="button" value="p. #{f.pageNo}" icon="pi pi-eye"
+                                                     styleClass="ui-button-outlined ui-button-sm"
+                                                     style="margin-right: 0.4rem;"
+                                                     title="Show this page of the document"
+                                                     rendered="#{f.pageNo != null and doc.fileUploadId != null}"
+                                                     pt:data-file-upload-id="#{doc.fileUploadId}"
+                                                     pt:data-name="#{doc.fileName}"
+                                                     pt:data-base="#{request.contextPath}/api/v1/pipeline/document-viewer/"
+                                                     pt:data-page="#{f.pageNo}"
+                                                     onclick="showDocPreview(this);"/>
                                     <h:outputText value="#{f.quote}" style="font-size: 0.85rem;"/>
                                     <h:outputText value="#{f.problem}"
                                                   rendered="#{not empty f.problem}"
