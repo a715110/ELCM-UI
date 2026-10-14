@@ -211,7 +211,8 @@ public class UploadFilesService {
       final String newRecordState,
       final String newRecordZip,
       final String existingRecordQuery,
-      final Long existingRecordId) throws Exception {
+      final Long existingRecordId,
+      final java.util.Map<Long, String> contentHashes) throws Exception {
 
     if (persistedFiles == null || persistedFiles.isEmpty()) {
       return;
@@ -238,6 +239,7 @@ public class UploadFilesService {
         .map(fileUploadDTO -> {
           final StagedDocumentDTO dto = new StagedDocumentDTO();
           dto.setFileUploadId(fileUploadDTO.getId());
+          dto.setContentHash(contentHashes == null ? null : contentHashes.get(fileUploadDTO.getId()));
           dto.setWorkspaceDTO(workspaceDTO);
           dto.setRoutingIntentDTO(routingIntentDTO);
           dto.setContractTypeDTO(contractTypeDTO);
@@ -277,6 +279,31 @@ public class UploadFilesService {
       // check: don't let this look like "zero rows created" when it
       // actually means the call itself failed silently.
       throw new IllegalStateException("elcm-service returned no response when creating staged documents.");
+    }
+  }
+
+  /**
+   * Looks for an earlier upload with the same content in the workspace (ADDED 2026-10-14). Never
+   * throws: when the check fails the answer is null and the upload goes on without a warning.
+   */
+  public DuplicateMatchRow findDuplicate(final String workspaceCode, final String hash) {
+    if (workspaceCode == null || hash == null) {
+      return null;
+    }
+    try {
+      final java.util.Map<String, Object> body = new java.util.HashMap<>();
+      body.put("workspaceCode", workspaceCode);
+      body.put("hashes", List.of(hash));
+      final List<DuplicateMatchRow> rows =
+          restServiceClient.post(
+              ServiceDiscoveryEnum.elcm_service.getServiceDiscoveryName(),
+              "/api/v1/pipeline/staged-documents/duplicates",
+              body,
+              new ParameterizedTypeReference<List<DuplicateMatchRow>>() {});
+      return rows == null || rows.isEmpty() ? null : rows.get(0);
+    } catch (final Exception e) {
+      log.warn("Duplicate check failed, the upload goes on without a warning", e);
+      return null;
     }
   }
 

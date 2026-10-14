@@ -3,6 +3,8 @@ package com.dodaso.ecosystem.elcm.ui.bean;
 import com.dodaso.ecosystem.baseline.common.proxy.RESTServiceClient;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -24,6 +26,7 @@ import com.dodaso.ecosystem.elcm.ui.constant.DestinationChoiceEnum;
 import com.dodaso.ecosystem.elcm.ui.constant.FileStorageControllerAPIEnum;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.AssignableUserOptionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractRecordOptionRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.DuplicateMatchRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.StagedFileUploadRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.UploadFilesService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.WorkspaceOptionRow;
@@ -366,11 +369,13 @@ public class UploadFilesBean extends BaseBean {
   public void handleFileUpload(final FileUploadEvent event) {
     final UploadedFile uploadedFile = event.getFile();
     try {
-      uploadedFiles.add(new StagedFileUploadRow(
+      final StagedFileUploadRow row = new StagedFileUploadRow(
           uploadedFile.getFileName(),
           uploadedFile.getSize(),
           uploadedFile.getContentType(),
-          uploadedFile.getContent()));
+          uploadedFile.getContent());
+      row.setDuplicateNote(duplicateNoteFor(row));
+      uploadedFiles.add(row);
     } catch (final Exception e) {
       // getContent() can throw depending on the UploadedFile impl
       // (e.g. a temp-file-backed implementation whose file has
@@ -383,6 +388,44 @@ public class UploadFilesBean extends BaseBean {
           FacesMessage.SEVERITY_ERROR, "Couldn't read " + uploadedFile.getFileName(),
           "This file was skipped; the others in this batch are unaffected."));
     }
+  }
+
+  /**
+   * ADDED 2026-10-14: warning text when the same content is already in this batch or was uploaded
+   * to the workspace before; null otherwise. Advisory only, the file stays in the list.
+   */
+  private String duplicateNoteFor(final StagedFileUploadRow row) {
+    if (row.getContentHash() == null) {
+      return null;
+    }
+    for (final StagedFileUploadRow other : uploadedFiles) {
+      if (row.getContentHash().equals(other.getContentHash())) {
+        return "Same content as " + other.getFileName() + " in this batch.";
+      }
+    }
+    final DuplicateMatchRow match =
+        uploadFilesService.findDuplicate(assignedWorkspaceCode, row.getContentHash());
+    return match == null ? null : match.getSummary() + ".";
+  }
+
+  /**
+   * ADDED 2026-10-14: file_upload id to content hash, matched by name and size in upload order, so
+   * elcm-service can store the hash on each staged document.
+   */
+  private Map<Long, String> contentHashesOf(final List<FileUploadDTO> persisted) {
+    final Map<Long, String> hashes = new HashMap<>();
+    final List<StagedFileUploadRow> unused = new ArrayList<>(uploadedFiles);
+    for (final FileUploadDTO file : persisted) {
+      for (final StagedFileUploadRow row : unused) {
+        if (java.util.Objects.equals(row.getFileName(), file.getFileName())
+            && (file.getFileSize() == null || file.getFileSize() == row.getSizeBytes())) {
+          hashes.put(file.getId(), row.getContentHash());
+          unused.remove(row);
+          break;
+        }
+      }
+    }
+    return hashes;
   }
 
   /**
@@ -438,7 +481,7 @@ public class UploadFilesBean extends BaseBean {
           assignedWorkspaceCode, comments, assignToUser, loginId, persistedFiles,
           newRecordName, newRecordCounterparty, newRecordPropertyAddress, newRecordContractType,
           newRecordAddressLine2, newRecordCity, newRecordState, newRecordZip,
-          existingRecordQuery, existingRecordId);
+          existingRecordQuery, existingRecordId, contentHashesOf(persistedFiles));
 
       resetState();
       submissionSuccessful = true;

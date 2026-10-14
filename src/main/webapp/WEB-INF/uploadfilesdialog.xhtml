@@ -263,6 +263,13 @@
                                     <span class="ufd-file-name">#{file.fileName}</span>
                                     <span class="ufd-file-size"
                                           style="color:#8B8A82;font-size:0.78rem;">#{file.formattedSize}</span>
+                                    <!-- ADDED 2026-10-14 - same content uploaded before: a warning only,
+                                         the file stays in the list and can be removed with the x. -->
+                                    <p:tag value="Possible duplicate" severity="warning"
+                                           rendered="#{file.duplicate}"
+                                           title="#{file.duplicateNote}"/>
+                                    <span style="color:#b45309;font-size:0.78rem;"
+                                          class="ufd-duplicate-note">#{file.duplicateNote}</span>
                                     <p:commandButton icon="pi pi-times"
                                                      styleClass="ufd-file-remove ui-button-flat"
                                                      action="#{uploadFilesBean.removeFile(file)}"

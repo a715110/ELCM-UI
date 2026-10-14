@@ -1,8 +1,10 @@
 package com.dodaso.ecosystem.elcm.ui.service.pipeline;
 
 import java.io.Serializable;
-import lombok.AllArgsConstructor;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import lombok.Getter;
+import lombok.Setter;
 
 /**
  * One file received by UploadFilesBean.handleFileUpload(), held in memory
@@ -24,12 +26,41 @@ import lombok.Getter;
  * them) once that next task starts, not a concern for this increment.
  */
 @Getter
-@AllArgsConstructor
 public class StagedFileUploadRow implements Serializable {
     private final String fileName;
     private final long sizeBytes;
     private final String contentType;
     private final byte[] content;
+
+    /** SHA-256 of the content as lower-case hex (ADDED 2026-10-14); null if it could not be made. */
+    private final String contentHash;
+
+    /** Warning text when the same content was uploaded before; null when nothing was found. */
+    @Setter private String duplicateNote;
+
+    public StagedFileUploadRow(final String fileName, final long sizeBytes,
+        final String contentType, final byte[] content) {
+        this.fileName = fileName;
+        this.sizeBytes = sizeBytes;
+        this.contentType = contentType;
+        this.content = content;
+        this.contentHash = sha256(content);
+    }
+
+    public boolean isDuplicate() {
+        return duplicateNote != null;
+    }
+
+    private static String sha256(final byte[] bytes) {
+        if (bytes == null) {
+            return null;
+        }
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        } catch (final java.security.NoSuchAlgorithmException e) {
+            return null;
+        }
+    }
 
     /** Human-readable size for the dialog's persistent file list (see
      * uploadfilesdialog.xhtml) -- kept here rather than formatted in EL so
