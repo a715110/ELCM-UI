@@ -171,8 +171,9 @@
                     <h2 class="ufd-title">Upload Files</h2>
                     <p class="ufd-subtitle">Add documents to the pipeline and set their destination.</p>
                 </div>
-                <button type="button" class="ufd-close-btn" onclick="resetDialog();" aria-label="Close">
-                    <i class="pi pi-times"/>
+                <button type="button" class="ufd-close-btn" onclick="resetDialog();"
+                        aria-label="Close">
+                    <i class="pi pi-times"></i>
                 </button>
             </div>
 
@@ -181,7 +182,7 @@
                 <!-- ==================== LEFT: file drop area ==================== -->
                 <div class="ufd-left">
                     <div class="ufd-accept-banner">
-                        <i class="pi pi-info-circle"/>
+                        <i class="pi pi-info-circle"></i>
                         <span>Accepted: PDF, DOCX, JPG, JPEG, PNG, TIFF &#8212; max 100 MB per file</span>
                     </div>
 
@@ -235,7 +236,8 @@
                                   onstart="ufdOnUploadStart();"
                                   oncomplete="ufdOnUploadSettled();"
                                   onerror="ufdOnUploadSettled();">
-                        <p:validateFile fileLimit="50" sizeLimit="104857600" allowTypes="/(\.|\/)(pdf|docx?|jpe?g|png|tiff?)$/" />
+                        <p:validateFile fileLimit="50" sizeLimit="104857600"
+                                        allowTypes="/(\.|\/)(pdf|docx?|jpe?g|png|tiff?)$/"/>
                     </p:fileUpload>
 
                     <!-- Persistent list of files actually landed in
@@ -257,12 +259,15 @@
                             </ui:fragment>
                             <ui:repeat var="file" value="#{uploadFilesBean.uploadedFiles}">
                                 <div class="ufd-file-row">
-                                    <i class="pi pi-file"/>
+                                    <i class="pi pi-file"></i>
                                     <span class="ufd-file-name">#{file.fileName}</span>
-                                    <span class="ufd-file-size" style="color:#8B8A82;font-size:0.78rem;">#{file.formattedSize}</span>
-                                    <p:commandButton icon="pi pi-times" styleClass="ufd-file-remove ui-button-flat"
+                                    <span class="ufd-file-size"
+                                          style="color:#8B8A82;font-size:0.78rem;">#{file.formattedSize}</span>
+                                    <p:commandButton icon="pi pi-times"
+                                                     styleClass="ufd-file-remove ui-button-flat"
                                                      action="#{uploadFilesBean.removeFile(file)}"
-                                                     process="@this" update="uploadFilesDialogForm:ufdUploadedFileList"/>
+                                                     process="@this"
+                                                     update="uploadFilesDialogForm:ufdUploadedFileList"/>
                                 </div>
                             </ui:repeat>
                         </div>
@@ -272,7 +277,7 @@
                 <!-- ==================== RIGHT: target context ==================== -->
                 <div class="ufd-right">
                     <div class="ufd-right-header">
-                        <i class="pi pi-tag"/>
+                        <i class="pi pi-tag"></i>
                         <span>Target Context</span>
                     </div>
 
@@ -300,7 +305,8 @@
                     </p:selectOneMenu>
 
                     <p class="ufd-helper-text">
-                        All files assigned to <strong>Retail</strong> workspace. Assigned at onboarding &#8212; change to override.
+                        All files assigned to
+                        <strong>Retail</strong> workspace. Assigned at onboarding &#8212; change to override.
                     </p>
 
                     <div class="ufd-field-label">WHERE SHOULD THESE DOCUMENTS GO?</div>
@@ -315,20 +321,23 @@
                          exactly one of the enum's constant names - see each
                          card's data-dest-value below, which must keep matching
                          DestinationChoiceEnum's constant names verbatim. -->
-                    <h:inputHidden id="ufdDestinationChoice" value="#{uploadFilesBean.destinationChoice}"/>
+                    <h:inputHidden id="ufdDestinationChoice"
+                                   value="#{uploadFilesBean.destinationChoice}"/>
 
-                    <div class="ufd-destination-cards" role="radiogroup" aria-label="Document destination">
+                    <div class="ufd-destination-cards" role="radiogroup"
+                         aria-label="Document destination">
                         <div class="ufd-dest-card" data-dest="new" data-dest-value="NEW_RECORD"
                              role="radio" tabindex="0" aria-checked="false">
-                            <div class="ufd-dest-icon"><i class="pi pi-plus"/></div>
+                            <div class="ufd-dest-icon"><i class="pi pi-plus"></i></div>
                             <div>
                                 <div class="ufd-dest-title">New Record</div>
                                 <div class="ufd-dest-desc">For a newly executed contract not yet in this system</div>
                             </div>
                         </div>
-                        <div class="ufd-dest-card" data-dest="existing" data-dest-value="EXISTING_RECORD"
+                        <div class="ufd-dest-card" data-dest="existing"
+                             data-dest-value="EXISTING_RECORD"
                              role="radio" tabindex="0" aria-checked="false">
-                            <div class="ufd-dest-icon"><i class="pi pi-search"/></div>
+                            <div class="ufd-dest-icon"><i class="pi pi-search"></i></div>
                             <div>
                                 <div class="ufd-dest-title">Existing Record</div>
                                 <div class="ufd-dest-desc">Add to a current contract record in this system: an amendment, exhibit, document...etc.</div>
@@ -336,7 +345,7 @@
                         </div>
                         <div class="ufd-dest-card" data-dest="unsure" data-dest-value="NOT_SURE"
                              role="radio" tabindex="0" aria-checked="false">
-                            <div class="ufd-dest-icon"><i class="pi pi-question"/></div>
+                            <div class="ufd-dest-icon"><i class="pi pi-question"></i></div>
                             <div>
                                 <div class="ufd-dest-title">Not sure &#8212; leave instructions</div>
                                 <div class="ufd-dest-desc">A Preparer will find the right record and may contact you</div>
@@ -369,7 +378,8 @@
                     <div class="ufd-dest-subpanel" data-dest-panel="new" style="display:none;">
                         <div class="ufd-field-grid-2">
                             <div>
-                                <div class="ufd-field-label" style="margin-top:1rem;">RECORD NAME</div>
+                                <div class="ufd-field-label" style="margin-top:1rem;">RECORD NAME
+                                </div>
                                 <p:inputText styleClass="ufd-input" id="ufdNewRecordName"
                                              value="#{uploadFilesBean.newRecordName}"
                                              placeholder="Auto-generated if blank"/>
@@ -391,7 +401,8 @@
                                      value="#{uploadFilesBean.newRecordPropertyAddress}"
                                      placeholder="e.g. 123 Main St"/>
 
-                        <div class="ufd-field-label">ADDRESS LINE 2 <span class="ufd-optional">(OPTIONAL)</span></div>
+                        <div class="ufd-field-label">ADDRESS LINE 2 <span
+                                class="ufd-optional">(OPTIONAL)</span></div>
                         <p:inputText styleClass="ufd-input" id="ufdNewAddressLine2"
                                      value="#{uploadFilesBean.newRecordAddressLine2}"
                                      placeholder="Suite, unit, floor, etc."/>
@@ -451,7 +462,7 @@
                     <div class="ufd-dest-subpanel" data-dest-panel="existing" style="display:none;">
                         <div class="ufd-field-label" style="margin-top:1rem;">FIND RECORD</div>
                         <div class="ufd-search-input-wrap">
-                            <i class="pi pi-search"/>
+                            <i class="pi pi-search"></i>
                             <!-- REVISED 2026-10-02 - search now also matches
                                  counterparty name (substring, anywhere - see
                                  elcm-service's RecordProvisioningService.search()),
@@ -473,14 +484,17 @@
                                  "ufd-search-input" alone is kept as the CSS hook; see that
                                  rule's comment in upload-files-dialog.css for the full
                                  explanation. -->
-                            <p:autoComplete styleClass="ufd-search-input" id="ufdExistingRecordSearch" style="width:100%"
-                                         value="#{uploadFilesBean.existingRecordId}"
-                                         completeMethod="#{uploadFilesBean.completeExistingRecords}"
-                                         var="rec" itemValue="#{rec.id}"
-                                         itemLabel="#{rec.counterpartyName != null ? rec.recordCode.concat(' - ').concat(rec.counterpartyName) : rec.recordCode}"
-                                         forceSelection="true" scrollHeight="200"
-                                         placeholder="Record code or counterparty (e.g. RETAIL-00001 or Acme Corp)">
-                                <p:ajax event="itemSelect" listener="#{uploadFilesBean.onExistingRecordSelected}"
+                            <p:autoComplete styleClass="ufd-search-input"
+                                            id="ufdExistingRecordSearch" style="width:100%"
+                                            value="#{uploadFilesBean.existingRecordId}"
+                                            completeMethod="#{uploadFilesBean.completeExistingRecords}"
+                                            var="rec"
+                                            itemValue="#{uploadFilesBean.recordValue(rec)}"
+                                            itemLabel="#{uploadFilesBean.recordLabel(rec)}"
+                                            forceSelection="true" scrollHeight="200"
+                                            placeholder="Record code or counterparty (e.g. RETAIL-00001 or Acme Corp)">
+                                <p:ajax event="itemSelect"
+                                        listener="#{uploadFilesBean.onExistingRecordSelected}"
                                         update="ufdExistingRecordDetail"/>
                             </p:autoComplete>
                         </div>
@@ -519,7 +533,7 @@
                             </h:panelGroup>
                             <h:panelGroup layout="block" styleClass="ufd-warning-box"
                                           rendered="#{uploadFilesBean.existingRecordId != null and uploadFilesBean.existingRecordDetailError != null}">
-                                <i class="pi pi-exclamation-triangle"/>
+                                <i class="pi pi-exclamation-triangle"></i>
                                 <span>#{uploadFilesBean.existingRecordDetailError}</span>
                             </h:panelGroup>
                         </h:panelGroup>
@@ -530,7 +544,7 @@
                     <!-- ============ Not Sure subpanel ============ -->
                     <div class="ufd-dest-subpanel" data-dest-panel="unsure" style="display:none;">
                         <div class="ufd-warning-box">
-                            <i class="pi pi-exclamation-triangle"/>
+                            <i class="pi pi-exclamation-triangle"></i>
                             <span>Your files will be held in staging until a Preparer assigns them to the correct record.</span>
                         </div>
 
@@ -550,7 +564,8 @@
                          feature (no custom JS) - it writes the
                          live remaining-count into the target id
                          (ufdCommentsCounter) on every keystroke. -->
-                    <div class="ufd-field-label">COMMENTS / INSTRUCTIONS <span class="ufd-optional">(OPTIONAL)</span></div>
+                    <div class="ufd-field-label">COMMENTS / INSTRUCTIONS <span
+                            class="ufd-optional">(OPTIONAL)</span></div>
                     <p:inputTextarea id="ufdComments" styleClass="ufd-textarea" rows="3"
                                      value="#{uploadFilesBean.comments}"
                                      maxlength="2000"
@@ -587,32 +602,36 @@
                          that descendant selector (it lands on the component's
                          outer wrapper span, not the real <input>) rather than
                          styled directly the way a plain select could be. -->
-                    <ui:fragment rendered="#{demoRoleBean.canSeeField('Upload Files', 'Assign To')}">
-                    <div class="ufd-field-label">ASSIGN TO <span class="ufd-optional">(OPTIONAL)</span></div>
-                    <div class="ufd-search-input-wrap">
-                        <!-- pi-search, not pi-user, deliberately - the
-                             positioning rule is scoped to ".pi-search"
-                             specifically (see the CSS's 2026-10-03 comment
-                             just below .ufd-search-input-wrap), and reusing
-                             the exact same icon/selector here avoids adding
-                             a near-duplicate rule for one field. -->
-                        <i class="pi pi-search"/>
-                        <!-- ADDED 2026-10-04 - ufd-assign-autocomplete is an
-                             extra, field-specific hook (on top of the shared
-                             ufd-search-input) so the 90%-width/inline-dropdown-
-                             button layout below applies only to this field,
-                             not to ufdExistingRecordSearch, which shares the
-                             same ufd-search-input/ufd-search-input-wrap base
-                             classes but wasn't asked to change. -->
-                        <p:autoComplete id="ufdAssignToSearch" styleClass="ufd-search-input ufd-assign-autocomplete"
-                                         value="#{uploadFilesBean.assignToUser}"
-                                         completeMethod="#{uploadFilesBean.completeAssignableUsers}"
-                                         var="au" itemValue="#{au.loginId}" itemLabel="#{au.label}"
-                                         forceSelection="true" dropdown="true" scrollHeight="200"
-                                         disabled="#{demoRoleBean.fieldReadOnly('Upload Files', 'Assign To')}"
-                                         emptyMessage="No matching people"
-                                         placeholder="Search by name or ID, or leave blank for Unassigned"/>
-                    </div>
+                    <ui:fragment
+                            rendered="#{demoRoleBean.canSeeField('Upload Files', 'Assign To')}">
+                        <div class="ufd-field-label">ASSIGN TO <span
+                                class="ufd-optional">(OPTIONAL)</span></div>
+                        <div class="ufd-search-input-wrap">
+                            <!-- pi-search, not pi-user, deliberately - the
+                                 positioning rule is scoped to ".pi-search"
+                                 specifically (see the CSS's 2026-10-03 comment
+                                 just below .ufd-search-input-wrap), and reusing
+                                 the exact same icon/selector here avoids adding
+                                 a near-duplicate rule for one field. -->
+                            <i class="pi pi-search"></i>
+                            <!-- ADDED 2026-10-04 - ufd-assign-autocomplete is an
+                                 extra, field-specific hook (on top of the shared
+                                 ufd-search-input) so the 90%-width/inline-dropdown-
+                                 button layout below applies only to this field,
+                                 not to ufdExistingRecordSearch, which shares the
+                                 same ufd-search-input/ufd-search-input-wrap base
+                                 classes but wasn't asked to change. -->
+                            <p:autoComplete id="ufdAssignToSearch"
+                                            styleClass="ufd-search-input ufd-assign-autocomplete"
+                                            value="#{uploadFilesBean.assignToUser}"
+                                            completeMethod="#{uploadFilesBean.completeAssignableUsers}"
+                                            var="au" itemValue="#{uploadFilesBean.assignValue(au)}"
+                                            itemLabel="#{uploadFilesBean.assignLabel(au)}"
+                                            forceSelection="true" dropdown="true" scrollHeight="200"
+                                            disabled="#{demoRoleBean.fieldReadOnly('Upload Files', 'Assign To')}"
+                                            emptyMessage="No matching people"
+                                            placeholder="Search by name or ID, or leave blank for Unassigned"/>
+                        </div>
                     </ui:fragment>
                 </div>
             </div>
