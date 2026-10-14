@@ -28,6 +28,7 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.AssignableUserOptionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractRecordOptionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.DuplicateMatchRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.StagedFileUploadRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.UploadContentCheck;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.UploadFilesService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.WorkspaceOptionRow;
 
@@ -369,11 +370,21 @@ public class UploadFilesBean extends BaseBean {
   public void handleFileUpload(final FileUploadEvent event) {
     final UploadedFile uploadedFile = event.getFile();
     try {
+      final byte[] content = uploadedFile.getContent();
+      // ADDED 2026-10-14: an empty file or a file whose content does not fit its extension is left
+      // out of the list with a message; the other files of the batch carry on.
+      final String problem = UploadContentCheck.problem(uploadedFile.getFileName(), content);
+      if (problem != null) {
+        log.warn("Rejected upload {}: {}", uploadedFile.getFileName(), problem);
+        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(
+            FacesMessage.SEVERITY_WARN, "Couldn't add " + uploadedFile.getFileName(), problem));
+        return;
+      }
       final StagedFileUploadRow row = new StagedFileUploadRow(
           uploadedFile.getFileName(),
           uploadedFile.getSize(),
           uploadedFile.getContentType(),
-          uploadedFile.getContent());
+          content);
       row.setDuplicateNote(duplicateNoteFor(row));
       uploadedFiles.add(row);
     } catch (final Exception e) {
