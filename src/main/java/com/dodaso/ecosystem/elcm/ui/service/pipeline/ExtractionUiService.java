@@ -131,12 +131,26 @@ public class ExtractionUiService {
    * Reviewer: save one field (corrected value and confirmed flag). INVALID is a value that does not
    * fit the field type (400), CONFLICT means the package can no longer be reviewed (409).
    */
-  public PackageOutcome saveField(final Long packageId, final ExtractionResultsRow.FieldRow field) {
+  public PackageOutcome saveField(final Long packageId, final ExtractionResultsRow.FieldRow field,
+      final String reason) {
     final Map<String, Object> body = new HashMap<>();
     body.put("correctedValue", field.getCorrectedValue());
     body.put("verified", field.isVerified());
+    body.put("reason", reason);
     return post(BASE + "/" + packageId + "/extraction/fields/" + field.getResultId(), body,
         "save field " + field.getResultId() + " of package " + packageId);
+  }
+
+  /**
+   * Reviewer: have one document read again. INVALID is a reason under 10 characters, CONFLICT means
+   * the package can no longer be reviewed.
+   */
+  public PackageOutcome reprocess(final Long packageId, final Long stagedDocumentId,
+      final String reason) {
+    final Map<String, Object> body = new HashMap<>();
+    body.put("reason", reason);
+    return post(BASE + "/" + packageId + "/extraction/documents/" + stagedDocumentId + "/reprocess",
+        body, "re-process document " + stagedDocumentId + " of package " + packageId);
   }
 
   /**

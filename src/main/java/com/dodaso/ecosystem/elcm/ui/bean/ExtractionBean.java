@@ -41,6 +41,7 @@ import org.primefaces.PrimeFaces;
 @RequiredArgsConstructor
 public class ExtractionBean implements Serializable {
 
+  private static final int MIN_REASON = 10;
   private static final String NO_REVIEW_PERMISSION = "Reviewing needs the review permission (Reviewer role), and the reviewer must be someone other than the person who submitted the package.";
 
   private static final String NO_APPROVE_PERMISSION = "Approving needs the Approver role, and the approver must be someone other than the person who submitted or reviewed the package.";
@@ -105,6 +106,34 @@ public class ExtractionBean implements Serializable {
    */
   @Setter
   private String declineReason;
+
+  /**
+   * Reason typed in the "Reason for change" dialog (ADDED 2026-10-14).
+   */
+  @Setter
+  private String changeReason;
+
+  /**
+   * Reason typed in the "Re-process" dialog (ADDED 2026-10-14).
+   */
+  @Setter
+  private String reprocessReason;
+
+  /**
+   * The document the Re-process dialog is about.
+   */
+  private Long reprocessDocId;
+  private String reprocessFileName;
+
+  /**
+   * The field whose new value waits for a reason.
+   */
+  private ExtractionResultsRow.FieldRow pendingField;
+
+  /**
+   * The corrected value of every field as last saved, to tell a real change from a tick.
+   */
+  private Map<Long, String> savedCorrected = new HashMap<>();
 
   /**
    * Extraction icon clicked: load the progress. The page shows the dialog and starts polling.
@@ -437,12 +466,63 @@ public class ExtractionBean implements Serializable {
     if (reformatted) {
       field.setCorrectedValue(cleaned);
     }
-    final PackageOutcome outcome = extractionUiService.saveField(extractionPackage.getId(), field);
+    // CHANGED 2026-10-14: a changed value needs a reason, asked for in a dialog.
+    if (valueChanged(field)) {
+      pendingField = field;
+      changeReason = null;
+      PrimeFaces.current().ajax().addCallbackParam("needReason", true);
+      PrimeFaces.current().ajax().addCallbackParam("reload", false);
+      return;
+    }
+    store(field, null, reformatted);
+  }
+
+  /**
+   * Reviewer confirmed the reason for the pending value change.
+   */
+  public void confirmChange() {
+    if (extractionPackage == null || pendingField == null) {
+      PrimeFaces.current().ajax().addCallbackParam("done", true);
+      return;
+    }
+    final String reason = changeReason == null ? "" : changeReason.trim();
+    if (reason.length() < MIN_REASON) {
+      add(FacesMessage.SEVERITY_WARN, "Reason needed",
+          "Give a reason of at least " + MIN_REASON + " characters.");
+      PrimeFaces.current().ajax().addCallbackParam("done", false);
+      return;
+    }
+    final boolean saved = store(pendingField, reason, true);
+    if (saved) {
+      pendingField = null;
+      changeReason = null;
+    }
+    PrimeFaces.current().ajax().addCallbackParam("done", true);
+  }
+
+  /**
+   * Reviewer cancelled the reason dialog: the typed value is dropped.
+   */
+  public void cancelChange() {
+    pendingField = null;
+    changeReason = null;
+    results = null;
+    load();
+  }
+
+  /**
+   * Saves one field; returns true when elcm-service accepted it.
+   */
+  private boolean store(final ExtractionResultsRow.FieldRow field, final String reason,
+      final boolean forceReload) {
+    final PackageOutcome outcome =
+        extractionUiService.saveField(extractionPackage.getId(), field, reason);
     boolean reload = true;
     switch (outcome) {
-      case OK -> reload = reformatted;
+      case OK -> reload = forceReload;
       case INVALID -> add(FacesMessage.SEVERITY_WARN, "Value not accepted",
-          "Numbers must be plain (15500 or 3.5), dates yyyy-mm-dd, yes/no fields true or false.");
+          "Numbers must be plain (15500 or 3.5), dates yyyy-mm-dd, yes/no fields true or false. "
+              + "A changed value also needs a reason of at least " + MIN_REASON + " characters.");
       case CONFLICT -> add(FacesMessage.SEVERITY_WARN, "Review closed",
           "The package can no longer be reviewed.");
       case FORBIDDEN -> add(FacesMessage.SEVERITY_WARN, "No permission", NO_REVIEW_PERMISSION);
@@ -453,6 +533,82 @@ public class ExtractionBean implements Serializable {
       load();
     }
     PrimeFaces.current().ajax().addCallbackParam("reload", reload);
+    return outcome == PackageOutcome.OK;
+  }
+
+  private boolean valueChanged(final ExtractionResultsRow.FieldRow field) {
+    return !java.util.Objects.equals(blankToNull(field.getCorrectedValue()),
+        blankToNull(savedCorrected.get(field.getResultId())));
+  }
+
+  private static String blankToNull(final String value) {
+    return value == null || value.isBlank() ? null : value.trim();
+  }
+
+  private void rememberSaved() {
+    savedCorrected = new HashMap<>();
+    if (results == null) {
+      return;
+    }
+    for (final ExtractionResultsRow.DocumentResult doc : results.getDocuments()) {
+      for (final ExtractionResultsRow.FieldRow f : doc.getFields()) {
+        savedCorrected.put(f.getResultId(), f.getCorrectedValue());
+      }
+    }
+  }
+
+  /**
+   * Opens the Re-process dialog for one document.
+   */
+  public void prepareReprocess(final Long stagedDocumentId, final String fileName) {
+    reprocessDocId = stagedDocumentId;
+    reprocessFileName = fileName;
+    reprocessReason = null;
+  }
+
+  /**
+   * Reviewer: have the chosen document read again. Callback parameter "done" closes the dialog.
+   */
+  public void confirmReprocess() {
+    if (extractionPackage == null || reprocessDocId == null) {
+      PrimeFaces.current().ajax().addCallbackParam("done", true);
+      return;
+    }
+    final String reason = reprocessReason == null ? "" : reprocessReason.trim();
+    if (reason.length() < MIN_REASON) {
+      add(FacesMessage.SEVERITY_WARN, "Reason needed",
+          "Tell what looks wrong, at least " + MIN_REASON + " characters.");
+      PrimeFaces.current().ajax().addCallbackParam("done", false);
+      return;
+    }
+    final PackageOutcome outcome =
+        extractionUiService.reprocess(extractionPackage.getId(), reprocessDocId, reason);
+    boolean done = false;
+    switch (outcome) {
+      case OK -> {
+        done = true;
+        add(FacesMessage.SEVERITY_INFO, "Read again",
+            reprocessFileName + " is being read again. Your other corrections are kept.");
+      }
+      case INVALID -> add(FacesMessage.SEVERITY_WARN, "Reason not accepted",
+          "The reason needs " + MIN_REASON + " to 500 characters.");
+      case CONFLICT -> {
+        add(FacesMessage.SEVERITY_WARN, "Cannot re-process",
+            "The package can no longer be reviewed.");
+        done = true;
+      }
+      case NOT_FOUND ->
+          add(FacesMessage.SEVERITY_WARN, "Not available", "The document has no extraction.");
+      case FORBIDDEN -> add(FacesMessage.SEVERITY_WARN, "No permission", NO_REVIEW_PERMISSION);
+      default -> add(FacesMessage.SEVERITY_ERROR, "Re-process failed", "Please try again.");
+    }
+    if (done) {
+      reprocessReason = null;
+      reprocessDocId = null;
+      results = null;
+      load();
+    }
+    PrimeFaces.current().ajax().addCallbackParam("done", done);
   }
 
   /**
@@ -632,6 +788,7 @@ public class ExtractionBean implements Serializable {
       }
       if ((fresh.isDone() || fresh.isReviewed() || fresh.isApplied()) && results == null) {
         results = extractionUiService.results(extractionPackage.getId());
+        rememberSaved();
         loadRoles();
       }
     }

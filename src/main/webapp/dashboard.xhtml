@@ -847,6 +847,17 @@
                                             update=":extractionForm:extractionReviewSummary :stageDocumentsGrowl"
                                             listener="#{extractionBean.saveRole(doc.stagedDocumentId)}"/>
                                 </p:selectOneMenu>
+                                <!-- ADDED 2026-10-14 - have this document read again, with a reason.
+                                     The other documents keep their corrections. -->
+                                <p:commandButton value="Re-process" icon="pi pi-refresh"
+                                                 styleClass="ui-button-outlined ui-button-sm"
+                                                 style="margin-left: 1rem;"
+                                                 rendered="#{extractionBean.editable}"
+                                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                                 title="Read this document again. Your other corrections are kept."
+                                                 process="@this" update=":extractionReprocessForm"
+                                                 actionListener="#{extractionBean.prepareReprocess(doc.stagedDocumentId, doc.fileName)}"
+                                                 oncomplete="PF('extractionReprocessDialog').show();"/>
                             </div>
                             <p:dataTable var="f" value="#{doc.fields}"
                                          emptyMessage="No values were extracted."
@@ -868,7 +879,7 @@
                                         <p:ajax event="change"
                                                 listener="#{extractionBean.saveField(f)}"
                                                 update=":extractionForm:extractionReviewSummary :stageDocumentsGrowl"
-                                                oncomplete="if (args &amp;&amp; args.reload) { reloadExtraction(); }"/>
+                                                oncomplete="if (args &amp;&amp; args.needReason) { PF('extractionChangeDialog').show(); } else if (args &amp;&amp; args.reload) { reloadExtraction(); }"/>
                                     </p:inputText>
                                     <h:outputText value="#{f.correctedValue}"
                                                   rendered="#{not extractionBean.editable}"/>
@@ -911,6 +922,74 @@
                 <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
                     <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
                                      onclick="PF('extractionDialog').hide();"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <!-- ADDED 2026-10-14 - A changed value needs a reason of at least 10 characters. Cancel
+             drops the typed value and shows the saved one again. -->
+        <p:dialog widgetVar="extractionChangeDialog"
+                  header="Reason for the change"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closable="false"
+                  closeOnEscape="false"
+                  width="34rem">
+            <h:form id="extractionChangeForm">
+                <p style="margin-top: 0;">
+                    Say why the value is changed. The reason is kept in the history of the field.
+                </p>
+                <p:outputLabel for="changeReasonText" value="Reason (at least 10 characters)"/>
+                <br/>
+                <p:inputTextarea id="changeReasonText" value="#{extractionBean.changeReason}"
+                                 rows="3" maxlength="500" counter="changeReasonCounter"
+                                 counterTemplate="{0} characters remaining" style="width: 100%;"/>
+                <br/>
+                <h:outputText id="changeReasonCounter"
+                              style="color: #6b7280; font-size: 0.85rem;"/>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                    <p:commandButton value="Cancel" styleClass="ui-button-flat"
+                                     process="@this" update=":extractionForm:extractionPanel :extractionChangeForm"
+                                     actionListener="#{extractionBean.cancelChange}"
+                                     oncomplete="PF('extractionChangeDialog').hide();"/>
+                    <p:commandButton value="Save change" icon="pi pi-check"
+                                     process="@form" update="@form :extractionForm:extractionPanel :stageDocumentsGrowl"
+                                     actionListener="#{extractionBean.confirmChange}"
+                                     oncomplete="if (args &amp;&amp; args.done) { PF('extractionChangeDialog').hide(); }"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <!-- ADDED 2026-10-14 - Re-process: one document is read again after the reviewer gives a
+             reason. The other documents keep their corrections and confirmations. -->
+        <p:dialog widgetVar="extractionReprocessDialog"
+                  header="Re-process document"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closeOnEscape="true"
+                  width="34rem">
+            <h:form id="extractionReprocessForm">
+                <p style="margin-top: 0;">
+                    <strong><h:outputText value="#{extractionBean.reprocessFileName}"/></strong>
+                    is read again. Its fields start unconfirmed. The other documents keep their corrections.
+                </p>
+                <p:outputLabel for="reprocessReasonText" value="What looks wrong (at least 10 characters)"/>
+                <br/>
+                <p:inputTextarea id="reprocessReasonText" value="#{extractionBean.reprocessReason}"
+                                 rows="3" maxlength="500" counter="reprocessReasonCounter"
+                                 counterTemplate="{0} characters remaining" style="width: 100%;"/>
+                <br/>
+                <h:outputText id="reprocessReasonCounter"
+                              style="color: #6b7280; font-size: 0.85rem;"/>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                    <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                                     onclick="PF('extractionReprocessDialog').hide();"/>
+                    <p:commandButton value="Re-process" icon="pi pi-refresh"
+                                     process="@form" update="@form :extractionForm:extractionPanel :stageDocumentsGrowl"
+                                     actionListener="#{extractionBean.confirmReprocess}"
+                                     oncomplete="if (args &amp;&amp; args.done) { PF('extractionReprocessDialog').hide(); PF('extractionPoll').start(); }"/>
                 </div>
             </h:form>
         </p:dialog>
@@ -1019,6 +1098,9 @@
                         <p:column headerText="To"
                                   style="min-width: 8rem; white-space: nowrap; font-weight: 600;">
                             <h:outputText value="#{empty rv.newValue ? '(empty)' : rv.newValue}"/>
+                        </p:column>
+                        <p:column headerText="Reason" style="min-width: 14rem;">
+                            <h:outputText value="#{rv.reason}"/>
                         </p:column>
                         <p:column headerText="By" style="min-width: 14rem;">
                             <h:outputText value="#{rv.changedBy}"/>
