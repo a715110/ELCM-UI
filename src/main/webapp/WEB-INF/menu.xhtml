@@ -79,11 +79,11 @@
                                     outcome="/dashboard" icon="pi pi-home">
                             <f:param name="Source" value="Menu"/>
                         </p:menuitem>
-                        <p:menuitem id="mySubmissions" value="My Submissions"
+                        <p:menuitem id="mySubmissions" rendered="#{menuAccessBean.canSee('mySubmissions')}" value="My Submissions"
                                     outcome="/mysubmissions" icon="pi pi-send">
                             <f:param name="Source" value="Menu"/>
                         </p:menuitem>
-                        <p:menuitem id="workQueue" value="Work Queue"
+                        <p:menuitem id="workQueue" rendered="#{menuAccessBean.canSee('workQueue')}" value="Work Queue"
                                     outcome="/workqueue" icon="pi pi-list">
                             <f:param name="Source" value="Menu"/>
                         </p:menuitem>
