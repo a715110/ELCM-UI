@@ -586,6 +586,17 @@
             </h:form>
         </p:dialog>
 
+        <!-- ADDED 2026-10-14 - the Work Queue links here with ?review=<package id>. This command runs
+             once when the page loads, only when that parameter is present, and opens the extraction
+             dialog for the package. The f:param copies the parameter onto the ajax call. -->
+        <h:form id="queueOpenForm">
+            <p:remoteCommand name="openReviewFromQueue" autoRun="#{not empty param.review}"
+                             action="#{extractionBean.openFromRequest}" update=":extractionForm"
+                             oncomplete="if (args &amp;&amp; args.opened) { PF('extractionDialog').show(); PF('extractionPoll').start(); }">
+                <f:param name="review" value="#{param.review}"/>
+            </p:remoteCommand>
+        </h:form>
+
         <!-- ADDED 2026-10-11 - Extraction progress, results and review of a submitted package.
              Extraction runs in the background and takes minutes, so this dialog never
              waits on it: it shows the current progress, polls every 5 seconds while the
@@ -672,6 +683,26 @@
 
                     <h:panelGroup layout="block" rendered="#{extractionBean.results != null}"
                                   style="margin-top: 1rem;">
+                        <!-- ADDED 2026-10-14 - why an approver sent the review back, newest first. -->
+                        <h:panelGroup layout="block" rendered="#{extractionBean.hasSendBacks}"
+                                      style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
+                            <i class="pi pi-reply" style="margin-right: 0.4rem;"></i>
+                            <strong>
+                                <h:outputText rendered="#{extractionBean.status.done}"
+                                              value="Sent back by the approver. Please look at this again and complete the review."/>
+                                <h:outputText rendered="#{not extractionBean.status.done}"
+                                              value="Sent back earlier (#{extractionBean.sendBacks.size()} time(s))."/>
+                            </strong>
+                            <ui:repeat var="sb" value="#{extractionBean.sendBacks}">
+                                <div style="margin-top: 0.4rem;">
+                                    <span style="color: #6b7280;">
+                                        <h:outputText value="#{sb.sentAtText}"/>
+                                        <h:outputText value=" by #{sb.sentBy}: "/>
+                                    </span>
+                                    <h:outputText value="#{sb.reason}"/>
+                                </div>
+                            </ui:repeat>
+                        </h:panelGroup>
                         <h:panelGroup id="extractionReviewSummary" layout="block"
                                       style="position: sticky; top: 0; z-index: 2; background: #ffffff; padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb;">
                             <h:panelGroup rendered="#{extractionBean.editable}">
@@ -728,10 +759,9 @@
                                                  rendered="#{extractionBean.canApprove}"
                                                  style="margin-left: 0.5rem;"
                                                  disabled="#{demoRoleBean.readOnly('Contract Packages')}"
-                                                 process="@this"
-                                                 update=":extractionForm:extractionPanel :stageDocumentsGrowl"
-                                                 actionListener="#{extractionBean.sendBack}"
-                                                 oncomplete="refreshContractPackages();"/>
+                                                 process="@this" update=":extractionSendBackForm"
+                                                 actionListener="#{extractionBean.prepareSendBack}"
+                                                 oncomplete="PF('extractionSendBackDialog').show();"/>
                                 <p:commandButton value="Reopen review" icon="pi pi-lock-open"
                                                  styleClass="ui-button-secondary"
                                                  rendered="#{extractionBean.permitted}"
@@ -852,6 +882,40 @@
                                      process="@form" update="@form :stageDocumentsGrowl"
                                      actionListener="#{extractionBean.confirmDecline}"
                                      oncomplete="if (args &amp;&amp; args.done) { PF('extractionDeclineDialog').hide(); PF('extractionDialog').hide(); refreshStagedDocuments(); }"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <!-- ADDED 2026-10-14 - The approver sends a completed review back to the reviewer with a
+             reason. The reason is required and kept; a package can be sent back more than once. -->
+        <p:dialog widgetVar="extractionSendBackDialog"
+                  header="Send back to reviewer"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closeOnEscape="true"
+                  width="34rem">
+            <h:form id="extractionSendBackForm">
+                <p style="margin-top: 0;">
+                    <strong><h:outputText value="#{extractionBean.extractionPackage.packageCode}"/></strong>
+                    goes back to the reviewer, who can change values and complete the review again.
+                </p>
+                <p:outputLabel for="sendBackReasonText" value="Reason"/>
+                <br/>
+                <p:inputTextarea id="sendBackReasonText" value="#{extractionBean.sendBackReason}"
+                                 rows="4" maxlength="1000" counter="sendBackReasonCounter"
+                                 counterTemplate="{0} characters remaining" style="width: 100%;"/>
+                <br/>
+                <h:outputText id="sendBackReasonCounter"
+                              style="color: #6b7280; font-size: 0.85rem;"/>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                    <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                                     onclick="PF('extractionSendBackDialog').hide();"/>
+                    <p:commandButton value="Send back" icon="pi pi-reply"
+                                     process="@form"
+                                     update="@form :extractionForm:extractionPanel :stageDocumentsGrowl"
+                                     actionListener="#{extractionBean.confirmSendBack}"
+                                     oncomplete="if (args &amp;&amp; args.done) { PF('extractionSendBackDialog').hide(); refreshContractPackages(); }"/>
                 </div>
             </h:form>
         </p:dialog>

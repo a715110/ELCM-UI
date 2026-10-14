@@ -4,6 +4,7 @@ import com.dodaso.ecosystem.baseline.common.constant.ServiceDiscoveryEnum;
 import com.dodaso.ecosystem.baseline.common.proxy.RESTServiceClient;
 import com.dodaso.ecosystem.elcm.ui.constant.ContractPackageControllerAPIEnum;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,17 +74,17 @@ public class ExtractionUiService {
    * File names of the package's documents that have no extraction template; empty when all are
    * covered or unknown.
    */
-  public java.util.List<String> documentsWithoutTemplate(final Long packageId) {
+  public List<String> documentsWithoutTemplate(final Long packageId) {
     try {
-      final Map<String, java.util.List<String>> answer = restServiceClient.get(SERVICE,
+      final Map<String, List<String>> answer = restServiceClient.get(SERVICE,
           BASE + "/" + packageId + "/extraction/coverage",
-          new ParameterizedTypeReference<Map<String, java.util.List<String>>>() {
+          new ParameterizedTypeReference<Map<String, List<String>>>() {
           });
-      final java.util.List<String> names = answer == null ? null : answer.get("withoutTemplate");
-      return names == null ? java.util.List.of() : names;
+      final List<String> names = answer == null ? null : answer.get("withoutTemplate");
+      return names == null ? List.of() : names;
     } catch (final Exception e) {
       log.error("Failed to check the extraction coverage of package {}", packageId, e);
-      return java.util.List.of();
+      return List.of();
     }
   }
 
@@ -169,12 +170,31 @@ public class ExtractionUiService {
   }
 
   /**
-   * Approver: send a completed review back to the reviewer. CONFLICT means it is not in the
-   * Reviewed state (anymore).
+   * Approver: send a completed review back to the reviewer with a reason. INVALID is a missing or
+   * too long reason (400), CONFLICT means it is not in the Reviewed state (anymore).
    */
-  public PackageOutcome sendBack(final Long packageId) {
-    return post(BASE + "/" + packageId + "/extraction/send-back", new HashMap<String, Object>(),
+  public PackageOutcome sendBack(final Long packageId, final String reason) {
+    final Map<String, Object> body = new HashMap<>();
+    body.put("reason", reason);
+    return post(BASE + "/" + packageId + "/extraction/send-back", body,
         "send back the review of package " + packageId);
+  }
+
+  /**
+   * The reasons the review was sent back, newest first; empty when it never was or could not be
+   * read (the reviewer can still work).
+   */
+  public List<SendBackRow> sendBacks(final Long packageId) {
+    try {
+      final List<SendBackRow> rows = restServiceClient.get(SERVICE,
+          BASE + "/" + packageId + "/extraction/send-backs",
+          new ParameterizedTypeReference<List<SendBackRow>>() {
+          });
+      return rows != null ? rows : List.of();
+    } catch (final Exception e) {
+      log.error("Failed to load the send-backs of package {}", packageId, e);
+      return List.of();
+    }
   }
 
   /**
@@ -199,11 +219,11 @@ public class ExtractionUiService {
   /**
    * Records a package without a target can be applied to; null when they could not be loaded.
    */
-  public java.util.List<TargetCandidateRow> targetCandidates(final Long packageId) {
+  public List<TargetCandidateRow> targetCandidates(final Long packageId) {
     try {
       return restServiceClient.get(SERVICE,
           BASE + "/" + packageId + "/extraction/target-candidates",
-          new ParameterizedTypeReference<java.util.List<TargetCandidateRow>>() {
+          new ParameterizedTypeReference<List<TargetCandidateRow>>() {
           });
     } catch (final Exception e) {
       log.error("Failed to load the target record candidates of package {}", packageId, e);

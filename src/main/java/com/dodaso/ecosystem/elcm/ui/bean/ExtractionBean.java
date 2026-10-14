@@ -1,6 +1,7 @@
 package com.dodaso.ecosystem.elcm.ui.bean;
 
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractPackageRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractPackageService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ApplyResultRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionResultsRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionStatusRow;
@@ -8,6 +9,7 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionUiService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.FieldHistoryRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.PackageOutcome;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ReviewAccessRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.SendBackRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.TargetCandidateRow;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
@@ -40,6 +42,8 @@ public class ExtractionBean implements Serializable {
 
   private final ExtractionUiService extractionUiService;
 
+  private final ContractPackageService contractPackageService;
+
   private ContractPackageRow extractionPackage;
   private ExtractionStatusRow status;
   private ExtractionResultsRow results;
@@ -64,6 +68,17 @@ public class ExtractionBean implements Serializable {
   private List<TargetCandidateRow> applyCandidates = new ArrayList<>();
 
   /**
+   * Why the approver sent the review back, newest first; empty when it never was.
+   */
+  private List<SendBackRow> sendBacks = new ArrayList<>();
+
+  /**
+   * Reason typed in the Send back dialog.
+   */
+  @Setter
+  private String sendBackReason;
+
+  /**
    * Reason typed in the Decline dialog.
    */
   @Setter
@@ -77,7 +92,36 @@ public class ExtractionBean implements Serializable {
     status = null;
     results = null;
     access = null;
+    sendBacks = new ArrayList<>();
     load();
+  }
+
+  /**
+   * ADDED 2026-10-14 -- opens the package named by the "review" request parameter, which the Work
+   * Queue puts on the link to the Dashboard. The page runs this once on load (a remote command with
+   * autoRun) and shows the dialog only when the callback parameter "opened" comes back true.
+   */
+  public void openFromRequest() {
+    final String raw =
+        FacesContext.getCurrentInstance().getExternalContext().getRequestParameterMap()
+            .get("review");
+    if (raw == null || raw.isBlank()) {
+      return;
+    }
+    final long id;
+    try {
+      id = Long.parseLong(raw.trim());
+    } catch (final NumberFormatException e) {
+      return;
+    }
+    for (final ContractPackageRow row : contractPackageService.findPackages()) {
+      if (row.getId() != null && row.getId() == id) {
+        open(row);
+        PrimeFaces.current().ajax().addCallbackParam("opened", true);
+        return;
+      }
+    }
+    add(FacesMessage.SEVERITY_WARN, "Package not found", "The package may have been returned to draft.");
   }
 
   /**
@@ -440,25 +484,68 @@ public class ExtractionBean implements Serializable {
   }
 
   /**
-   * Approver: send a completed review back to the reviewer.
+   * Send back icon clicked: start with an empty reason. The page shows the dialog.
    */
-  public void sendBack() {
+  public void prepareSendBack() {
+    sendBackReason = null;
+  }
+
+  /**
+   * True when the review was sent back at least once.
+   */
+  public boolean isHasSendBacks() {
+    return !sendBacks.isEmpty();
+  }
+
+  /**
+   * The newest send-back; null when none.
+   */
+  public SendBackRow getLatestSendBack() {
+    return sendBacks.isEmpty() ? null : sendBacks.get(0);
+  }
+
+  /**
+   * Approver: send a completed review back to the reviewer with a reason. Callback parameter "done"
+   * is true when the dialog can close; on a refusal of the reason it stays open.
+   */
+  public void confirmSendBack() {
     if (extractionPackage == null) {
       return;
     }
-    final PackageOutcome outcome = extractionUiService.sendBack(extractionPackage.getId());
+    final String reason = sendBackReason == null ? "" : sendBackReason.trim();
+    if (reason.isEmpty()) {
+      add(FacesMessage.SEVERITY_WARN, "Reason needed",
+          "Tell the reviewer what to look at again.");
+      PrimeFaces.current().ajax().addCallbackParam("done", false);
+      return;
+    }
+    final PackageOutcome outcome =
+        extractionUiService.sendBack(extractionPackage.getId(), reason);
+    boolean done = false;
     switch (outcome) {
-      case OK -> add(FacesMessage.SEVERITY_INFO, "Sent back to the reviewer",
-          "The reviewer can change values and complete the review again.");
-      case CONFLICT -> add(FacesMessage.SEVERITY_WARN, "Cannot send back",
-          "The review is not waiting for approval, or the values were already applied.");
+      case OK -> {
+        done = true;
+        add(FacesMessage.SEVERITY_INFO, "Sent back to the reviewer",
+            "The reviewer sees your reason, can change values and complete the review again.");
+      }
+      case INVALID -> add(FacesMessage.SEVERITY_WARN, "Reason not accepted",
+          "The reason is required and at most 1000 characters.");
+      case CONFLICT -> {
+        add(FacesMessage.SEVERITY_WARN, "Cannot send back",
+            "The review is not waiting for approval, or the values were already applied.");
+        done = true;
+      }
       case NOT_FOUND ->
           add(FacesMessage.SEVERITY_WARN, "Not available", "The package has no submission.");
       case FORBIDDEN -> add(FacesMessage.SEVERITY_WARN, "No permission", NO_APPROVE_PERMISSION);
       default -> add(FacesMessage.SEVERITY_ERROR, "Send back failed", "Please try again.");
     }
-    results = null;
-    load();
+    if (done) {
+      sendBackReason = null;
+      results = null;
+      load();
+    }
+    PrimeFaces.current().ajax().addCallbackParam("done", done);
   }
 
   /**
@@ -492,6 +579,7 @@ public class ExtractionBean implements Serializable {
     results = null;
     access = null;
     history = null;
+    sendBacks = new ArrayList<>();
     loadFailed = false;
   }
 
@@ -502,6 +590,9 @@ public class ExtractionBean implements Serializable {
       status = fresh;
       if (access == null && (fresh.isDone() || fresh.isReviewed() || fresh.isFailed())) {
         access = extractionUiService.reviewAccess(extractionPackage.getId());
+      }
+      if (fresh.isDone() || fresh.isReviewed()) {
+        sendBacks = extractionUiService.sendBacks(extractionPackage.getId());
       }
       if ((fresh.isDone() || fresh.isReviewed() || fresh.isApplied()) && results == null) {
         results = extractionUiService.results(extractionPackage.getId());
