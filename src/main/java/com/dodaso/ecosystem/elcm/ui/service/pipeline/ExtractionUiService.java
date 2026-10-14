@@ -14,215 +14,251 @@ import org.springframework.web.client.HttpStatusCodeException;
 /**
  * elcm-ui side of extraction: progress and results of a submitted package, and Retry. The
  * extraction itself runs in the background in elcm-service; these calls are quick reads, so the
- * dashboard polls them. A failed read returns null (the dialog says it could not load) rather
- * than throwing.
+ * dashboard polls them. A failed read returns null (the dialog says it could not load) rather than
+ * throwing.
  */
 @Service
 @Slf4j
 public class ExtractionUiService {
 
-    @Autowired
-    private RESTServiceClient restServiceClient;
+  @Autowired
+  private RESTServiceClient restServiceClient;
 
-    private static final String SERVICE = ServiceDiscoveryEnum.elcm_service.getServiceDiscoveryName();
-    /** confirmVerified answers this when the caller lacks the review permission. */
-    public static final int CONFIRM_FORBIDDEN = -2;
+  private static final String SERVICE = ServiceDiscoveryEnum.elcm_service.getServiceDiscoveryName();
+  /**
+   * confirmVerified answers this when the caller lacks the review permission.
+   */
+  public static final int CONFIRM_FORBIDDEN = -2;
 
-    private static final String BASE = ContractPackageControllerAPIEnum.getContractPackages.getEndPoint();
+  private static final String BASE = ContractPackageControllerAPIEnum.getContractPackages.getEndPoint();
 
-    public ExtractionStatusRow status(final Long packageId) {
-        try {
-            return restServiceClient.get(SERVICE, BASE + "/" + packageId + "/extraction",
-                new ParameterizedTypeReference<ExtractionStatusRow>() {
-                });
-        } catch (final Exception e) {
-            log.error("Failed to load the extraction status of package {}", packageId, e);
-            return null;
-        }
+  public ExtractionStatusRow status(final Long packageId) {
+    try {
+      return restServiceClient.get(SERVICE, BASE + "/" + packageId + "/extraction",
+          new ParameterizedTypeReference<ExtractionStatusRow>() {
+          });
+    } catch (final Exception e) {
+      log.error("Failed to load the extraction status of package {}", packageId, e);
+      return null;
     }
+  }
 
-    /** What the signed-in user may do in the review; null when it could not be read (the service still enforces). */
-    public ReviewAccessRow reviewAccess(final Long packageId) {
-        try {
-            return restServiceClient.get(SERVICE, BASE + "/" + packageId + "/extraction/review-access",
-                new ParameterizedTypeReference<ReviewAccessRow>() {
-                });
-        } catch (final Exception e) {
-            log.error("Failed to read the review access of package {}", packageId, e);
-            return null;
-        }
+  /**
+   * What the signed-in user may do in the review; null when it could not be read (the service still
+   * enforces).
+   */
+  public ReviewAccessRow reviewAccess(final Long packageId) {
+    try {
+      return restServiceClient.get(SERVICE, BASE + "/" + packageId + "/extraction/review-access",
+          new ParameterizedTypeReference<ReviewAccessRow>() {
+          });
+    } catch (final Exception e) {
+      log.error("Failed to read the review access of package {}", packageId, e);
+      return null;
     }
+  }
 
-    public ExtractionResultsRow results(final Long packageId) {
-        try {
-            return restServiceClient.get(SERVICE, BASE + "/" + packageId + "/extraction/results",
-                new ParameterizedTypeReference<ExtractionResultsRow>() {
-                });
-        } catch (final Exception e) {
-            log.error("Failed to load the extraction results of package {}", packageId, e);
-            return null;
-        }
+  public ExtractionResultsRow results(final Long packageId) {
+    try {
+      return restServiceClient.get(SERVICE, BASE + "/" + packageId + "/extraction/results",
+          new ParameterizedTypeReference<ExtractionResultsRow>() {
+          });
+    } catch (final Exception e) {
+      log.error("Failed to load the extraction results of package {}", packageId, e);
+      return null;
     }
+  }
 
-    /** File names of the package's documents that have no extraction template; empty when all are covered or unknown. */
-    public java.util.List<String> documentsWithoutTemplate(final Long packageId) {
-        try {
-            final Map<String, java.util.List<String>> answer = restServiceClient.get(SERVICE,
-                BASE + "/" + packageId + "/extraction/coverage",
-                new ParameterizedTypeReference<Map<String, java.util.List<String>>>() {
-                });
-            final java.util.List<String> names = answer == null ? null : answer.get("withoutTemplate");
-            return names == null ? java.util.List.of() : names;
-        } catch (final Exception e) {
-            log.error("Failed to check the extraction coverage of package {}", packageId, e);
-            return java.util.List.of();
-        }
+  /**
+   * File names of the package's documents that have no extraction template; empty when all are
+   * covered or unknown.
+   */
+  public java.util.List<String> documentsWithoutTemplate(final Long packageId) {
+    try {
+      final Map<String, java.util.List<String>> answer = restServiceClient.get(SERVICE,
+          BASE + "/" + packageId + "/extraction/coverage",
+          new ParameterizedTypeReference<Map<String, java.util.List<String>>>() {
+          });
+      final java.util.List<String> names = answer == null ? null : answer.get("withoutTemplate");
+      return names == null ? java.util.List.of() : names;
+    } catch (final Exception e) {
+      log.error("Failed to check the extraction coverage of package {}", packageId, e);
+      return java.util.List.of();
     }
+  }
 
-    /** The history of one field; null when it could not be loaded. */
-    public FieldHistoryRow history(final Long packageId, final Long resultId) {
-        try {
-            return restServiceClient.get(SERVICE, BASE + "/" + packageId + "/extraction/fields/" + resultId + "/history",
-                new ParameterizedTypeReference<FieldHistoryRow>() {
-                });
-        } catch (final Exception e) {
-            log.error("Failed to load the history of field {} of package {}", resultId, packageId, e);
-            return null;
-        }
+  /**
+   * The history of one field; null when it could not be loaded.
+   */
+  public FieldHistoryRow history(final Long packageId, final Long resultId) {
+    try {
+      return restServiceClient.get(SERVICE,
+          BASE + "/" + packageId + "/extraction/fields/" + resultId + "/history",
+          new ParameterizedTypeReference<FieldHistoryRow>() {
+          });
+    } catch (final Exception e) {
+      log.error("Failed to load the history of field {} of package {}", resultId, packageId, e);
+      return null;
     }
+  }
 
-    /** Failed extraction back in the queue. CONFLICT means it is not failed (anymore). */
-    public PackageOutcome retry(final Long packageId) {
-        try {
-            restServiceClient.post(SERVICE, BASE + "/" + packageId + "/extraction/retry", new HashMap<String, Object>(),
-                new ParameterizedTypeReference<Void>() {
-                });
-            return PackageOutcome.OK;
-        } catch (final HttpStatusCodeException e) {
-            log.warn("elcm-service refused to retry extraction of package {}: HTTP {}", packageId,
-                e.getStatusCode().value());
-            return switch (e.getStatusCode().value()) {
-                case 404 -> PackageOutcome.NOT_FOUND;
-                case 409 -> PackageOutcome.CONFLICT;
-                default -> PackageOutcome.FAILED;
-            };
-        } catch (final Exception e) {
-            log.error("Failed to retry extraction of package {}", packageId, e);
-            return PackageOutcome.FAILED;
-        }
+  /**
+   * Failed extraction back in the queue. CONFLICT means it is not failed (anymore).
+   */
+  public PackageOutcome retry(final Long packageId) {
+    try {
+      restServiceClient.post(SERVICE, BASE + "/" + packageId + "/extraction/retry",
+          new HashMap<String, Object>(),
+          new ParameterizedTypeReference<Void>() {
+          });
+      return PackageOutcome.OK;
+    } catch (final HttpStatusCodeException e) {
+      log.warn("elcm-service refused to retry extraction of package {}: HTTP {}", packageId,
+          e.getStatusCode().value());
+      return switch (e.getStatusCode().value()) {
+        case 404 -> PackageOutcome.NOT_FOUND;
+        case 409 -> PackageOutcome.CONFLICT;
+        default -> PackageOutcome.FAILED;
+      };
+    } catch (final Exception e) {
+      log.error("Failed to retry extraction of package {}", packageId, e);
+      return PackageOutcome.FAILED;
     }
+  }
 
-    /**
-     * Reviewer: save one field (corrected value and confirmed flag). INVALID is a value that does
-     * not fit the field type (400), CONFLICT means the package can no longer be reviewed (409).
-     */
-    public PackageOutcome saveField(final Long packageId, final ExtractionResultsRow.FieldRow field) {
-        final Map<String, Object> body = new HashMap<>();
-        body.put("correctedValue", field.getCorrectedValue());
-        body.put("verified", field.isVerified());
-        return post(BASE + "/" + packageId + "/extraction/fields/" + field.getResultId(), body,
-            "save field " + field.getResultId() + " of package " + packageId);
-    }
+  /**
+   * Reviewer: save one field (corrected value and confirmed flag). INVALID is a value that does not
+   * fit the field type (400), CONFLICT means the package can no longer be reviewed (409).
+   */
+  public PackageOutcome saveField(final Long packageId, final ExtractionResultsRow.FieldRow field) {
+    final Map<String, Object> body = new HashMap<>();
+    body.put("correctedValue", field.getCorrectedValue());
+    body.put("verified", field.isVerified());
+    return post(BASE + "/" + packageId + "/extraction/fields/" + field.getResultId(), body,
+        "save field " + field.getResultId() + " of package " + packageId);
+  }
 
-    /** Reviewer: confirm every field the extractor verified. Returns how many, -1 when the call failed, CONFIRM_FORBIDDEN without permission. */
-    public int confirmVerified(final Long packageId) {
-        try {
-            final Map<String, Integer> answer = restServiceClient.post(SERVICE,
-                BASE + "/" + packageId + "/extraction/confirm-verified", new HashMap<String, Object>(),
-                new ParameterizedTypeReference<Map<String, Integer>>() {
-                });
-            return answer != null && answer.get("confirmed") != null ? answer.get("confirmed") : 0;
-        } catch (final HttpStatusCodeException e) {
-            log.warn("elcm-service refused to confirm the verified fields of package {}: HTTP {}", packageId,
-                e.getStatusCode().value());
-            return e.getStatusCode().value() == 403 ? CONFIRM_FORBIDDEN : -1;
-        } catch (final Exception e) {
-            log.error("Failed to confirm the verified fields of package {}", packageId, e);
-            return -1;
-        }
+  /**
+   * Reviewer: confirm every field the extractor verified. Returns how many, -1 when the call
+   * failed, CONFIRM_FORBIDDEN without permission.
+   */
+  public int confirmVerified(final Long packageId) {
+    try {
+      final Map<String, Integer> answer = restServiceClient.post(SERVICE,
+          BASE + "/" + packageId + "/extraction/confirm-verified", new HashMap<String, Object>(),
+          new ParameterizedTypeReference<Map<String, Integer>>() {
+          });
+      return answer != null && answer.get("confirmed") != null ? answer.get("confirmed") : 0;
+    } catch (final HttpStatusCodeException e) {
+      log.warn("elcm-service refused to confirm the verified fields of package {}: HTTP {}",
+          packageId,
+          e.getStatusCode().value());
+      return e.getStatusCode().value() == 403 ? CONFIRM_FORBIDDEN : -1;
+    } catch (final Exception e) {
+      log.error("Failed to confirm the verified fields of package {}", packageId, e);
+      return -1;
     }
+  }
 
-    /** Reviewer: reopen a completed review. CONFLICT means it is not in the Reviewed state (anymore). */
-    public PackageOutcome reopenReview(final Long packageId) {
-        return post(BASE + "/" + packageId + "/extraction/reopen", new HashMap<String, Object>(),
-            "reopen the review of package " + packageId);
-    }
+  /**
+   * Reviewer: reopen a completed review. CONFLICT means it is not in the Reviewed state (anymore).
+   */
+  public PackageOutcome reopenReview(final Long packageId) {
+    return post(BASE + "/" + packageId + "/extraction/reopen", new HashMap<String, Object>(),
+        "reopen the review of package " + packageId);
+  }
 
-    /** Reviewer: complete the review. WORKSPACE_MISMATCH here means 422: fields still to confirm. */
-    public PackageOutcome completeReview(final Long packageId) {
-        return post(BASE + "/" + packageId + "/extraction/complete", new HashMap<String, Object>(),
-            "complete the review of package " + packageId);
-    }
+  /**
+   * Approver: send a completed review back to the reviewer. CONFLICT means it is not in the
+   * Reviewed state (anymore).
+   */
+  public PackageOutcome sendBack(final Long packageId) {
+    return post(BASE + "/" + packageId + "/extraction/send-back", new HashMap<String, Object>(),
+        "send back the review of package " + packageId);
+  }
 
-    /**
-     * Reviewer: send the package back to Assembly with a reason. INVALID is a missing or too long
-     * reason (400), CONFLICT means the package is not in a state that can be declined (409).
-     */
-    public PackageOutcome decline(final Long packageId, final String reason) {
-        final Map<String, Object> body = new HashMap<>();
-        body.put("reason", reason);
-        return post(BASE + "/" + packageId + "/extraction/decline", body,
-            "decline package " + packageId);
-    }
+  /**
+   * Reviewer: complete the review. WORKSPACE_MISMATCH here means 422: fields still to confirm.
+   */
+  public PackageOutcome completeReview(final Long packageId) {
+    return post(BASE + "/" + packageId + "/extraction/complete", new HashMap<String, Object>(),
+        "complete the review of package " + packageId);
+  }
 
-    /** Records a package without a target can be applied to; null when they could not be loaded. */
-    public java.util.List<TargetCandidateRow> targetCandidates(final Long packageId) {
-        try {
-            return restServiceClient.get(SERVICE, BASE + "/" + packageId + "/extraction/target-candidates",
-                new ParameterizedTypeReference<java.util.List<TargetCandidateRow>>() {
-                });
-        } catch (final Exception e) {
-            log.error("Failed to load the target record candidates of package {}", packageId, e);
-            return null;
-        }
-    }
+  /**
+   * Reviewer: send the package back to Assembly with a reason. INVALID is a missing or too long
+   * reason (400), CONFLICT means the package is not in a state that can be declined (409).
+   */
+  public PackageOutcome decline(final Long packageId, final String reason) {
+    final Map<String, Object> body = new HashMap<>();
+    body.put("reason", reason);
+    return post(BASE + "/" + packageId + "/extraction/decline", body,
+        "decline package " + packageId);
+  }
 
-    /**
-     * Reviewer: write the reviewed values to the package's target contract record. The outcome
-     * is CONFLICT when the review is not completed or was already applied, WORKSPACE_MISMATCH
-     * (422) when the package has no target record yet.
-     */
-    public ApplyResultRow apply(final Long packageId, final Long targetRecordId) {
-        try {
-            final Map<String, Object> body = new HashMap<>();
-            body.put("targetRecordId", targetRecordId);
-            final ApplyResultRow row = restServiceClient.post(SERVICE, BASE + "/" + packageId + "/extraction/apply",
-                body, new ParameterizedTypeReference<ApplyResultRow>() {
-                });
-            return row != null ? row : ApplyResultRow.failed(PackageOutcome.FAILED);
-        } catch (final HttpStatusCodeException e) {
-            log.warn("elcm-service refused to apply package {}: HTTP {}", packageId, e.getStatusCode().value());
-            return ApplyResultRow.failed(switch (e.getStatusCode().value()) {
-                case 404 -> PackageOutcome.NOT_FOUND;
-                case 409 -> PackageOutcome.CONFLICT;
-                case 422 -> PackageOutcome.WORKSPACE_MISMATCH;
-                case 403 -> PackageOutcome.FORBIDDEN;
-                default -> PackageOutcome.FAILED;
-            });
-        } catch (final Exception e) {
-            log.error("Failed to apply package {}", packageId, e);
-            return ApplyResultRow.failed(PackageOutcome.FAILED);
-        }
+  /**
+   * Records a package without a target can be applied to; null when they could not be loaded.
+   */
+  public java.util.List<TargetCandidateRow> targetCandidates(final Long packageId) {
+    try {
+      return restServiceClient.get(SERVICE,
+          BASE + "/" + packageId + "/extraction/target-candidates",
+          new ParameterizedTypeReference<java.util.List<TargetCandidateRow>>() {
+          });
+    } catch (final Exception e) {
+      log.error("Failed to load the target record candidates of package {}", packageId, e);
+      return null;
     }
+  }
 
-    private PackageOutcome post(final String endpoint, final Object body, final String what) {
-        try {
-            restServiceClient.post(SERVICE, endpoint, body, new ParameterizedTypeReference<Void>() {
-            });
-            return PackageOutcome.OK;
-        } catch (final HttpStatusCodeException e) {
-            log.warn("elcm-service refused to {}: HTTP {}", what, e.getStatusCode().value());
-            return switch (e.getStatusCode().value()) {
-                case 404 -> PackageOutcome.NOT_FOUND;
-                case 409 -> PackageOutcome.CONFLICT;
-                case 422 -> PackageOutcome.WORKSPACE_MISMATCH;
-                case 400 -> PackageOutcome.INVALID;
-                case 403 -> PackageOutcome.FORBIDDEN;
-                default -> PackageOutcome.FAILED;
-            };
-        } catch (final Exception e) {
-            log.error("Failed to {}", what, e);
-            return PackageOutcome.FAILED;
-        }
+  /**
+   * Reviewer: write the reviewed values to the package's target contract record. The outcome is
+   * CONFLICT when the review is not completed or was already applied, WORKSPACE_MISMATCH (422) when
+   * the package has no target record yet.
+   */
+  public ApplyResultRow apply(final Long packageId, final Long targetRecordId) {
+    try {
+      final Map<String, Object> body = new HashMap<>();
+      body.put("targetRecordId", targetRecordId);
+      final ApplyResultRow row = restServiceClient.post(SERVICE,
+          BASE + "/" + packageId + "/extraction/apply",
+          body, new ParameterizedTypeReference<ApplyResultRow>() {
+          });
+      return row != null ? row : ApplyResultRow.failed(PackageOutcome.FAILED);
+    } catch (final HttpStatusCodeException e) {
+      log.warn("elcm-service refused to apply package {}: HTTP {}", packageId,
+          e.getStatusCode().value());
+      return ApplyResultRow.failed(switch (e.getStatusCode().value()) {
+        case 404 -> PackageOutcome.NOT_FOUND;
+        case 409 -> PackageOutcome.CONFLICT;
+        case 422 -> PackageOutcome.WORKSPACE_MISMATCH;
+        case 403 -> PackageOutcome.FORBIDDEN;
+        default -> PackageOutcome.FAILED;
+      });
+    } catch (final Exception e) {
+      log.error("Failed to apply package {}", packageId, e);
+      return ApplyResultRow.failed(PackageOutcome.FAILED);
     }
+  }
+
+  private PackageOutcome post(final String endpoint, final Object body, final String what) {
+    try {
+      restServiceClient.post(SERVICE, endpoint, body, new ParameterizedTypeReference<Void>() {
+      });
+      return PackageOutcome.OK;
+    } catch (final HttpStatusCodeException e) {
+      log.warn("elcm-service refused to {}: HTTP {}", what, e.getStatusCode().value());
+      return switch (e.getStatusCode().value()) {
+        case 404 -> PackageOutcome.NOT_FOUND;
+        case 409 -> PackageOutcome.CONFLICT;
+        case 422 -> PackageOutcome.WORKSPACE_MISMATCH;
+        case 400 -> PackageOutcome.INVALID;
+        case 403 -> PackageOutcome.FORBIDDEN;
+        default -> PackageOutcome.FAILED;
+      };
+    } catch (final Exception e) {
+      log.error("Failed to {}", what, e);
+      return PackageOutcome.FAILED;
+    }
+  }
 }

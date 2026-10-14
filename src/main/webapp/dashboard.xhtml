@@ -4,1031 +4,1197 @@
                 xmlns:p="http://primefaces.org/ui"
                 xmlns:f="http://xmlns.jcp.org/jsf/core"
                 template="/WEB-INF/template.xhtml">
-  <!--
-      Namespaces corrected to the PrimeFaces 15 / Jakarta Faces 4.0 style
-      (jakarta.faces.*, "primefaces") per your instruction - this now
-      differs from template.xhtml, which is still on the old
-      http://java.sun.com/jsf/html style. See chat for why that mismatch
-      is flagged as a risk, not silently fixed here too.
+    <!--
+        Namespaces corrected to the PrimeFaces 15 / Jakarta Faces 4.0 style
+        (jakarta.faces.*, "primefaces") per your instruction - this now
+        differs from template.xhtml, which is still on the old
+        http://java.sun.com/jsf/html style. See chat for why that mismatch
+        is flagged as a risk, not silently fixed here too.
 
-      This file only fills the "content" region template.xhtml exposes
-      via <ui:insert name="content"/> - the sidebar/topbar/breadcrumb
-      chrome visible in the reference screenshot is NOT rendered by this
-      file and isn't currently active in template.xhtml either (see chat).
+        This file only fills the "content" region template.xhtml exposes
+        via <ui:insert name="content"/> - the sidebar/topbar/breadcrumb
+        chrome visible in the reference screenshot is NOT rendered by this
+        file and isn't currently active in template.xhtml either (see chat).
 
-      REFACTORED (2026-08-15): the single dashboardBean is replaced with
-      three section beans (pipelineMetricsBean, stageDocumentsBean,
-      contractPackagesBean), each backed by its own Spring service. See
-      the bean-per-section design discussion in chat. DashboardBean.java
-      is no longer used by this page and should be deleted from the
-      project.
-  -->
-  <ui:define name="title">Dashboard</ui:define>
+        REFACTORED (2026-08-15): the single dashboardBean is replaced with
+        three section beans (pipelineMetricsBean, stageDocumentsBean,
+        contractPackagesBean), each backed by its own Spring service. See
+        the bean-per-section design discussion in chat. DashboardBean.java
+        is no longer used by this page and should be deleted from the
+        project.
+    -->
+    <ui:define name="title">Dashboard</ui:define>
 
-  <ui:define name="head">
-    <style>
-      /* Colors below match theme-override.css's warm-neutral + forest-green
-         palette - this inline block predates that file and originally had
-         its own unrelated #667eea (blue-violet) icon color left over from
-         an early mockup, which is what first made the color harmony look
-         off. Now consistent with the rest of the app rather than a
-         separate hardcoded palette. */
-      .metric-cards { display: flex; flex-wrap: wrap; gap: 1.25rem; margin: 1.5rem 0; }
-      .metric-card {
-        flex: 1 1 200px;
-        background: #FDFCFA;
-        border: 1px solid #D6D2C7;
-        border-radius: 10px;
-        padding: 1.25rem 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-      }
-      .metric-card .pi { font-size: 1.5rem; color: #166534; }  /* matches --elcm-accent-text in theme-override.css -- kept in sync manually since this inline block predates that file */
-      .metric-card .metric-value { font-size: 1.75rem; font-weight: 700; color: #2B2A26; line-height: 1; }
-      .metric-card .metric-label { font-size: 0.85rem; color: #6B6A63; margin-top: 0.25rem; }
+    <ui:define name="head">
+        <style>
+          /* Colors below match theme-override.css's warm-neutral + forest-green
+             palette - this inline block predates that file and originally had
+             its own unrelated #667eea (blue-violet) icon color left over from
+             an early mockup, which is what first made the color harmony look
+             off. Now consistent with the rest of the app rather than a
+             separate hardcoded palette. */
+          .metric-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.25rem;
+            margin: 1.5rem 0;
+          }
 
-      .dashboard-section { margin: 2rem 0; }
-      .dashboard-section h2 { font-size: 1.15rem; margin-bottom: 0.25rem; }
-      .dashboard-section .section-subtitle { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+          .metric-card {
+            flex: 1 1 200px;
+            background: #FDFCFA;
+            border: 1px solid #D6D2C7;
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+          }
 
-      /* ---- Card/fieldset container for each dashboard section ----
-         Mockup wraps Stage Documents (and, for consistency, Contract
-         Packages) in a bordered white card rather than a bare div. */
-      .dashboard-card {
-        background: #FFFFFF;
-        border: 1px solid #E5E2D9;
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin: 2rem 0;
-      }
-      .dashboard-card-header {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        margin-bottom: 0.25rem;
-      }
-      .dashboard-card-header h2 { font-size: 1.15rem; margin: 0; }
-      .dashboard-card-header .pi-info-circle {
-        color: #8B8A82;
-        font-size: 0.95rem;
-        cursor: help;
-      }
+          .metric-card .pi {
+            font-size: 1.5rem;
+            color: #166534;
+          }
 
-      /* ---- Page header "Upload Files" button placement ---- */
-      .page-header-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 0.25rem;
-      }
-      .page-header-row h1 { margin: 0; }
+          /* matches --elcm-accent-text in theme-override.css -- kept in sync manually since this inline block predates that file */
+          .metric-card .metric-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #2B2A26;
+            line-height: 1;
+          }
 
-      /* ---- Metric cards: icon above the number, not beside it, and each
-         icon keeps its own semantic color rather than one hardcoded green
-         for all four (matches the mockup's blue/blue/green/blue set). ---- */
-      .metric-card { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
-      .metric-card .pi { color: #2563EB; } /* default: blue */
-      .metric-card .pi-check-circle { color: #166534; } /* Valid stays green */
+          .metric-card .metric-label {
+            font-size: 0.85rem;
+            color: #6B6A63;
+            margin-top: 0.25rem;
+          }
 
-      /* ---- ADDED 2026-10-03 -- Stage Documents table hover previews ----
-         File Name and Record cells get a p:tooltip (see the dataTable
-         below); this is the tooltip's own content styling, not the cell's.
-         REVISED 2026-10-04 -- Assignee now has the same treatment (see
-         that column below), reusing these same classes rather than
-         defining new ones. Reuses the same
-         "label left, value right" row pattern already established in
-         document-viewer.css's .dv-field and upload-files-dialog.css's
-         .ufd-field, kept here instead of either of those files since this
-         is the only page that uses it inside a p:tooltip's own popup
-         chrome (PrimeFaces renders tooltip content into a floating
-         .ui-tooltip, detached from this page's normal layout, which is
-         why these rules can't just reuse .dv-field/.ufd-field as-is --
-         different container width/background to work against). */
-      .ui-tooltip .stage-doc-tooltip {
-        min-width: 220px;
-        padding: 0.25rem 0;
-      }
-      .stage-doc-tooltip-title {
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: #D6D2C7;
-        padding-bottom: 0.4rem;
-        margin-bottom: 0.4rem;
-        border-bottom: 1px solid rgba(255,255,255,0.15);
-      }
-      .stage-doc-tooltip-row {
-        display: flex;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 0.2rem 0;
-        font-size: 0.82rem;
-      }
-      .stage-doc-tooltip-label { color: #D6D2C7; flex-shrink: 0; }
-      .stage-doc-tooltip-value { color: #FFFFFF; font-weight: 600; text-align: right; }
+          .dashboard-section {
+            margin: 2rem 0;
+          }
 
-      /* ADDED 2026-10-03 -- the "no record linked" explanatory variant (see
-         the second p:tooltip on the Record column, rendered when
-         targetRecordId is null). Wider than the field-list tooltip above
-         since it holds a sentence, not short label/value pairs; title is a
-         plain bold heading ("Unassigned") rather than the uppercase
-         section label the field-list variant uses, matching the reference
-         mockup. */
-      .ui-tooltip .stage-doc-tooltip-message { min-width: 260px; max-width: 300px; }
-      .stage-doc-tooltip-message .stage-doc-tooltip-title {
-        text-transform: none;
-        letter-spacing: normal;
-        font-size: 0.95rem;
-        border-bottom: none;
-        margin-bottom: 0.3rem;
-        padding-bottom: 0;
-        color: #FFFFFF;
-      }
-      .stage-doc-tooltip-message-body {
-        margin: 0;
-        font-size: 0.82rem;
-        line-height: 1.5;
-        color: #D6D2C7;
-      }
-    </style>
-    <h:outputStylesheet name="css/upload-files-dialog.css" library="ext"/>
-    <h:outputScript name="js/upload-files-dialog.js" library="ext"/>
-  </ui:define>
+          .dashboard-section h2 {
+            font-size: 1.15rem;
+            margin-bottom: 0.25rem;
+          }
 
-  <ui:define name="content">
+          .dashboard-section .section-subtitle {
+            color: #6B6A63;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+          }
 
-    <div class="page-header-row">
-      <div>
-        <h1>Document Pipeline</h1>
-        <p class="section-subtitle">Monitor and manage staged documents before submission to processing.</p>
-      </div>
-      <!-- Wrapped in its own tiny form (there wasn't one before) because
-           this button now needs a real ajax action: it resets
-           UploadFilesBean's server-side state (see that bean's LIFECYCLE
-           / RESET Javadoc) BEFORE the dialog shows, guaranteeing a clean
-           slate on every open regardless of how a previous attempt ended
-           (abandoned mid-upload, closed without submitting, etc.) - a
-           bare client-side PF(...).show() can't do that on its own since
-           it never reaches the server. process="@this" keeps this from
-           submitting/validating any of the page's other forms
-           (stageDocumentsForm, contractPackagesForm).
+          /* ---- Card/fieldset container for each dashboard section ----
+             Mockup wraps Stage Documents (and, for consistency, Contract
+             Packages) in a bordered white card rather than a bare div. */
+          .dashboard-card {
+            background: #FFFFFF;
+            border: 1px solid #E5E2D9;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+          }
 
-           update is the bare absolute id ":uploadFilesDialogForm" -
-           NOT "@(:uploadFilesDialogForm)". See the matching note on
-           commitToPipeline in uploadfilesdialog.xhtml for why that
-           distinction actually matters here (it was the root cause of
-           this button silently failing to open the dialog at all in an
-           earlier pass). -->
-      <h:form id="uploadFilesTriggerForm">
-        <p:commandButton value="Upload Files" icon="pi pi-cloud-upload" styleClass="ui-button-primary"
-                          rendered="#{demoRoleBean.canSee('Upload Files')}"
-                          disabled="#{demoRoleBean.readOnly('Upload Files')}"
-                          action="#{uploadFilesBean.reset}" process="@this"
-                          update=":uploadFilesDialogForm"
-                          oncomplete="PF('uploadFilesDialog').show();"/>
-      </h:form>
-    </div>
+          .dashboard-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-bottom: 0.25rem;
+          }
 
-    <ui:include src="/WEB-INF/uploadfilesdialog.xhtml"/>
+          .dashboard-card-header h2 {
+            font-size: 1.15rem;
+            margin: 0;
+          }
 
-    <!-- ==================== TOP METRICS ==================== -->
-    <h:panelGroup layout="block" rendered="#{demoRoleBean.overrideActive}"
-                  style="margin:1rem 0 0;padding:0.6rem 1rem;border:1px solid #D6D2C7;border-radius:8px;background:#FFF8E1;">
-      <i class="pi pi-eye"></i> Previewing as <strong>#{demoRoleBean.selectedRole}</strong>.
-      This changes what is shown on screen only; the data itself is not filtered.
-    </h:panelGroup>
+          .dashboard-card-header .pi-info-circle {
+            color: #8B8A82;
+            font-size: 0.95rem;
+            cursor: help;
+          }
 
-    <h:panelGroup id="metricCards" layout="block">
-    <div class="metric-cards">
-      <div class="metric-card">
-        <i class="pi pi-upload" aria-hidden="true"></i>
-        <div>
-          <div class="metric-value">
-            <h:outputText value="#{pipelineMetricsBean.uploadingCount}"/>
-          </div>
-          <div class="metric-label">Uploading</div>
-        </div>
-      </div>
-      <div class="metric-card">
-        <i class="pi pi-sync" aria-hidden="true"></i>
-        <div>
-          <div class="metric-value">
-            <h:outputText value="#{pipelineMetricsBean.validatingCount}"/>
-          </div>
-          <div class="metric-label">Validating</div>
-        </div>
-      </div>
-      <div class="metric-card">
-        <i class="pi pi-check-circle" aria-hidden="true"></i>
-        <div>
-          <div class="metric-value">
-            <h:outputText value="#{pipelineMetricsBean.validCount}"/>
-          </div>
-          <div class="metric-label">Valid</div>
-        </div>
-      </div>
-      <div class="metric-card">
-        <i class="pi pi-send" aria-hidden="true"></i>
-        <div>
-          <div class="metric-value">
-            <h:outputText value="#{pipelineMetricsBean.submittedCount}"/>
-          </div>
-          <div class="metric-label">Submitted</div>
-        </div>
-      </div>
-    </div>
-    </h:panelGroup>
+          /* ---- Page header "Upload Files" button placement ---- */
+          .page-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.25rem;
+          }
 
-    <!-- ADDED 2026-10-04 - refreshStagedDocuments() reloads the Stage Documents
-         card after a successful Add to Pipeline (called from the upload
-         dialog's commitToPipeline oncomplete). Without it the table kept
-         whatever StageDocumentsBean loaded when the page opened, so a newly
-         added file only showed up after a reload or a fresh login. It lives
-         in its own form, outside the card it updates, so the form being
-         re-rendered is never the one that issued the request. process="@this"
-         keeps it from submitting the other forms on the page. The same call
-         also reloads the four metric cards (metricCards) through the
-         pipelineMetricsBean.refresh listener, so the counts move too. -->
-    <h:form id="stageDocumentsRefreshForm">
-      <p:remoteCommand name="refreshStagedDocuments" actionListener="#{pipelineMetricsBean.refresh}"
-                       action="#{stageDocumentsBean.refresh}"
-                       process="@this" update=":stageDocumentsCard :metricCards"
-                       oncomplete="refreshContractPackages();"/>
-      <p:remoteCommand name="refreshContractPackages" action="#{contractPackagesBean.refresh}"
-                       process="@this" update=":contractPackagesCard"/>
-    </h:form>
+          .page-header-row h1 {
+            margin: 0;
+          }
 
-    <!-- ADDED 2026-10-07 - soft delete of a staged document. The message
-         area shows the outcome (deleted, refused, failed). The dialog asks
-         the user to confirm and offers an optional reason (at most 500
-         characters, kept with the deleted row). Confirm calls
-         stageDocumentsBean.confirmDelete; when that reports reload, the page
-         runs refreshStagedDocuments() so the table and the metric cards
-         update. keepOpen is set only when the reason was rejected as too
-         long, so the user can shorten it. -->
-    <p:growl id="stageDocumentsGrowl" globalOnly="true" showDetail="true" life="6000"/>
+          /* ---- Metric cards: icon above the number, not beside it, and each
+             icon keeps its own semantic color rather than one hardcoded green
+             for all four (matches the mockup's blue/blue/green/blue set). ---- */
+          .metric-card {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.6rem;
+          }
 
-    <p:dialog widgetVar="deleteStagedDocumentDialog"
-              header="Delete document"
-              modal="true"
-              resizable="false"
-              draggable="false"
-              closeOnEscape="true"
-              width="32rem">
-      <h:form id="deleteStagedDocumentForm">
-        <p style="margin-top: 0;">
-          <h:outputText value="Delete "/>
-          <strong><h:outputText value="#{stageDocumentsBean.documentPendingDelete.fileName}"/></strong>
-          <h:outputText value="? It is removed from the pipeline and from the counts. A record of the deletion is kept."/>
-        </p>
-        <p:outputLabel for="deleteReason" value="Reason (optional)"/>
-        <p:inputTextarea id="deleteReason" value="#{stageDocumentsBean.deleteReason}"
-                         rows="3" maxlength="500" autoResize="false" style="width: 100%;"
-                         counter="deleteReasonCounter" counterTemplate="{0} characters remaining"/>
-        <small><h:outputText id="deleteReasonCounter"/></small>
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
-                           onclick="PF('deleteStagedDocumentDialog').hide();"/>
-          <p:commandButton value="Delete" icon="pi pi-trash" styleClass="ui-button-danger"
-                           process="@form" update=":stageDocumentsGrowl"
-                           actionListener="#{stageDocumentsBean.confirmDelete}"
-                           oncomplete="if (args &amp;&amp; args.keepOpen) { return; } PF('deleteStagedDocumentDialog').hide(); if (args &amp;&amp; args.reload) { refreshStagedDocuments(); }"/>
-        </div>
-      </h:form>
-    </p:dialog>
+          .metric-card .pi {
+            color: #2563EB;
+          }
 
-    <!-- ADDED 2026-10-07 - Create Document Set. The dialog groups the ticked
-         Stage Documents into a new draft package (assignee chosen here) or
-         adds them to an existing draft package of the same workspace. A role
-         per document is optional. One workspace per package: a selection that
-         spans workspaces is refused before the dialog opens. -->
-    <p:dialog widgetVar="createDocumentSetDialog"
-              header="Create Document Set"
-              modal="true"
-              resizable="false"
-              draggable="false"
-              closeOnEscape="true"
-              width="46rem">
-      <h:form id="createDocumentSetForm">
-        <p style="margin-top: 0;">
-          <h:outputText value="Workspace: "/>
-          <strong><h:outputText value="#{createDocumentSetBean.workspace}"/></strong>
-        </p>
+          /* default: blue */
+          .metric-card .pi-check-circle {
+            color: #166534;
+          }
 
-        <p:selectOneRadio id="setMode" value="#{createDocumentSetBean.mode}" layout="lineDirection">
-          <f:selectItem itemLabel="New package" itemValue="NEW"/>
-          <f:selectItem itemLabel="Add to existing draft package" itemValue="EXISTING"
-                        itemDisabled="#{not createDocumentSetBean.existingAvailable}"/>
-          <p:ajax update="setNewPanel setExistingPanel"/>
-        </p:selectOneRadio>
+          /* Valid stays green */
 
-        <h:panelGroup id="setNewPanel" layout="block" style="margin: 0.75rem 0;">
-          <h:panelGroup rendered="#{not createDocumentSetBean.existingMode}">
-            <p:outputLabel for="setAssignee" value="Assignee"/>
-            <br/>
-            <p:autoComplete id="setAssignee" value="#{createDocumentSetBean.assigneeLoginId}"
-                            completeMethod="#{createDocumentSetBean.completeAssignableUsers}"
-                            var="au" itemValue="#{au.loginId}" itemLabel="#{au.label}"
-                            forceSelection="true" dropdown="true" scrollHeight="200"
-                            emptyMessage="No matching people" placeholder="Optional" style="width: 100%;"/>
-          </h:panelGroup>
-        </h:panelGroup>
+          /* ---- ADDED 2026-10-03 -- Stage Documents table hover previews ----
+             File Name and Record cells get a p:tooltip (see the dataTable
+             below); this is the tooltip's own content styling, not the cell's.
+             REVISED 2026-10-04 -- Assignee now has the same treatment (see
+             that column below), reusing these same classes rather than
+             defining new ones. Reuses the same
+             "label left, value right" row pattern already established in
+             document-viewer.css's .dv-field and upload-files-dialog.css's
+             .ufd-field, kept here instead of either of those files since this
+             is the only page that uses it inside a p:tooltip's own popup
+             chrome (PrimeFaces renders tooltip content into a floating
+             .ui-tooltip, detached from this page's normal layout, which is
+             why these rules can't just reuse .dv-field/.ufd-field as-is --
+             different container width/background to work against). */
+          .ui-tooltip .stage-doc-tooltip {
+            min-width: 220px;
+            padding: 0.25rem 0;
+          }
 
-        <h:panelGroup id="setExistingPanel" layout="block" style="margin: 0.75rem 0;">
-          <h:panelGroup rendered="#{createDocumentSetBean.existingMode}">
-            <p:outputLabel for="setExistingPackage" value="Package"/>
-            <br/>
-            <p:selectOneMenu id="setExistingPackage" value="#{createDocumentSetBean.existingPackageId}" style="min-width: 20rem;">
-              <f:selectItem itemLabel="Select a package" itemValue="#{null}" noSelectionOption="true"/>
-              <f:selectItems value="#{createDocumentSetBean.eligiblePackages}" var="ep"
-                             itemValue="#{ep.id}" itemLabel="#{ep.packageCode} (#{ep.docCount} docs)"/>
-            </p:selectOneMenu>
-          </h:panelGroup>
-        </h:panelGroup>
+          .stage-doc-tooltip-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #D6D2C7;
+            padding-bottom: 0.4rem;
+            margin-bottom: 0.4rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+          }
 
-        <p:dataTable id="setDocumentsTable" var="sd" value="#{createDocumentSetBean.documents}"
-                     rowKey="#{sd.id}" emptyMessage="No documents selected.">
-          <p:column headerText="File Name">
-            <h:outputText value="#{sd.fileName}"/>
-          </p:column>
-          <p:column headerText="Role (optional)" style="width: 15rem;">
-            <p:selectOneMenu value="#{createDocumentSetBean.roleByDocument[sd.id]}" style="width: 100%;">
-              <f:selectItem itemLabel="Not defined yet" itemValue="" noSelectionOption="true"/>
-              <f:selectItems value="#{createDocumentSetBean.roleOptions}" var="ro"
-                             itemValue="#{ro.code}" itemLabel="#{ro.label}"/>
-            </p:selectOneMenu>
-          </p:column>
-        </p:dataTable>
+          .stage-doc-tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.2rem 0;
+            font-size: 0.82rem;
+          }
 
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
-                           onclick="PF('createDocumentSetDialog').hide();"/>
-          <p:commandButton value="Create" icon="pi pi-check"
-                           process="@form" update="@form :stageDocumentsGrowl"
-                           actionListener="#{createDocumentSetBean.submit}"
-                           oncomplete="if (args &amp;&amp; args.done) { PF('createDocumentSetDialog').hide(); refreshStagedDocuments(); }"/>
-        </div>
-      </h:form>
-    </p:dialog>
+          .stage-doc-tooltip-label {
+            color: #D6D2C7;
+            flex-shrink: 0;
+          }
 
-    <!-- ADDED 2026-10-07 - Open a package: lists its documents. Remove is
-         offered only while the package is a draft; the document then goes
-         back to Stage Documents. -->
-    <p:dialog widgetVar="packageDocumentsDialog"
-              header="Package documents"
-              modal="true"
-              resizable="false"
-              draggable="false"
-              closeOnEscape="true"
-              width="46rem">
-      <h:form id="packageDocumentsForm">
-        <p style="margin-top: 0;">
-          <strong><h:outputText value="#{contractPackagesBean.openPackage.packageCode}"/></strong>
-          <h:outputText value=" - #{contractPackagesBean.openPackage.status}"/>
-        </p>
-        <h:panelGroup layout="block" rendered="#{contractPackagesBean.openDeclineNotice != null}"
-                      style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
-          <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
-          <h:outputText value="#{contractPackagesBean.openDeclineNotice}"/>
-        </h:panelGroup>
-        <p:dataTable id="packageDocumentsTable" var="pd" value="#{contractPackagesBean.openDocuments}"
-                     emptyMessage="This package has no documents.">
-          <p:column headerText="File Name">
-            <h:outputText value="#{pd.fileName}"/>
-          </p:column>
-          <p:column headerText="Role">
-            <h:outputText value="#{pd.roleLabel}"/>
-          </p:column>
-          <p:column headerText="Target Record">
-            <h:outputText value="#{pd.targetRecord}"/>
-          </p:column>
-          <p:column headerText="Actions" exportable="false" style="width: 7rem;">
-            <p:commandButton value="Remove" icon="pi pi-times" styleClass="ui-button-secondary"
-                             rendered="#{contractPackagesBean.openPackageDraft}"
-                             disabled="#{demoRoleBean.readOnly('Contract Packages')}"
-                             process="@this" update="@form :stageDocumentsGrowl"
-                             actionListener="#{contractPackagesBean.removeDocument(pd.stagedDocumentId, pd.fileName)}"
-                             oncomplete="if (args &amp;&amp; args.reload) { refreshStagedDocuments(); }"/>
-          </p:column>
-        </p:dataTable>
-        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-          <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
-                           onclick="PF('packageDocumentsDialog').hide();"/>
-        </div>
-      </h:form>
-    </p:dialog>
+          .stage-doc-tooltip-value {
+            color: #FFFFFF;
+            font-weight: 600;
+            text-align: right;
+          }
 
-    <!-- ADDED 2026-10-07 - Reassign a draft package. The person is picked the
-         same way as in Upload Files and Create Document Set. -->
-    <p:dialog widgetVar="reassignPackageDialog"
-              header="Reassign package"
-              modal="true"
-              resizable="false"
-              draggable="false"
-              closeOnEscape="true"
-              width="32rem">
-      <h:form id="reassignPackageForm">
-        <p style="margin-top: 0;">
-          <strong><h:outputText value="#{contractPackagesBean.reassignPackage.packageCode}"/></strong>
-          <h:outputText value=" - currently assigned to #{contractPackagesBean.reassignPackage.assignee}"/>
-        </p>
-        <p:outputLabel for="reassignAssignee" value="New assignee"/>
-        <br/>
-        <p:autoComplete id="reassignAssignee" value="#{contractPackagesBean.reassignLoginId}"
-                        completeMethod="#{contractPackagesBean.completeAssignableUsers}"
-                        var="au" itemValue="#{au.loginId}" itemLabel="#{au.label}"
-                        forceSelection="true" dropdown="true" scrollHeight="200"
-                        emptyMessage="No matching people" style="width: 100%;"/>
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
-                           onclick="PF('reassignPackageDialog').hide();"/>
-          <p:commandButton value="Reassign" icon="pi pi-check"
-                           process="@form" update="@form :stageDocumentsGrowl :contractPackagesCard"
-                           actionListener="#{contractPackagesBean.confirmReassign}"
-                           oncomplete="if (args &amp;&amp; args.done) { PF('reassignPackageDialog').hide(); }"/>
-        </div>
-      </h:form>
-    </p:dialog>
+          /* ADDED 2026-10-03 -- the "no record linked" explanatory variant (see
+             the second p:tooltip on the Record column, rendered when
+             targetRecordId is null). Wider than the field-list tooltip above
+             since it holds a sentence, not short label/value pairs; title is a
+             plain bold heading ("Unassigned") rather than the uppercase
+             section label the field-list variant uses, matching the reference
+             mockup. */
+          .ui-tooltip .stage-doc-tooltip-message {
+            min-width: 260px;
+            max-width: 300px;
+          }
 
-    <!-- ADDED 2026-10-08 - Submit for Extraction and Unsubmit share one confirmation
-         dialog. Submit locks the package (no reassign, add or remove) and marks its
-         documents Submitted; Unsubmit, allowed while the submission is pending,
-         returns the package to a draft. When the call returns, the page runs
-         refreshStagedDocuments() so the Submitted count and the tables update. -->
-    <p:dialog widgetVar="packageSubmitDialog"
-              header="#{contractPackagesBean.unsubmitMode ? 'Unsubmit package' : 'Submit for Extraction'}"
-              modal="true"
-              resizable="false"
-              draggable="false"
-              closeOnEscape="true"
-              width="32rem">
-      <h:form id="packageSubmitForm">
-        <p style="margin-top: 0;">
-          <strong><h:outputText value="#{contractPackagesBean.submitPackage.packageCode}"/></strong>
-          <h:outputText rendered="#{not contractPackagesBean.unsubmitMode}"
-                        value=" will be submitted with #{contractPackagesBean.submitPackage.docCount} document(s). The package is locked until the submission is withdrawn: no reassigning, adding or removing documents."/>
-          <h:outputText rendered="#{contractPackagesBean.unsubmitMode}"
-                        value=" will go back to a draft. This works only while the submission has not been picked up."/>
-        </p>
-        <h:panelGroup layout="block" rendered="#{contractPackagesBean.submitWarning != null}"
-                      style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
-          <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
-          <h:outputText value="#{contractPackagesBean.submitWarning}"/>
-        </h:panelGroup>
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
-                           onclick="PF('packageSubmitDialog').hide();"/>
-          <p:commandButton value="#{contractPackagesBean.unsubmitMode ? 'Unsubmit' : 'Submit'}" icon="pi pi-check"
-                           process="@form" update=":stageDocumentsGrowl"
-                           actionListener="#{contractPackagesBean.confirmSubmit}"
-                           oncomplete="PF('packageSubmitDialog').hide(); if (args &amp;&amp; args.reload) { refreshStagedDocuments(); }"/>
-        </div>
-      </h:form>
-    </p:dialog>
+          .stage-doc-tooltip-message .stage-doc-tooltip-title {
+            text-transform: none;
+            letter-spacing: normal;
+            font-size: 0.95rem;
+            border-bottom: none;
+            margin-bottom: 0.3rem;
+            padding-bottom: 0;
+            color: #FFFFFF;
+          }
 
-    <!-- ADDED 2026-10-11 - Extraction progress, results and review of a submitted package.
-         Extraction runs in the background and takes minutes, so this dialog never
-         waits on it: it shows the current progress, polls every 5 seconds while the
-         extraction is queued or running, and shows the extracted values when done.
-         Closing the dialog does not stop anything. -->
-    <p:dialog widgetVar="extractionDialog"
-              header="Extraction"
-              modal="true"
-              resizable="false"
-              draggable="false"
-              closeOnEscape="true"
-              onHide="PF('extractionPoll').stop(); refreshContractPackages();"
-              width="88rem"
-              style="max-width: 96vw;">
-      <h:form id="extractionForm">
-        <p:poll id="extractionPollCmd" widgetVar="extractionPoll" interval="5" autoStart="false"
-                listener="#{extractionBean.poll}" update="extractionPanel"
-                stop="#{not extractionBean.polling}"/>
-        <p:remoteCommand name="reloadExtraction" process="@this" update="extractionPanel"/>
-        <h:panelGroup id="extractionPanel" layout="block" style="max-height: 68vh; overflow-y: auto; padding-right: 0.5rem;">
-          <p style="margin-top: 0;">
-            <strong><h:outputText value="#{extractionBean.extractionPackage.packageCode}"/></strong>
-          </p>
+          .stage-doc-tooltip-message-body {
+            margin: 0;
+            font-size: 0.82rem;
+            line-height: 1.5;
+            color: #D6D2C7;
+          }
+        </style>
+        <h:outputStylesheet name="css/upload-files-dialog.css" library="ext"/>
+        <h:outputScript name="js/upload-files-dialog.js" library="ext"/>
+    </ui:define>
 
-          <h:outputText rendered="#{extractionBean.status == null and extractionBean.loadFailed}"
-                        value="The progress could not be loaded. Close this window and open it again."/>
-          <h:outputText rendered="#{extractionBean.status == null and not extractionBean.loadFailed}"
-                        value="Loading..."/>
+    <ui:define name="content">
 
-          <h:panelGroup layout="block" rendered="#{extractionBean.status != null}">
-            <p style="margin: 0 0 0.5rem 0;">
-              <p:tag value="#{extractionBean.status.state}"
-                     severity="#{extractionBean.status.done ? 'success' : (extractionBean.status.failed ? 'danger' : 'warn')}"/>
-              <h:outputText value="  #{extractionBean.status.message}"/>
-            </p>
-            <p:progressBar value="#{extractionBean.status.percent}" labelTemplate="{value}%" displayOnly="true"
-                           style="margin-bottom: 0.75rem;"/>
-            <p:dataTable var="d" value="#{extractionBean.status.documents}" emptyMessage="No documents.">
-              <p:column headerText="Document">
-                <h:outputText value="#{d.fileName}"/>
-              </p:column>
-              <p:column headerText="Status" style="width: 8rem;">
-                <p:tag value="#{d.status}" severity="#{d.severity}"/>
-              </p:column>
-              <p:column headerText="Time" style="width: 5rem;">
-                <h:outputText value="#{d.elapsedText}"/>
-              </p:column>
-              <p:column headerText="To review" style="width: 6rem;">
-                <h:outputText value="#{d.needsReviewCount}"/>
-              </p:column>
-              <p:column headerText="Problem">
-                <h:outputText value="#{d.errorMessage}"/>
-              </p:column>
-            </p:dataTable>
-            <h:panelGroup layout="block" rendered="#{extractionBean.status.active}" style="color: #6b7280; margin-top: 0.75rem;">
-              You can close this window. Extraction continues in the background and takes a few minutes per document.
-            </h:panelGroup>
-            <div style="margin-top: 0.75rem;">
-              <p:commandButton value="Retry" icon="pi pi-refresh"
-                               rendered="#{extractionBean.status.failed}"
-                               disabled="#{demoRoleBean.readOnly('Contract Packages')}"
-                               process="@this" update="extractionPanel :stageDocumentsGrowl"
-                               actionListener="#{extractionBean.retry}"
-                               oncomplete="PF('extractionPoll').start();"/>
-              <p:commandButton value="Decline" icon="pi pi-undo" styleClass="ui-button-danger ui-button-outlined"
-                               style="margin-left: 0.5rem;"
-                               rendered="#{extractionBean.status.failed and extractionBean.permitted}"
-                               disabled="#{demoRoleBean.readOnly('Contract Packages')}"
-                               process="@this" update=":extractionDeclineForm"
-                               actionListener="#{extractionBean.prepareDecline}"
-                               oncomplete="PF('extractionDeclineDialog').show();"/>
+        <div class="page-header-row">
+            <div>
+                <h1>Document Pipeline</h1>
+                <p class="section-subtitle">Monitor and manage staged documents before submission to processing.</p>
             </div>
-          </h:panelGroup>
+            <!-- Wrapped in its own tiny form (there wasn't one before) because
+                 this button now needs a real ajax action: it resets
+                 UploadFilesBean's server-side state (see that bean's LIFECYCLE
+                 / RESET Javadoc) BEFORE the dialog shows, guaranteeing a clean
+                 slate on every open regardless of how a previous attempt ended
+                 (abandoned mid-upload, closed without submitting, etc.) - a
+                 bare client-side PF(...).show() can't do that on its own since
+                 it never reaches the server. process="@this" keeps this from
+                 submitting/validating any of the page's other forms
+                 (stageDocumentsForm, contractPackagesForm).
 
-          <h:panelGroup layout="block" rendered="#{extractionBean.results != null}" style="margin-top: 1rem;">
-            <h:panelGroup id="extractionReviewSummary" layout="block"
-                          style="position: sticky; top: 0; z-index: 2; background: #ffffff; padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb;">
-              <h:panelGroup rendered="#{extractionBean.editable}">
-                <h:outputText value="#{extractionBean.openCount} field(s) still to confirm (critical fields and fields marked Review). "/>
-                <p:commandButton value="Confirm all extractor-verified fields" icon="pi pi-check-circle"
-                                 styleClass="ui-button-secondary" style="margin-right: 0.5rem;"
-                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
-                                 process="@this" update=":extractionForm:extractionPanel :stageDocumentsGrowl"
-                                 actionListener="#{extractionBean.confirmAll}"/>
-                <p:commandButton value="Complete review" icon="pi pi-check"
-                                 disabled="#{demoRoleBean.readOnly('Contract Packages') or extractionBean.openCount gt 0}"
-                                 process="@this" update=":extractionForm:extractionPanel :stageDocumentsGrowl"
-                                 actionListener="#{extractionBean.completeReview}"
-                                 oncomplete="refreshContractPackages();"/>
-                <p:commandButton value="Decline" icon="pi pi-undo" styleClass="ui-button-danger ui-button-outlined"
-                                 style="margin-left: 0.5rem;"
-                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
-                                 process="@this" update=":extractionDeclineForm"
-                                 actionListener="#{extractionBean.prepareDecline}"
-                                 oncomplete="PF('extractionDeclineDialog').show();"/>
-              </h:panelGroup>
-              <h:panelGroup layout="block" rendered="#{extractionBean.reviewBlocked}"
-                            style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.4rem 0.75rem;">
-                <i class="pi pi-lock" style="margin-right: 0.4rem;"></i>
-                <h:outputText value="#{extractionBean.accessReason} The values below are read only for you."/>
-              </h:panelGroup>
-              <h:panelGroup rendered="#{extractionBean.status.reviewed}">
-                <p:tag value="Review completed" severity="success"/>
-                <h:outputText value="  The values below are confirmed and read only until you apply or reopen. "/>
-                <p:commandButton value="Apply to contract record" icon="pi pi-download"
-                                 rendered="#{extractionBean.canReview}"
-                                 style="margin-left: 0.5rem;"
-                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
-                                 process="@this" update=":extractionApplyForm"
-                                 actionListener="#{extractionBean.prepareApply}"
-                                 oncomplete="PF('extractionApplyDialog').show();"/>
-                <p:commandButton value="Reopen review" icon="pi pi-lock-open" styleClass="ui-button-secondary"
-                                 rendered="#{extractionBean.permitted}"
-                                 style="margin-left: 0.5rem;"
-                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
-                                 process="@this" update=":extractionForm:extractionPanel :stageDocumentsGrowl"
-                                 actionListener="#{extractionBean.reopenReview}"
-                                 oncomplete="refreshContractPackages();"/>
-              </h:panelGroup>
-              <h:panelGroup rendered="#{extractionBean.status.applied}">
-                <p:tag value="Applied" severity="success"/>
-                <h:outputText value="  #{extractionBean.status.message} The values below are read only."/>
-              </h:panelGroup>
-            </h:panelGroup>
-            <ui:repeat var="doc" value="#{extractionBean.results.documents}">
-              <h4 style="margin: 1rem 0 0.25rem 0;">
-                <h:outputText value="#{doc.fileName}"/>
-                <h:outputText value="  (#{doc.needsReviewCount} to review)" style="font-weight: normal;"/>
-              </h4>
-              <p:dataTable var="f" value="#{doc.fields}" emptyMessage="No values were extracted."
-                           tableStyle="table-layout: auto; width: 100%;">
-                <p:column headerText="Field" style="width: 11rem;">
-                  <h:outputText value="#{f.label}"/>
-                  <h:outputText value=" *" rendered="#{f.critical}" title="Critical field"/>
-                </p:column>
-                <p:column headerText="Extracted" style="width: 10rem;">
-                  <h:outputText value="#{f.value}"/>
-                </p:column>
-                <p:column headerText="Corrected value" style="width: 10rem;">
-                  <p:inputText value="#{f.correctedValue}" rendered="#{extractionBean.editable}"
-                               disabled="#{demoRoleBean.readOnly('Contract Packages')}"
-                               placeholder="same as extracted" style="width: 100%;">
-                    <p:ajax event="change" listener="#{extractionBean.saveField(f)}"
-                            update=":extractionForm:extractionReviewSummary :stageDocumentsGrowl"
-                            oncomplete="if (args &amp;&amp; args.reload) { reloadExtraction(); }"/>
-                  </p:inputText>
-                  <h:outputText value="#{f.correctedValue}" rendered="#{not extractionBean.editable}"/>
-                </p:column>
-                <p:column headerText="Result" style="width: 8rem;">
-                  <p:tag value="#{f.statusLabel}" severity="#{f.severity}"/>
-                  <p:tag value="Review" severity="warn" rendered="#{f.needsReview}" style="margin-left: 0.25rem;"/>
-                </p:column>
-                <p:column headerText="Evidence from the document" style="min-width: 24rem;">
-                  <h:outputText value="#{f.quote}" style="font-size: 0.85rem;"/>
-                  <h:outputText value="#{f.problem}" rendered="#{not empty f.problem}"
-                                style="display: block; color: #b45309; font-size: 0.85rem;"/>
-                </p:column>
-                <p:column headerText="History" style="width: 4.5rem; text-align: center;">
-                  <p:commandButton icon="pi pi-history" styleClass="rounded-button ui-button-text"
-                                   title="Show every change made to this field"
-                                   process="@this" update=":extractionHistoryForm"
-                                   actionListener="#{extractionBean.openHistory(f)}"
-                                   oncomplete="if (!args || !args.validationFailed) { PF('extractionHistoryDialog').show(); }"/>
-                </p:column>
-                <p:column headerText="Confirmed" style="width: 6rem; text-align: center;">
-                  <p:selectBooleanCheckbox value="#{f.verified}"
-                                           disabled="#{not extractionBean.editable or demoRoleBean.readOnly('Contract Packages')}">
-                    <p:ajax listener="#{extractionBean.saveField(f)}"
-                            update=":extractionForm:extractionReviewSummary :stageDocumentsGrowl"
-                            oncomplete="if (args &amp;&amp; args.reload) { reloadExtraction(); }"/>
-                  </p:selectBooleanCheckbox>
-                </p:column>
-              </p:dataTable>
-            </ui:repeat>
-          </h:panelGroup>
-        </h:panelGroup>
-        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-          <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
-                           onclick="PF('extractionDialog').hide();"/>
+                 update is the bare absolute id ":uploadFilesDialogForm" -
+                 NOT "@(:uploadFilesDialogForm)". See the matching note on
+                 commitToPipeline in uploadfilesdialog.xhtml for why that
+                 distinction actually matters here (it was the root cause of
+                 this button silently failing to open the dialog at all in an
+                 earlier pass). -->
+            <h:form id="uploadFilesTriggerForm">
+                <p:commandButton value="Upload Files" icon="pi pi-cloud-upload"
+                                 styleClass="ui-button-primary"
+                                 rendered="#{demoRoleBean.canSee('Upload Files')}"
+                                 disabled="#{demoRoleBean.readOnly('Upload Files')}"
+                                 action="#{uploadFilesBean.reset}" process="@this"
+                                 update=":uploadFilesDialogForm"
+                                 oncomplete="PF('uploadFilesDialog').show();"/>
+            </h:form>
         </div>
-      </h:form>
-    </p:dialog>
 
-    <!-- ADDED 2026-10-12 - Decline: the reviewer sends the package back to Assembly with a
-         reason. The submitter sees the reason on the package, fixes the documents and
-         submits again, which runs a fresh extraction. -->
-    <p:dialog widgetVar="extractionDeclineDialog"
-              header="Decline package"
-              modal="true"
-              resizable="false"
-              draggable="false"
-              closeOnEscape="true"
-              width="34rem">
-      <h:form id="extractionDeclineForm">
-        <p style="margin-top: 0;">
-          <strong><h:outputText value="#{extractionBean.extractionPackage.packageCode}"/></strong>
-          goes back to Assembly. The extracted values are discarded and the submitter sees your reason.
-        </p>
-        <p:outputLabel for="declineReasonText" value="Reason"/>
-        <br/>
-        <p:inputTextarea id="declineReasonText" value="#{extractionBean.declineReason}"
-                         rows="4" maxlength="1000" counter="declineReasonCounter"
-                         counterTemplate="{0} characters remaining" style="width: 100%;"/>
-        <br/>
-        <h:outputText id="declineReasonCounter" style="color: #6b7280; font-size: 0.85rem;"/>
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
-                           onclick="PF('extractionDeclineDialog').hide();"/>
-          <p:commandButton value="Decline package" icon="pi pi-undo" styleClass="ui-button-danger"
-                           process="@form" update="@form :stageDocumentsGrowl"
-                           actionListener="#{extractionBean.confirmDecline}"
-                           oncomplete="if (args &amp;&amp; args.done) { PF('extractionDeclineDialog').hide(); PF('extractionDialog').hide(); refreshStagedDocuments(); }"/>
-        </div>
-      </h:form>
-    </p:dialog>
+        <ui:include src="/WEB-INF/uploadfilesdialog.xhtml"/>
 
-    <!-- ADDED 2026-10-12 - History of one field: the extracted value, then every change a
-         reviewer made (value changed, confirmed, confirmation removed), oldest first. -->
-    <p:dialog widgetVar="extractionHistoryDialog"
-              header="Field history"
-              modal="true"
-              resizable="false"
-              draggable="false"
-              closeOnEscape="true"
-              width="62rem"
-              style="max-width: 96vw;">
-      <h:form id="extractionHistoryForm">
-        <h:panelGroup rendered="#{extractionBean.history != null}">
-          <p style="margin-top: 0;">
-            <strong><h:outputText value="#{extractionBean.history.label}"/></strong>
-            <br/>
-            <h:outputText value="Extracted by the model: "/>
-            <h:outputText value="#{empty extractionBean.history.extractedValue ? '(nothing)' : extractionBean.history.extractedValue}"/>
-          </p>
-          <p:dataTable var="rv" value="#{extractionBean.history.revisions}"
-                       tableStyle="table-layout: auto; width: 100%;"
-                       emptyMessage="Nobody has changed or confirmed this field yet.">
-            <p:column headerText="#" style="width: 3rem;">
-              <h:outputText value="#{rv.revisionNo}"/>
-            </p:column>
-            <p:column headerText="Change" style="min-width: 11rem;">
-              <h:outputText value="#{rv.actionLabel}"/>
-            </p:column>
-            <p:column headerText="From" style="min-width: 8rem; white-space: nowrap;">
-              <h:outputText value="#{empty rv.previousValue ? '(empty)' : rv.previousValue}"/>
-            </p:column>
-            <p:column headerText="To" style="min-width: 8rem; white-space: nowrap; font-weight: 600;">
-              <h:outputText value="#{empty rv.newValue ? '(empty)' : rv.newValue}"/>
-            </p:column>
-            <p:column headerText="By" style="min-width: 14rem;">
-              <h:outputText value="#{rv.changedBy}"/>
-            </p:column>
-            <p:column headerText="When" style="min-width: 11rem; white-space: nowrap;">
-              <h:outputText value="#{rv.changedAtText}"/>
-            </p:column>
-          </p:dataTable>
+        <!-- ==================== TOP METRICS ==================== -->
+        <h:panelGroup layout="block" rendered="#{demoRoleBean.overrideActive}"
+                      style="margin:1rem 0 0;padding:0.6rem 1rem;border:1px solid #D6D2C7;border-radius:8px;background:#FFF8E1;">
+            <i class="pi pi-eye"></i> Previewing as <strong>#{demoRoleBean.selectedRole}</strong>.
+            This changes what is shown on screen only; the data itself is not filtered.
         </h:panelGroup>
-        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-          <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
-                           onclick="PF('extractionHistoryDialog').hide();"/>
-        </div>
-      </h:form>
-    </p:dialog>
 
-    <!-- ADDED 2026-10-12 - Confirmation before the reviewed values are written to the
-         contract record. Replaces the browser's own confirm box. When the package has no
-         target record the reviewer chooses one here; Apply stays disabled until chosen. -->
-    <p:dialog widgetVar="extractionApplyDialog"
-              header="Apply to contract record"
-              modal="true"
-              resizable="false"
-              draggable="false"
-              closeOnEscape="true"
-              width="36rem">
-      <h:form id="extractionApplyForm">
-        <p style="margin-top: 0;">
-          <strong><h:outputText value="#{extractionBean.extractionPackage.packageCode}"/></strong>
-          <i class="pi pi-arrow-right" style="margin: 0 0.5rem; font-size: 0.8rem;"></i>
-          <strong><h:outputText value="#{extractionBean.applyNeedsTarget ? 'no record yet' : extractionBean.extractionPackage.targetRecord}"/></strong>
-        </p>
-        <h:panelGroup layout="block" rendered="#{extractionBean.applyNeedsTarget}"
-                      style="margin-bottom: 0.75rem;">
-          <p style="margin: 0 0 0.5rem 0;">
-            This package is not linked to a contract record. Choose the record that receives the values.
-            The package is linked to it when you apply.
-          </p>
-          <p:selectOneMenu id="applyTarget" value="#{extractionBean.applyTargetId}" filter="true"
-                           filterMatchMode="contains" style="width: 100%;">
-            <f:selectItem itemLabel="Choose a contract record" noSelectionOption="true"/>
-            <f:selectItems value="#{extractionBean.applyCandidates}" var="c" itemValue="#{c.id}" itemLabel="#{c.label}"/>
-            <p:ajax update="applyConfirm"/>
-          </p:selectOneMenu>
-          <h:outputText rendered="#{empty extractionBean.applyCandidates}"
-                        value="No active or pending contract record exists in this workspace."
-                        style="color: #b45309; display: block; margin-top: 0.4rem;"/>
+        <h:panelGroup id="metricCards" layout="block">
+            <div class="metric-cards">
+                <div class="metric-card">
+                    <i class="pi pi-upload" aria-hidden="true"></i>
+                    <div>
+                        <div class="metric-value">
+                            <h:outputText value="#{pipelineMetricsBean.uploadingCount}"/>
+                        </div>
+                        <div class="metric-label">Uploading</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <i class="pi pi-sync" aria-hidden="true"></i>
+                    <div>
+                        <div class="metric-value">
+                            <h:outputText value="#{pipelineMetricsBean.validatingCount}"/>
+                        </div>
+                        <div class="metric-label">Validating</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <i class="pi pi-check-circle" aria-hidden="true"></i>
+                    <div>
+                        <div class="metric-value">
+                            <h:outputText value="#{pipelineMetricsBean.validCount}"/>
+                        </div>
+                        <div class="metric-label">Valid</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <i class="pi pi-send" aria-hidden="true"></i>
+                    <div>
+                        <div class="metric-value">
+                            <h:outputText value="#{pipelineMetricsBean.submittedCount}"/>
+                        </div>
+                        <div class="metric-label">Submitted</div>
+                    </div>
+                </div>
+            </div>
         </h:panelGroup>
-        <h:panelGroup layout="block">
-          <p style="margin: 0 0 0.5rem 0;">This writes the confirmed values to the contract record:</p>
-          <ul style="margin: 0 0 0.75rem 1.25rem; padding: 0; line-height: 1.5;">
-            <li>Your corrected value is used where you changed one, otherwise the extracted value.</li>
-            <li>A value that differs from the one on the record replaces it. The earlier value is kept as history.</li>
-            <li>The lessor is linked to the record as its counterparty, and created if it does not exist yet.</li>
-            <li>Only confirmed fields with a value are written. The others are skipped and listed afterwards.</li>
-          </ul>
-          <h:panelGroup layout="block" rendered="#{extractionBean.applyUnconfirmedCount gt 0}"
-                        style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
-            <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
-            <h:outputText value="#{extractionBean.applyUnconfirmedCount} field(s) have a value but are not confirmed and will not be written. Reopen the review to confirm them."/>
-          </h:panelGroup>
-          <p style="margin: 0; color: #6b7280;">After this the package is read only and cannot be applied again.</p>
-        </h:panelGroup>
-        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
-                           onclick="PF('extractionApplyDialog').hide();"/>
-          <p:commandButton id="applyConfirm" value="Apply" icon="pi pi-download"
-                           disabled="#{extractionBean.applyNeedsTarget and extractionBean.applyTargetId == null}"
-                           process="@this" update=":extractionForm:extractionPanel :stageDocumentsGrowl"
-                           actionListener="#{extractionBean.applyToContract}"
-                           oncomplete="PF('extractionApplyDialog').hide(); refreshContractPackages();"/>
-        </div>
-      </h:form>
-    </p:dialog>
 
-    <!-- ==================== STAGE DOCUMENTS ==================== -->
-    <h:panelGroup id="stageDocumentsCard" layout="block" styleClass="dashboard-card"
-                  style="#{demoRoleBean.canSee('Stage Documents') ? '' : 'display:none;'}">
-      <div class="dashboard-card-header">
-        <h2>Stage Documents (#{stageDocumentsBean.stagedDocuments.size()})</h2>
-        <i class="pi pi-info-circle" title="Documents land here after upload and stay until grouped into a contract package."></i>
-      </div>
-      <p class="section-subtitle">Documents uploaded and awaiting grouping into a contract package.</p>
+        <!-- ADDED 2026-10-04 - refreshStagedDocuments() reloads the Stage Documents
+             card after a successful Add to Pipeline (called from the upload
+             dialog's commitToPipeline oncomplete). Without it the table kept
+             whatever StageDocumentsBean loaded when the page opened, so a newly
+             added file only showed up after a reload or a fresh login. It lives
+             in its own form, outside the card it updates, so the form being
+             re-rendered is never the one that issued the request. process="@this"
+             keeps it from submitting the other forms on the page. The same call
+             also reloads the four metric cards (metricCards) through the
+             pipelineMetricsBean.refresh listener, so the counts move too. -->
+        <h:form id="stageDocumentsRefreshForm">
+            <p:remoteCommand name="refreshStagedDocuments"
+                             actionListener="#{pipelineMetricsBean.refresh}"
+                             action="#{stageDocumentsBean.refresh}"
+                             process="@this" update=":stageDocumentsCard :metricCards"
+                             oncomplete="refreshContractPackages();"/>
+            <p:remoteCommand name="refreshContractPackages" action="#{contractPackagesBean.refresh}"
+                             process="@this" update=":contractPackagesCard"/>
+        </h:form>
 
-      <!-- TODO (needs your input before wiring): mockup shows a per-section
-           search box here, a category filter-chip row (All/Retail/Office/
-           Operations/Equipment with counts), and a Preparer filter-chip row
-           (All/per-preparer avatar chip/Unassigned). Holding off on these
-           until we agree what backs them  e.g. does StageDocumentDTO gain
-           a `preparerName` field, and are the chip counts computed here or
-           returned pre-aggregated by StageDocumentService? -->
+        <!-- ADDED 2026-10-07 - soft delete of a staged document. The message
+             area shows the outcome (deleted, refused, failed). The dialog asks
+             the user to confirm and offers an optional reason (at most 500
+             characters, kept with the deleted row). Confirm calls
+             stageDocumentsBean.confirmDelete; when that reports reload, the page
+             runs refreshStagedDocuments() so the table and the metric cards
+             update. keepOpen is set only when the reason was rejected as too
+             long, so the user can shorten it. -->
+        <p:growl id="stageDocumentsGrowl" globalOnly="true" showDetail="true" life="6000"/>
 
-      <h:form id="stageDocumentsForm">
-        <p:dataTable id="stageDocumentsTable"
-                     var="doc"
-                     value="#{stageDocumentsBean.stagedDocuments}"
-                     selection="#{stageDocumentsBean.selectedDocuments}"
-                     rowKey="#{doc.id}"
-                     emptyMessage="No staged documents.">
-
-          <!-- ADDED 2026-10-07 - keep the Create Document Set button in step with the ticked rows. -->
-          <p:ajax event="rowSelect" update=":stageDocumentsForm:createSetButton"/>
-          <p:ajax event="rowUnselect" update=":stageDocumentsForm:createSetButton"/>
-          <p:ajax event="rowSelectCheckbox" update=":stageDocumentsForm:createSetButton"/>
-          <p:ajax event="rowUnselectCheckbox" update=":stageDocumentsForm:createSetButton"/>
-          <p:ajax event="toggleSelect" update=":stageDocumentsForm:createSetButton"/>
-
-          <p:column selectionMode="multiple" style="width:3rem" exportable="false"/>
-
-          <!-- ADDED 2026-10-03 - File Name hover preview. p:tooltip's
-               "for" is resolved relative to this row (p:dataTable rows are
-               their own NamingContainer), so a plain static id here is
-               enough - it does not need to be made unique per row by hand
-               (e.g. concatenating doc.id). Field set (Uploaded By/
-               Uploaded At/Comments/File Type) is a first cut - the user
-               specified the Record column's fields explicitly but not
-               this one; flag if a different set is wanted. No rendered
-               condition - every staged document has these by definition
-               (uploadedBy/uploadedAt are required columns), unlike Record
-               below. -->
-          <p:column headerText="File Name">
-            <h:outputText id="fileNameCell" value="#{doc.fileName}"/>
-            <p:tooltip for="fileNameCell" position="right" trackMouse="true">
-              <div class="stage-doc-tooltip">
-                <div class="stage-doc-tooltip-title">File Details</div>
-                <div class="stage-doc-tooltip-row">
-                  <span class="stage-doc-tooltip-label">Uploaded By</span>
-                  <span class="stage-doc-tooltip-value">#{doc.uploadedBy}</span>
-                </div>
-                <div class="stage-doc-tooltip-row">
-                  <span class="stage-doc-tooltip-label">Uploaded</span>
-                  <span class="stage-doc-tooltip-value">#{doc.uploadedAt}</span>
-                </div>
-                <div class="stage-doc-tooltip-row">
-                  <span class="stage-doc-tooltip-label">File Type</span>
-                  <span class="stage-doc-tooltip-value">#{doc.type}</span>
-                </div>
-                <div class="stage-doc-tooltip-row">
-                  <span class="stage-doc-tooltip-label">Comments</span>
-                  <span class="stage-doc-tooltip-value">#{(doc.comments != null and not empty doc.comments) ? doc.comments : 'None'}</span>
-                </div>
-              </div>
-            </p:tooltip>
-          </p:column>
-
-          <p:column headerText="Type">
-            <p:tag value="#{doc.type}"/>
-          </p:column>
-
-          <p:column headerText="Workspace">
-            <p:tag value="#{doc.workspace}"/>
-          </p:column>
-
-          <!-- ADDED 2026-10-03 - Record hover preview, per explicit
-               request in chat: Record Code/Counterparty/Contract Type/
-               Status/Workspace, all sourced off the same already-fetched
-               StagedDocumentRow - see that class's and
-               StageDocumentService.toDraft()'s Javadoc for where these
-               come from (no extra request on hover). rendered="false" when
-               targetRecordId is null (doc.record is then a free-text label
-               like "Unassigned" or whatever the user originally typed -
-               see StageDocumentService.deriveRecordLabel() - there's no
-               real linked record yet to preview). -->
-          <p:column headerText="Record" rendered="#{demoRoleBean.canSeeField('Stage Documents', 'Record')}">
-            <h:outputText id="recordCell" value="#{doc.record}"/>
-            <p:tooltip for="recordCell" position="right" trackMouse="true"
-                       rendered="#{doc.targetRecordId != null}">
-              <div class="stage-doc-tooltip">
-                <div class="stage-doc-tooltip-title">Record Details</div>
-                <div class="stage-doc-tooltip-row">
-                  <span class="stage-doc-tooltip-label">Record Code</span>
-                  <span class="stage-doc-tooltip-value">#{doc.record}</span>
-                </div>
-                <div class="stage-doc-tooltip-row">
-                  <span class="stage-doc-tooltip-label">Counterparty</span>
-                  <span class="stage-doc-tooltip-value">#{(doc.recordCounterparty != null) ? doc.recordCounterparty : 'Not on file'}</span>
-                </div>
-                <div class="stage-doc-tooltip-row">
-                  <span class="stage-doc-tooltip-label">Contract Type</span>
-                  <span class="stage-doc-tooltip-value">#{doc.recordContractType}</span>
-                </div>
-                <div class="stage-doc-tooltip-row">
-                  <span class="stage-doc-tooltip-label">Status</span>
-                  <span class="stage-doc-tooltip-value">#{doc.recordStatus}</span>
-                </div>
-                <div class="stage-doc-tooltip-row">
-                  <span class="stage-doc-tooltip-label">Workspace</span>
-                  <span class="stage-doc-tooltip-value">#{doc.recordWorkspace}</span>
-                </div>
-              </div>
-            </p:tooltip>
-
-            <!-- ADDED 2026-10-03 - the explanatory variant for a row with
-                 no linked record at all (targetRecordId null), per the
-                 attached mockup: same tooltip chrome, but a short message
-                 instead of a field list, explaining what "Unassigned"
-                 means and what to do about it rather than just leaving the
-                 cell with no hover feedback. Mutually exclusive with the
-                 tooltip above (exactly one of the two rendered conditions
-                 is ever true for a given row), so both safely target the
-                 same "for". -->
-            <p:tooltip for="recordCell" position="right" trackMouse="true"
-                       rendered="#{doc.targetRecordId == null}">
-              <div class="stage-doc-tooltip stage-doc-tooltip-message">
-                <div class="stage-doc-tooltip-title">#{doc.record}</div>
-                <p class="stage-doc-tooltip-message-body">No target Contract Record was specified at upload. A Preparer can assign this document to an existing record or create a new one before packaging.</p>
-              </div>
-            </p:tooltip>
-          </p:column>
-
-          <!-- ADDED 2026-10-04 - Assignee hover preview, extending the
-               File Name/Record tooltip feature per explicit request (the
-               "later phase" the old comment here referred to). Same
-               mutually-exclusive two-tooltip pattern as the Record column:
-               rendered="#{doc.assigneeLoginId != null}" when the assignee
-               resolved to an IAMS directory entry (User ID/Role(s)/Team/
-               Workspace Specialties), rendered="#{doc.assigneeLoginId == null}"
-               for everything else - both "Unassigned" and an assignee that
-               didn't match any directory entry fall into the second variant, with
-               the message body distinguishing the two cases. See
-               StageDocumentService.toDraft()'s and StagedDocumentRow's
-               Javadoc for where these fields come from (a separate IAMS
-               lookup, not the same JOIN FETCH as the Record fields). -->
-          <p:column headerText="Assignee" rendered="#{demoRoleBean.canSeeField('Stage Documents', 'Assignee')}">
-            <h:outputText id="assigneeCell" value="#{doc.assignee}"/>
-            <!-- REVISED 2026-10-04 (assigneeId -> loginId): the variant is now
-                 chosen by assigneeLoginId (non-null exactly when the assignee
-                 resolved to a directory entry), not assigneeRoles - a
-                 resolved person with no roles on file used to fall into the
-                 "could not be matched" variant by mistake. doc.assignee is
-                 now the resolved display name; User ID is shown so
-                 identically-named people can be told apart. -->
-            <p:tooltip for="assigneeCell" position="right" trackMouse="true"
-                       rendered="#{doc.assigneeLoginId != null}">
-              <div class="stage-doc-tooltip">
-                <div class="stage-doc-tooltip-title">Assignee Details</div>
-                <div class="stage-doc-tooltip-row">
-                  <span class="stage-doc-tooltip-label">User ID</span>
-                  <span class="stage-doc-tooltip-value">#{doc.assigneeLoginId}</span>
-                </div>
-                <div class="stage-doc-tooltip-row">
-                  <span class="stage-doc-tooltip-label">Role</span>
-                  <span class="stage-doc-tooltip-value">#{(doc.assigneeRoles != null) ? doc.assigneeRoles : 'Not on file'}</span>
-                </div>
-                <div class="stage-doc-tooltip-row">
-                  <span class="stage-doc-tooltip-label">Team</span>
-                  <span class="stage-doc-tooltip-value">#{(doc.assigneeTeamName != null) ? doc.assigneeTeamName : 'Not on file'}</span>
-                </div>
-                <div class="stage-doc-tooltip-row">
-                  <span class="stage-doc-tooltip-label">Workspace Specialties</span>
-                  <span class="stage-doc-tooltip-value">#{(doc.assigneeWorkspaceCodes != null) ? doc.assigneeWorkspaceCodes : 'Not on file'}</span>
-                </div>
-              </div>
-            </p:tooltip>
-
-            <p:tooltip for="assigneeCell" position="right" trackMouse="true"
-                       rendered="#{doc.assigneeLoginId == null}">
-              <div class="stage-doc-tooltip stage-doc-tooltip-message">
-                <div class="stage-doc-tooltip-title">#{doc.assignee}</div>
-                <p class="stage-doc-tooltip-message-body">
-                  #{(doc.assignee eq 'Unassigned')
-                    ? 'No one has been assigned to this document yet. A Preparer can assign it from the Upload Files dialog.'
-                    : 'This assignee could not be matched to a directory record.'}
+        <p:dialog widgetVar="deleteStagedDocumentDialog"
+                  header="Delete document"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closeOnEscape="true"
+                  width="32rem">
+            <h:form id="deleteStagedDocumentForm">
+                <p style="margin-top: 0;">
+                    <h:outputText value="Delete "/>
+                    <strong><h:outputText
+                            value="#{stageDocumentsBean.documentPendingDelete.fileName}"/></strong>
+                    <h:outputText
+                            value="? It is removed from the pipeline and from the counts. A record of the deletion is kept."/>
                 </p>
-              </div>
-            </p:tooltip>
-          </p:column>
+                <p:outputLabel for="deleteReason" value="Reason (optional)"/>
+                <p:inputTextarea id="deleteReason" value="#{stageDocumentsBean.deleteReason}"
+                                 rows="3" maxlength="500" autoResize="false" style="width: 100%;"
+                                 counter="deleteReasonCounter"
+                                 counterTemplate="{0} characters remaining"/>
+                <small><h:outputText id="deleteReasonCounter"/></small>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                    <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                                     onclick="PF('deleteStagedDocumentDialog').hide();"/>
+                    <p:commandButton value="Delete" icon="pi pi-trash" styleClass="ui-button-danger"
+                                     process="@form" update=":stageDocumentsGrowl"
+                                     actionListener="#{stageDocumentsBean.confirmDelete}"
+                                     oncomplete="if (args &amp;&amp; args.keepOpen) { return; } PF('deleteStagedDocumentDialog').hide(); if (args &amp;&amp; args.reload) { refreshStagedDocuments(); }"/>
+                </div>
+            </h:form>
+        </p:dialog>
 
-          <p:column headerText="Uploaded">
-            <h:outputText value="#{doc.uploadedAt}"/>
-          </p:column>
+        <!-- ADDED 2026-10-07 - Create Document Set. The dialog groups the ticked
+             Stage Documents into a new draft package (assignee chosen here) or
+             adds them to an existing draft package of the same workspace. A role
+             per document is optional. One workspace per package: a selection that
+             spans workspaces is refused before the dialog opens. -->
+        <p:dialog widgetVar="createDocumentSetDialog"
+                  header="Create Document Set"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closeOnEscape="true"
+                  width="46rem">
+            <h:form id="createDocumentSetForm">
+                <p style="margin-top: 0;">
+                    <h:outputText value="Workspace: "/>
+                    <strong><h:outputText value="#{createDocumentSetBean.workspace}"/></strong>
+                </p>
 
-          <p:column headerText="Actions" style="width:6rem" exportable="false">
-            <!-- ADDED 2026-10-01 - the eye icon was a true placeholder
-                 before (no action/onclick at all). Now opens
-                 documentviewer.xhtml in a NEW BROWSER TAB per explicit
-                 decision in chat, passing everything that page needs as
-                 plain query params: doc.id/fileUploadId/targetRecordId
-                 (real ids, newly added to StagedDocumentRow - see that
-                 class's Javadoc) plus the same display strings this table
-                 already computed (fileName/type/workspace/record/
-                 assignee/uploadedAt), so the viewer page doesn't need a
-                 second "get one staged_document by id" endpoint just to
-                 redisplay values already in hand here. p:button (not
-                 p:commandButton) since this is pure navigation - no
-                 server-side action on dashboard.xhtml's own bean.
-                 REVISED 2026-10-07: was an h:outputLink, which the theme
-                 did not style as a button, so it looked greyed out next to
-                 the trash icon. p:button renders with the same button
-                 styling and still opens the viewer in a new tab with the same
-                 query params. The wrapping span stops the click from
-                 selecting the table row. -->
-            <span onclick="event.stopPropagation();">
+                <p:selectOneRadio id="setMode" value="#{createDocumentSetBean.mode}"
+                                  layout="lineDirection">
+                    <f:selectItem itemLabel="New package" itemValue="NEW"/>
+                    <f:selectItem itemLabel="Add to existing draft package" itemValue="EXISTING"
+                                  itemDisabled="#{not createDocumentSetBean.existingAvailable}"/>
+                    <p:ajax update="setNewPanel setExistingPanel"/>
+                </p:selectOneRadio>
+
+                <h:panelGroup id="setNewPanel" layout="block" style="margin: 0.75rem 0;">
+                    <h:panelGroup rendered="#{not createDocumentSetBean.existingMode}">
+                        <p:outputLabel for="setAssignee" value="Assignee"/>
+                        <br/>
+                        <p:autoComplete id="setAssignee"
+                                        value="#{createDocumentSetBean.assigneeLoginId}"
+                                        completeMethod="#{createDocumentSetBean.completeAssignableUsers}"
+                                        var="au" itemValue="#{au.loginId}" itemLabel="#{au.label}"
+                                        forceSelection="true" dropdown="true" scrollHeight="200"
+                                        emptyMessage="No matching people" placeholder="Optional"
+                                        style="width: 100%;"/>
+                    </h:panelGroup>
+                </h:panelGroup>
+
+                <h:panelGroup id="setExistingPanel" layout="block" style="margin: 0.75rem 0;">
+                    <h:panelGroup rendered="#{createDocumentSetBean.existingMode}">
+                        <p:outputLabel for="setExistingPackage" value="Package"/>
+                        <br/>
+                        <p:selectOneMenu id="setExistingPackage"
+                                         value="#{createDocumentSetBean.existingPackageId}"
+                                         style="min-width: 20rem;">
+                            <f:selectItem itemLabel="Select a package" itemValue="#{null}"
+                                          noSelectionOption="true"/>
+                            <f:selectItems value="#{createDocumentSetBean.eligiblePackages}"
+                                           var="ep"
+                                           itemValue="#{ep.id}"
+                                           itemLabel="#{ep.packageCode} (#{ep.docCount} docs)"/>
+                        </p:selectOneMenu>
+                    </h:panelGroup>
+                </h:panelGroup>
+
+                <p:dataTable id="setDocumentsTable" var="sd"
+                             value="#{createDocumentSetBean.documents}"
+                             rowKey="#{sd.id}" emptyMessage="No documents selected.">
+                    <p:column headerText="File Name">
+                        <h:outputText value="#{sd.fileName}"/>
+                    </p:column>
+                    <p:column headerText="Role (optional)" style="width: 15rem;">
+                        <p:selectOneMenu value="#{createDocumentSetBean.roleByDocument[sd.id]}"
+                                         style="width: 100%;">
+                            <f:selectItem itemLabel="Not defined yet" itemValue=""
+                                          noSelectionOption="true"/>
+                            <f:selectItems value="#{createDocumentSetBean.roleOptions}" var="ro"
+                                           itemValue="#{ro.code}" itemLabel="#{ro.label}"/>
+                        </p:selectOneMenu>
+                    </p:column>
+                </p:dataTable>
+
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                    <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                                     onclick="PF('createDocumentSetDialog').hide();"/>
+                    <p:commandButton value="Create" icon="pi pi-check"
+                                     process="@form" update="@form :stageDocumentsGrowl"
+                                     actionListener="#{createDocumentSetBean.submit}"
+                                     oncomplete="if (args &amp;&amp; args.done) { PF('createDocumentSetDialog').hide(); refreshStagedDocuments(); }"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <!-- ADDED 2026-10-07 - Open a package: lists its documents. Remove is
+             offered only while the package is a draft; the document then goes
+             back to Stage Documents. -->
+        <p:dialog widgetVar="packageDocumentsDialog"
+                  header="Package documents"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closeOnEscape="true"
+                  width="46rem">
+            <h:form id="packageDocumentsForm">
+                <p style="margin-top: 0;">
+                    <strong><h:outputText value="#{contractPackagesBean.openPackage.packageCode}"/></strong>
+                    <h:outputText value=" - #{contractPackagesBean.openPackage.status}"/>
+                </p>
+                <h:panelGroup layout="block"
+                              rendered="#{contractPackagesBean.openDeclineNotice != null}"
+                              style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
+                    <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
+                    <h:outputText value="#{contractPackagesBean.openDeclineNotice}"/>
+                </h:panelGroup>
+                <p:dataTable id="packageDocumentsTable" var="pd"
+                             value="#{contractPackagesBean.openDocuments}"
+                             emptyMessage="This package has no documents.">
+                    <p:column headerText="File Name">
+                        <h:outputText value="#{pd.fileName}"/>
+                    </p:column>
+                    <p:column headerText="Role">
+                        <h:outputText value="#{pd.roleLabel}"/>
+                    </p:column>
+                    <p:column headerText="Target Record">
+                        <h:outputText value="#{pd.targetRecord}"/>
+                    </p:column>
+                    <p:column headerText="Actions" exportable="false" style="width: 7rem;">
+                        <p:commandButton value="Remove" icon="pi pi-times"
+                                         styleClass="ui-button-secondary"
+                                         rendered="#{contractPackagesBean.openPackageDraft}"
+                                         disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                         process="@this" update="@form :stageDocumentsGrowl"
+                                         actionListener="#{contractPackagesBean.removeDocument(pd.stagedDocumentId, pd.fileName)}"
+                                         oncomplete="if (args &amp;&amp; args.reload) { refreshStagedDocuments(); }"/>
+                    </p:column>
+                </p:dataTable>
+                <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                    <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
+                                     onclick="PF('packageDocumentsDialog').hide();"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <!-- ADDED 2026-10-07 - Reassign a draft package. The person is picked the
+             same way as in Upload Files and Create Document Set. -->
+        <p:dialog widgetVar="reassignPackageDialog"
+                  header="Reassign package"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closeOnEscape="true"
+                  width="32rem">
+            <h:form id="reassignPackageForm">
+                <p style="margin-top: 0;">
+                    <strong><h:outputText
+                            value="#{contractPackagesBean.reassignPackage.packageCode}"/></strong>
+                    <h:outputText
+                            value=" - currently assigned to #{contractPackagesBean.reassignPackage.assignee}"/>
+                </p>
+                <p:outputLabel for="reassignAssignee" value="New assignee"/>
+                <br/>
+                <p:autoComplete id="reassignAssignee"
+                                value="#{contractPackagesBean.reassignLoginId}"
+                                completeMethod="#{contractPackagesBean.completeAssignableUsers}"
+                                var="au" itemValue="#{au.loginId}" itemLabel="#{au.label}"
+                                forceSelection="true" dropdown="true" scrollHeight="200"
+                                emptyMessage="No matching people" style="width: 100%;"/>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                    <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                                     onclick="PF('reassignPackageDialog').hide();"/>
+                    <p:commandButton value="Reassign" icon="pi pi-check"
+                                     process="@form"
+                                     update="@form :stageDocumentsGrowl :contractPackagesCard"
+                                     actionListener="#{contractPackagesBean.confirmReassign}"
+                                     oncomplete="if (args &amp;&amp; args.done) { PF('reassignPackageDialog').hide(); }"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <!-- ADDED 2026-10-08 - Submit for Extraction and Unsubmit share one confirmation
+             dialog. Submit locks the package (no reassign, add or remove) and marks its
+             documents Submitted; Unsubmit, allowed while the submission is pending,
+             returns the package to a draft. When the call returns, the page runs
+             refreshStagedDocuments() so the Submitted count and the tables update. -->
+        <p:dialog widgetVar="packageSubmitDialog"
+                  header="#{contractPackagesBean.unsubmitMode ? 'Unsubmit package' : 'Submit for Extraction'}"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closeOnEscape="true"
+                  width="32rem">
+            <h:form id="packageSubmitForm">
+                <p style="margin-top: 0;">
+                    <strong><h:outputText
+                            value="#{contractPackagesBean.submitPackage.packageCode}"/></strong>
+                    <h:outputText rendered="#{not contractPackagesBean.unsubmitMode}"
+                                  value=" will be submitted with #{contractPackagesBean.submitPackage.docCount} document(s). The package is locked until the submission is withdrawn: no reassigning, adding or removing documents."/>
+                    <h:outputText rendered="#{contractPackagesBean.unsubmitMode}"
+                                  value=" will go back to a draft. This works only while the submission has not been picked up."/>
+                </p>
+                <h:panelGroup layout="block"
+                              rendered="#{contractPackagesBean.submitWarning != null}"
+                              style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
+                    <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
+                    <h:outputText value="#{contractPackagesBean.submitWarning}"/>
+                </h:panelGroup>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                    <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                                     onclick="PF('packageSubmitDialog').hide();"/>
+                    <p:commandButton
+                            value="#{contractPackagesBean.unsubmitMode ? 'Unsubmit' : 'Submit'}"
+                            icon="pi pi-check"
+                            process="@form" update=":stageDocumentsGrowl"
+                            actionListener="#{contractPackagesBean.confirmSubmit}"
+                            oncomplete="PF('packageSubmitDialog').hide(); if (args &amp;&amp; args.reload) { refreshStagedDocuments(); }"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <!-- ADDED 2026-10-11 - Extraction progress, results and review of a submitted package.
+             Extraction runs in the background and takes minutes, so this dialog never
+             waits on it: it shows the current progress, polls every 5 seconds while the
+             extraction is queued or running, and shows the extracted values when done.
+             Closing the dialog does not stop anything. -->
+        <p:dialog widgetVar="extractionDialog"
+                  header="Extraction"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closeOnEscape="true"
+                  onHide="PF('extractionPoll').stop(); refreshContractPackages();"
+                  width="88rem"
+                  style="max-width: 96vw;">
+            <h:form id="extractionForm">
+                <p:poll id="extractionPollCmd" widgetVar="extractionPoll" interval="5"
+                        autoStart="false"
+                        listener="#{extractionBean.poll}" update="extractionPanel"
+                        stop="#{not extractionBean.polling}"/>
+                <p:remoteCommand name="reloadExtraction" process="@this" update="extractionPanel"/>
+                <h:panelGroup id="extractionPanel" layout="block"
+                              style="max-height: 68vh; overflow-y: auto; padding-right: 0.5rem;">
+                    <p style="margin-top: 0;">
+                        <strong><h:outputText
+                                value="#{extractionBean.extractionPackage.packageCode}"/></strong>
+                    </p>
+
+                    <h:outputText
+                            rendered="#{extractionBean.status == null and extractionBean.loadFailed}"
+                            value="The progress could not be loaded. Close this window and open it again."/>
+                    <h:outputText
+                            rendered="#{extractionBean.status == null and not extractionBean.loadFailed}"
+                            value="Loading..."/>
+
+                    <h:panelGroup layout="block" rendered="#{extractionBean.status != null}">
+                        <p style="margin: 0 0 0.5rem 0;">
+                            <p:tag value="#{extractionBean.status.state}"
+                                   severity="#{extractionBean.status.done ? 'success' : (extractionBean.status.failed ? 'danger' : 'warn')}"/>
+                            <h:outputText value="  #{extractionBean.status.message}"/>
+                        </p>
+                        <p:progressBar value="#{extractionBean.status.percent}"
+                                       labelTemplate="{value}%" displayOnly="true"
+                                       style="margin-bottom: 0.75rem;"/>
+                        <p:dataTable var="d" value="#{extractionBean.status.documents}"
+                                     emptyMessage="No documents.">
+                            <p:column headerText="Document">
+                                <h:outputText value="#{d.fileName}"/>
+                            </p:column>
+                            <p:column headerText="Status" style="width: 8rem;">
+                                <p:tag value="#{d.status}" severity="#{d.severity}"/>
+                            </p:column>
+                            <p:column headerText="Time" style="width: 5rem;">
+                                <h:outputText value="#{d.elapsedText}"/>
+                            </p:column>
+                            <p:column headerText="To review" style="width: 6rem;">
+                                <h:outputText value="#{d.needsReviewCount}"/>
+                            </p:column>
+                            <p:column headerText="Problem">
+                                <h:outputText value="#{d.errorMessage}"/>
+                            </p:column>
+                        </p:dataTable>
+                        <h:panelGroup layout="block" rendered="#{extractionBean.status.active}"
+                                      style="color: #6b7280; margin-top: 0.75rem;">
+                            You can close this window. Extraction continues in the background and takes a few minutes per document.
+                        </h:panelGroup>
+                        <div style="margin-top: 0.75rem;">
+                            <p:commandButton value="Retry" icon="pi pi-refresh"
+                                             rendered="#{extractionBean.status.failed}"
+                                             disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                             process="@this"
+                                             update="extractionPanel :stageDocumentsGrowl"
+                                             actionListener="#{extractionBean.retry}"
+                                             oncomplete="PF('extractionPoll').start();"/>
+                            <p:commandButton value="Decline" icon="pi pi-undo"
+                                             styleClass="ui-button-danger ui-button-outlined"
+                                             style="margin-left: 0.5rem;"
+                                             rendered="#{extractionBean.status.failed and extractionBean.permitted}"
+                                             disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                             process="@this" update=":extractionDeclineForm"
+                                             actionListener="#{extractionBean.prepareDecline}"
+                                             oncomplete="PF('extractionDeclineDialog').show();"/>
+                        </div>
+                    </h:panelGroup>
+
+                    <h:panelGroup layout="block" rendered="#{extractionBean.results != null}"
+                                  style="margin-top: 1rem;">
+                        <h:panelGroup id="extractionReviewSummary" layout="block"
+                                      style="position: sticky; top: 0; z-index: 2; background: #ffffff; padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb;">
+                            <h:panelGroup rendered="#{extractionBean.editable}">
+                                <h:outputText
+                                        value="#{extractionBean.openCount} field(s) still to confirm (critical fields and fields marked Review). "/>
+                                <p:commandButton value="Confirm all extractor-verified fields"
+                                                 icon="pi pi-check-circle"
+                                                 styleClass="ui-button-secondary"
+                                                 style="margin-right: 0.5rem;"
+                                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                                 process="@this"
+                                                 update=":extractionForm:extractionPanel :stageDocumentsGrowl"
+                                                 actionListener="#{extractionBean.confirmAll}"/>
+                                <p:commandButton value="Complete review" icon="pi pi-check"
+                                                 disabled="#{demoRoleBean.readOnly('Contract Packages') or extractionBean.openCount gt 0}"
+                                                 process="@this"
+                                                 update=":extractionForm:extractionPanel :stageDocumentsGrowl"
+                                                 actionListener="#{extractionBean.completeReview}"
+                                                 oncomplete="refreshContractPackages();"/>
+                                <p:commandButton value="Decline" icon="pi pi-undo"
+                                                 styleClass="ui-button-danger ui-button-outlined"
+                                                 style="margin-left: 0.5rem;"
+                                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                                 process="@this" update=":extractionDeclineForm"
+                                                 actionListener="#{extractionBean.prepareDecline}"
+                                                 oncomplete="PF('extractionDeclineDialog').show();"/>
+                            </h:panelGroup>
+                            <h:panelGroup layout="block" rendered="#{extractionBean.reviewBlocked}"
+                                          style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.4rem 0.75rem;">
+                                <i class="pi pi-lock" style="margin-right: 0.4rem;"></i>
+                                <h:outputText
+                                        value="#{extractionBean.accessReason} The values below are read only for you."/>
+                            </h:panelGroup>
+                            <h:panelGroup layout="block"
+                                          rendered="#{extractionBean.approvalBlocked}"
+                                          style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.4rem 0.75rem; margin-bottom: 0.4rem;">
+                                <i class="pi pi-lock" style="margin-right: 0.4rem;"></i>
+                                <h:outputText value="#{extractionBean.approveReason}"/>
+                            </h:panelGroup>
+                            <h:panelGroup rendered="#{extractionBean.status.reviewed}">
+                                <p:tag value="Awaiting approval" severity="warn"/>
+                                <h:outputText
+                                        value="  The review is completed. The values below are read only until an approver applies them or sends them back. "/>
+                                <p:commandButton value="Approve and apply to contract record"
+                                                 icon="pi pi-download"
+                                                 rendered="#{extractionBean.canApprove}"
+                                                 style="margin-left: 0.5rem;"
+                                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                                 process="@this" update=":extractionApplyForm"
+                                                 actionListener="#{extractionBean.prepareApply}"
+                                                 oncomplete="PF('extractionApplyDialog').show();"/>
+                                <p:commandButton value="Send back to reviewer" icon="pi pi-reply"
+                                                 styleClass="ui-button-secondary"
+                                                 rendered="#{extractionBean.canApprove}"
+                                                 style="margin-left: 0.5rem;"
+                                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                                 process="@this"
+                                                 update=":extractionForm:extractionPanel :stageDocumentsGrowl"
+                                                 actionListener="#{extractionBean.sendBack}"
+                                                 oncomplete="refreshContractPackages();"/>
+                                <p:commandButton value="Reopen review" icon="pi pi-lock-open"
+                                                 styleClass="ui-button-secondary"
+                                                 rendered="#{extractionBean.permitted}"
+                                                 style="margin-left: 0.5rem;"
+                                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                                 process="@this"
+                                                 update=":extractionForm:extractionPanel :stageDocumentsGrowl"
+                                                 actionListener="#{extractionBean.reopenReview}"
+                                                 oncomplete="refreshContractPackages();"/>
+                            </h:panelGroup>
+                            <h:panelGroup rendered="#{extractionBean.status.applied}">
+                                <p:tag value="Applied" severity="success"/>
+                                <h:outputText
+                                        value="  #{extractionBean.status.message} The values below are read only."/>
+                            </h:panelGroup>
+                        </h:panelGroup>
+                        <ui:repeat var="doc" value="#{extractionBean.results.documents}">
+                            <h4 style="margin: 1rem 0 0.25rem 0;">
+                                <h:outputText value="#{doc.fileName}"/>
+                                <h:outputText value="  (#{doc.needsReviewCount} to review)"
+                                              style="font-weight: normal;"/>
+                            </h4>
+                            <p:dataTable var="f" value="#{doc.fields}"
+                                         emptyMessage="No values were extracted."
+                                         tableStyle="table-layout: auto; width: 100%;">
+                                <p:column headerText="Field" style="width: 11rem;">
+                                    <h:outputText value="#{f.label}"/>
+                                    <h:outputText value=" *" rendered="#{f.critical}"
+                                                  title="Critical field"/>
+                                </p:column>
+                                <p:column headerText="Extracted" style="width: 10rem;">
+                                    <h:outputText value="#{f.value}"/>
+                                </p:column>
+                                <p:column headerText="Corrected value" style="width: 10rem;">
+                                    <p:inputText value="#{f.correctedValue}"
+                                                 rendered="#{extractionBean.editable}"
+                                                 disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                                 placeholder="same as extracted"
+                                                 style="width: 100%;">
+                                        <p:ajax event="change"
+                                                listener="#{extractionBean.saveField(f)}"
+                                                update=":extractionForm:extractionReviewSummary :stageDocumentsGrowl"
+                                                oncomplete="if (args &amp;&amp; args.reload) { reloadExtraction(); }"/>
+                                    </p:inputText>
+                                    <h:outputText value="#{f.correctedValue}"
+                                                  rendered="#{not extractionBean.editable}"/>
+                                </p:column>
+                                <p:column headerText="Result" style="width: 8rem;">
+                                    <p:tag value="#{f.statusLabel}" severity="#{f.severity}"/>
+                                    <p:tag value="Review" severity="warn"
+                                           rendered="#{f.needsReview}"
+                                           style="margin-left: 0.25rem;"/>
+                                </p:column>
+                                <p:column headerText="Evidence from the document"
+                                          style="min-width: 24rem;">
+                                    <h:outputText value="#{f.quote}" style="font-size: 0.85rem;"/>
+                                    <h:outputText value="#{f.problem}"
+                                                  rendered="#{not empty f.problem}"
+                                                  style="display: block; color: #b45309; font-size: 0.85rem;"/>
+                                </p:column>
+                                <p:column headerText="History"
+                                          style="width: 4.5rem; text-align: center;">
+                                    <p:commandButton icon="pi pi-history"
+                                                     styleClass="rounded-button ui-button-text"
+                                                     title="Show every change made to this field"
+                                                     process="@this" update=":extractionHistoryForm"
+                                                     actionListener="#{extractionBean.openHistory(f)}"
+                                                     oncomplete="if (!args || !args.validationFailed) { PF('extractionHistoryDialog').show(); }"/>
+                                </p:column>
+                                <p:column headerText="Confirmed"
+                                          style="width: 6rem; text-align: center;">
+                                    <p:selectBooleanCheckbox value="#{f.verified}"
+                                                             disabled="#{not extractionBean.editable or demoRoleBean.readOnly('Contract Packages')}">
+                                        <p:ajax listener="#{extractionBean.saveField(f)}"
+                                                update=":extractionForm:extractionReviewSummary :stageDocumentsGrowl"
+                                                oncomplete="if (args &amp;&amp; args.reload) { reloadExtraction(); }"/>
+                                    </p:selectBooleanCheckbox>
+                                </p:column>
+                            </p:dataTable>
+                        </ui:repeat>
+                    </h:panelGroup>
+                </h:panelGroup>
+                <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                    <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
+                                     onclick="PF('extractionDialog').hide();"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <!-- ADDED 2026-10-12 - Decline: the reviewer sends the package back to Assembly with a
+             reason. The submitter sees the reason on the package, fixes the documents and
+             submits again, which runs a fresh extraction. -->
+        <p:dialog widgetVar="extractionDeclineDialog"
+                  header="Decline package"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closeOnEscape="true"
+                  width="34rem">
+            <h:form id="extractionDeclineForm">
+                <p style="margin-top: 0;">
+                    <strong><h:outputText value="#{extractionBean.extractionPackage.packageCode}"/></strong>
+                    goes back to Assembly. The extracted values are discarded and the submitter sees your reason.
+                </p>
+                <p:outputLabel for="declineReasonText" value="Reason"/>
+                <br/>
+                <p:inputTextarea id="declineReasonText" value="#{extractionBean.declineReason}"
+                                 rows="4" maxlength="1000" counter="declineReasonCounter"
+                                 counterTemplate="{0} characters remaining" style="width: 100%;"/>
+                <br/>
+                <h:outputText id="declineReasonCounter"
+                              style="color: #6b7280; font-size: 0.85rem;"/>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                    <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                                     onclick="PF('extractionDeclineDialog').hide();"/>
+                    <p:commandButton value="Decline package" icon="pi pi-undo"
+                                     styleClass="ui-button-danger"
+                                     process="@form" update="@form :stageDocumentsGrowl"
+                                     actionListener="#{extractionBean.confirmDecline}"
+                                     oncomplete="if (args &amp;&amp; args.done) { PF('extractionDeclineDialog').hide(); PF('extractionDialog').hide(); refreshStagedDocuments(); }"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <!-- ADDED 2026-10-12 - History of one field: the extracted value, then every change a
+             reviewer made (value changed, confirmed, confirmation removed), oldest first. -->
+        <p:dialog widgetVar="extractionHistoryDialog"
+                  header="Field history"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closeOnEscape="true"
+                  width="62rem"
+                  style="max-width: 96vw;">
+            <h:form id="extractionHistoryForm">
+                <h:panelGroup rendered="#{extractionBean.history != null}">
+                    <p style="margin-top: 0;">
+                        <strong><h:outputText value="#{extractionBean.history.label}"/></strong>
+                        <br/>
+                        <h:outputText value="Extracted by the model: "/>
+                        <h:outputText
+                                value="#{empty extractionBean.history.extractedValue ? '(nothing)' : extractionBean.history.extractedValue}"/>
+                    </p>
+                    <p:dataTable var="rv" value="#{extractionBean.history.revisions}"
+                                 tableStyle="table-layout: auto; width: 100%;"
+                                 emptyMessage="Nobody has changed or confirmed this field yet.">
+                        <p:column headerText="#" style="width: 3rem;">
+                            <h:outputText value="#{rv.revisionNo}"/>
+                        </p:column>
+                        <p:column headerText="Change" style="min-width: 11rem;">
+                            <h:outputText value="#{rv.actionLabel}"/>
+                        </p:column>
+                        <p:column headerText="From" style="min-width: 8rem; white-space: nowrap;">
+                            <h:outputText
+                                    value="#{empty rv.previousValue ? '(empty)' : rv.previousValue}"/>
+                        </p:column>
+                        <p:column headerText="To"
+                                  style="min-width: 8rem; white-space: nowrap; font-weight: 600;">
+                            <h:outputText value="#{empty rv.newValue ? '(empty)' : rv.newValue}"/>
+                        </p:column>
+                        <p:column headerText="By" style="min-width: 14rem;">
+                            <h:outputText value="#{rv.changedBy}"/>
+                        </p:column>
+                        <p:column headerText="When" style="min-width: 11rem; white-space: nowrap;">
+                            <h:outputText value="#{rv.changedAtText}"/>
+                        </p:column>
+                    </p:dataTable>
+                </h:panelGroup>
+                <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                    <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
+                                     onclick="PF('extractionHistoryDialog').hide();"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <!-- ADDED 2026-10-12 - Confirmation before the reviewed values are written to the
+             contract record. Replaces the browser's own confirm box. When the package has no
+             target record the reviewer chooses one here; Apply stays disabled until chosen. -->
+        <p:dialog widgetVar="extractionApplyDialog"
+                  header="Apply to contract record"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closeOnEscape="true"
+                  width="36rem">
+            <h:form id="extractionApplyForm">
+                <p style="margin-top: 0;">
+                    <strong><h:outputText value="#{extractionBean.extractionPackage.packageCode}"/></strong>
+                    <i class="pi pi-arrow-right" style="margin: 0 0.5rem; font-size: 0.8rem;"></i>
+                    <strong><h:outputText
+                            value="#{extractionBean.applyNeedsTarget ? 'no record yet' : extractionBean.extractionPackage.targetRecord}"/></strong>
+                </p>
+                <h:panelGroup layout="block" rendered="#{extractionBean.applyNeedsTarget}"
+                              style="margin-bottom: 0.75rem;">
+                    <p style="margin: 0 0 0.5rem 0;">
+                        This package is not linked to a contract record. Choose the record that receives the values.
+                        The package is linked to it when you apply.
+                    </p>
+                    <p:selectOneMenu id="applyTarget" value="#{extractionBean.applyTargetId}"
+                                     filter="true"
+                                     filterMatchMode="contains" style="width: 100%;">
+                        <f:selectItem itemLabel="Choose a contract record"
+                                      noSelectionOption="true"/>
+                        <f:selectItems value="#{extractionBean.applyCandidates}" var="c"
+                                       itemValue="#{c.id}" itemLabel="#{c.label}"/>
+                        <p:ajax update="applyConfirm"/>
+                    </p:selectOneMenu>
+                    <h:outputText rendered="#{empty extractionBean.applyCandidates}"
+                                  value="No active or pending contract record exists in this workspace."
+                                  style="color: #b45309; display: block; margin-top: 0.4rem;"/>
+                </h:panelGroup>
+                <h:panelGroup layout="block">
+                    <p style="margin: 0 0 0.5rem 0;">This writes the confirmed values to the contract record:</p>
+                    <ul style="margin: 0 0 0.75rem 1.25rem; padding: 0; line-height: 1.5;">
+                        <li>Your corrected value is used where you changed one, otherwise the extracted value.</li>
+                        <li>A value that differs from the one on the record replaces it. The earlier value is kept as history.</li>
+                        <li>The lessor is linked to the record as its counterparty, and created if it does not exist yet.</li>
+                        <li>Only confirmed fields with a value are written. The others are skipped and listed afterwards.</li>
+                    </ul>
+                    <h:panelGroup layout="block"
+                                  rendered="#{extractionBean.applyUnconfirmedCount gt 0}"
+                                  style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
+                        <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
+                        <h:outputText
+                                value="#{extractionBean.applyUnconfirmedCount} field(s) have a value but are not confirmed and will not be written. Reopen the review to confirm them."/>
+                    </h:panelGroup>
+                    <p style="margin: 0; color: #6b7280;">After this the package is read only and cannot be applied again.</p>
+                </h:panelGroup>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                    <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                                     onclick="PF('extractionApplyDialog').hide();"/>
+                    <p:commandButton id="applyConfirm" value="Apply" icon="pi pi-download"
+                                     disabled="#{extractionBean.applyNeedsTarget and extractionBean.applyTargetId == null}"
+                                     process="@this"
+                                     update=":extractionForm:extractionPanel :stageDocumentsGrowl"
+                                     actionListener="#{extractionBean.applyToContract}"
+                                     oncomplete="PF('extractionApplyDialog').hide(); refreshContractPackages();"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
+        <!-- ==================== STAGE DOCUMENTS ==================== -->
+        <h:panelGroup id="stageDocumentsCard" layout="block" styleClass="dashboard-card"
+                      style="#{demoRoleBean.canSee('Stage Documents') ? '' : 'display:none;'}">
+            <div class="dashboard-card-header">
+                <h2>Stage Documents (#{stageDocumentsBean.stagedDocuments.size()})</h2>
+                <i class="pi pi-info-circle"
+                   title="Documents land here after upload and stay until grouped into a contract package."></i>
+            </div>
+            <p class="section-subtitle">Documents uploaded and awaiting grouping into a contract package.</p>
+
+            <!-- TODO (needs your input before wiring): mockup shows a per-section
+                 search box here, a category filter-chip row (All/Retail/Office/
+                 Operations/Equipment with counts), and a Preparer filter-chip row
+                 (All/per-preparer avatar chip/Unassigned). Holding off on these
+                 until we agree what backs them  e.g. does StageDocumentDTO gain
+                 a `preparerName` field, and are the chip counts computed here or
+                 returned pre-aggregated by StageDocumentService? -->
+
+            <h:form id="stageDocumentsForm">
+                <p:dataTable id="stageDocumentsTable"
+                             var="doc"
+                             value="#{stageDocumentsBean.stagedDocuments}"
+                             selection="#{stageDocumentsBean.selectedDocuments}"
+                             rowKey="#{doc.id}"
+                             emptyMessage="No staged documents.">
+
+                    <!-- ADDED 2026-10-07 - keep the Create Document Set button in step with the ticked rows. -->
+                    <p:ajax event="rowSelect" update=":stageDocumentsForm:createSetButton"/>
+                    <p:ajax event="rowUnselect" update=":stageDocumentsForm:createSetButton"/>
+                    <p:ajax event="rowSelectCheckbox" update=":stageDocumentsForm:createSetButton"/>
+                    <p:ajax event="rowUnselectCheckbox"
+                            update=":stageDocumentsForm:createSetButton"/>
+                    <p:ajax event="toggleSelect" update=":stageDocumentsForm:createSetButton"/>
+
+                    <p:column selectionMode="multiple" style="width:3rem" exportable="false"/>
+
+                    <!-- ADDED 2026-10-03 - File Name hover preview. p:tooltip's
+                         "for" is resolved relative to this row (p:dataTable rows are
+                         their own NamingContainer), so a plain static id here is
+                         enough - it does not need to be made unique per row by hand
+                         (e.g. concatenating doc.id). Field set (Uploaded By/
+                         Uploaded At/Comments/File Type) is a first cut - the user
+                         specified the Record column's fields explicitly but not
+                         this one; flag if a different set is wanted. No rendered
+                         condition - every staged document has these by definition
+                         (uploadedBy/uploadedAt are required columns), unlike Record
+                         below. -->
+                    <p:column headerText="File Name">
+                        <h:outputText id="fileNameCell" value="#{doc.fileName}"/>
+                        <p:tooltip for="fileNameCell" position="right" trackMouse="true">
+                            <div class="stage-doc-tooltip">
+                                <div class="stage-doc-tooltip-title">File Details</div>
+                                <div class="stage-doc-tooltip-row">
+                                    <span class="stage-doc-tooltip-label">Uploaded By</span>
+                                    <span class="stage-doc-tooltip-value">#{doc.uploadedBy}</span>
+                                </div>
+                                <div class="stage-doc-tooltip-row">
+                                    <span class="stage-doc-tooltip-label">Uploaded</span>
+                                    <span class="stage-doc-tooltip-value">#{doc.uploadedAt}</span>
+                                </div>
+                                <div class="stage-doc-tooltip-row">
+                                    <span class="stage-doc-tooltip-label">File Type</span>
+                                    <span class="stage-doc-tooltip-value">#{doc.type}</span>
+                                </div>
+                                <div class="stage-doc-tooltip-row">
+                                    <span class="stage-doc-tooltip-label">Comments</span>
+                                    <span class="stage-doc-tooltip-value">#{(doc.comments != null and not empty doc.comments) ? doc.comments : 'None'}</span>
+                                </div>
+                            </div>
+                        </p:tooltip>
+                    </p:column>
+
+                    <p:column headerText="Type">
+                        <p:tag value="#{doc.type}"/>
+                    </p:column>
+
+                    <p:column headerText="Workspace">
+                        <p:tag value="#{doc.workspace}"/>
+                    </p:column>
+
+                    <!-- ADDED 2026-10-03 - Record hover preview, per explicit
+                         request in chat: Record Code/Counterparty/Contract Type/
+                         Status/Workspace, all sourced off the same already-fetched
+                         StagedDocumentRow - see that class's and
+                         StageDocumentService.toDraft()'s Javadoc for where these
+                         come from (no extra request on hover). rendered="false" when
+                         targetRecordId is null (doc.record is then a free-text label
+                         like "Unassigned" or whatever the user originally typed -
+                         see StageDocumentService.deriveRecordLabel() - there's no
+                         real linked record yet to preview). -->
+                    <p:column headerText="Record"
+                              rendered="#{demoRoleBean.canSeeField('Stage Documents', 'Record')}">
+                        <h:outputText id="recordCell" value="#{doc.record}"/>
+                        <p:tooltip for="recordCell" position="right" trackMouse="true"
+                                   rendered="#{doc.targetRecordId != null}">
+                            <div class="stage-doc-tooltip">
+                                <div class="stage-doc-tooltip-title">Record Details</div>
+                                <div class="stage-doc-tooltip-row">
+                                    <span class="stage-doc-tooltip-label">Record Code</span>
+                                    <span class="stage-doc-tooltip-value">#{doc.record}</span>
+                                </div>
+                                <div class="stage-doc-tooltip-row">
+                                    <span class="stage-doc-tooltip-label">Counterparty</span>
+                                    <span class="stage-doc-tooltip-value">#{(doc.recordCounterparty != null) ? doc.recordCounterparty : 'Not on file'}</span>
+                                </div>
+                                <div class="stage-doc-tooltip-row">
+                                    <span class="stage-doc-tooltip-label">Contract Type</span>
+                                    <span class="stage-doc-tooltip-value">#{doc.recordContractType}</span>
+                                </div>
+                                <div class="stage-doc-tooltip-row">
+                                    <span class="stage-doc-tooltip-label">Status</span>
+                                    <span class="stage-doc-tooltip-value">#{doc.recordStatus}</span>
+                                </div>
+                                <div class="stage-doc-tooltip-row">
+                                    <span class="stage-doc-tooltip-label">Workspace</span>
+                                    <span class="stage-doc-tooltip-value">#{doc.recordWorkspace}</span>
+                                </div>
+                            </div>
+                        </p:tooltip>
+
+                        <!-- ADDED 2026-10-03 - the explanatory variant for a row with
+                             no linked record at all (targetRecordId null), per the
+                             attached mockup: same tooltip chrome, but a short message
+                             instead of a field list, explaining what "Unassigned"
+                             means and what to do about it rather than just leaving the
+                             cell with no hover feedback. Mutually exclusive with the
+                             tooltip above (exactly one of the two rendered conditions
+                             is ever true for a given row), so both safely target the
+                             same "for". -->
+                        <p:tooltip for="recordCell" position="right" trackMouse="true"
+                                   rendered="#{doc.targetRecordId == null}">
+                            <div class="stage-doc-tooltip stage-doc-tooltip-message">
+                                <div class="stage-doc-tooltip-title">#{doc.record}</div>
+                                <p class="stage-doc-tooltip-message-body">No target Contract Record was specified at upload. A Preparer can assign this document to an existing record or create a new one before packaging.</p>
+                            </div>
+                        </p:tooltip>
+                    </p:column>
+
+                    <!-- ADDED 2026-10-04 - Assignee hover preview, extending the
+                         File Name/Record tooltip feature per explicit request (the
+                         "later phase" the old comment here referred to). Same
+                         mutually-exclusive two-tooltip pattern as the Record column:
+                         rendered="#{doc.assigneeLoginId != null}" when the assignee
+                         resolved to an IAMS directory entry (User ID/Role(s)/Team/
+                         Workspace Specialties), rendered="#{doc.assigneeLoginId == null}"
+                         for everything else - both "Unassigned" and an assignee that
+                         didn't match any directory entry fall into the second variant, with
+                         the message body distinguishing the two cases. See
+                         StageDocumentService.toDraft()'s and StagedDocumentRow's
+                         Javadoc for where these fields come from (a separate IAMS
+                         lookup, not the same JOIN FETCH as the Record fields). -->
+                    <p:column headerText="Assignee"
+                              rendered="#{demoRoleBean.canSeeField('Stage Documents', 'Assignee')}">
+                        <h:outputText id="assigneeCell" value="#{doc.assignee}"/>
+                        <!-- REVISED 2026-10-04 (assigneeId -> loginId): the variant is now
+                             chosen by assigneeLoginId (non-null exactly when the assignee
+                             resolved to a directory entry), not assigneeRoles - a
+                             resolved person with no roles on file used to fall into the
+                             "could not be matched" variant by mistake. doc.assignee is
+                             now the resolved display name; User ID is shown so
+                             identically-named people can be told apart. -->
+                        <p:tooltip for="assigneeCell" position="right" trackMouse="true"
+                                   rendered="#{doc.assigneeLoginId != null}">
+                            <div class="stage-doc-tooltip">
+                                <div class="stage-doc-tooltip-title">Assignee Details</div>
+                                <div class="stage-doc-tooltip-row">
+                                    <span class="stage-doc-tooltip-label">User ID</span>
+                                    <span class="stage-doc-tooltip-value">#{doc.assigneeLoginId}</span>
+                                </div>
+                                <div class="stage-doc-tooltip-row">
+                                    <span class="stage-doc-tooltip-label">Role</span>
+                                    <span class="stage-doc-tooltip-value">#{(doc.assigneeRoles != null) ? doc.assigneeRoles : 'Not on file'}</span>
+                                </div>
+                                <div class="stage-doc-tooltip-row">
+                                    <span class="stage-doc-tooltip-label">Team</span>
+                                    <span class="stage-doc-tooltip-value">#{(doc.assigneeTeamName != null) ? doc.assigneeTeamName : 'Not on file'}</span>
+                                </div>
+                                <div class="stage-doc-tooltip-row">
+                                    <span class="stage-doc-tooltip-label">Workspace Specialties</span>
+                                    <span class="stage-doc-tooltip-value">#{(doc.assigneeWorkspaceCodes != null) ? doc.assigneeWorkspaceCodes : 'Not on file'}</span>
+                                </div>
+                            </div>
+                        </p:tooltip>
+
+                        <p:tooltip for="assigneeCell" position="right" trackMouse="true"
+                                   rendered="#{doc.assigneeLoginId == null}">
+                            <div class="stage-doc-tooltip stage-doc-tooltip-message">
+                                <div class="stage-doc-tooltip-title">#{doc.assignee}</div>
+                                <p class="stage-doc-tooltip-message-body">
+                                    #{(doc.assignee eq 'Unassigned')
+                                            ? 'No one has been assigned to this document yet. A Preparer can assign it from the Upload Files dialog.'
+                                            : 'This assignee could not be matched to a directory record.'}
+                                </p>
+                            </div>
+                        </p:tooltip>
+                    </p:column>
+
+                    <p:column headerText="Uploaded">
+                        <h:outputText value="#{doc.uploadedAt}"/>
+                    </p:column>
+
+                    <p:column headerText="Actions" style="width:6rem" exportable="false">
+                        <!-- ADDED 2026-10-01 - the eye icon was a true placeholder
+                             before (no action/onclick at all). Now opens
+                             documentviewer.xhtml in a NEW BROWSER TAB per explicit
+                             decision in chat, passing everything that page needs as
+                             plain query params: doc.id/fileUploadId/targetRecordId
+                             (real ids, newly added to StagedDocumentRow - see that
+                             class's Javadoc) plus the same display strings this table
+                             already computed (fileName/type/workspace/record/
+                             assignee/uploadedAt), so the viewer page doesn't need a
+                             second "get one staged_document by id" endpoint just to
+                             redisplay values already in hand here. p:button (not
+                             p:commandButton) since this is pure navigation - no
+                             server-side action on dashboard.xhtml's own bean.
+                             REVISED 2026-10-07: was an h:outputLink, which the theme
+                             did not style as a button, so it looked greyed out next to
+                             the trash icon. p:button renders with the same button
+                             styling and still opens the viewer in a new tab with the same
+                             query params. The wrapping span stops the click from
+                             selecting the table row. -->
+                        <span onclick="event.stopPropagation();">
               <p:button outcome="documentviewer" target="_blank" icon="pi pi-eye"
                         rendered="#{demoRoleBean.canSee('Document Viewer')}"
                         styleClass="rounded-button ui-button-text" title="View">
@@ -1042,17 +1208,17 @@
                 <f:param name="uploadedAt" value="#{doc.uploadedAt}"/>
               </p:button>
             </span>
-            <!-- REVISED 2026-10-07 - the trash icon now opens the delete
-                 confirmation dialog below (deleteStagedDocumentDialog) after
-                 remembering this row. It is enabled only for documents the
-                 current user uploaded, which is also the server rule; the
-                 server has the final say. process="@this" is enough because
-                 prepareDelete only needs the row. The wrapping span stops the
-                 click from bubbling up to the table, whose row click handling
-                 would otherwise select the row (this happened on a click of
-                 the icon, including when the icon is disabled). The button's
-                 own handler runs first, so the dialog still opens. -->
-            <span onclick="event.stopPropagation();">
+                        <!-- REVISED 2026-10-07 - the trash icon now opens the delete
+                             confirmation dialog below (deleteStagedDocumentDialog) after
+                             remembering this row. It is enabled only for documents the
+                             current user uploaded, which is also the server rule; the
+                             server has the final say. process="@this" is enough because
+                             prepareDelete only needs the row. The wrapping span stops the
+                             click from bubbling up to the table, whose row click handling
+                             would otherwise select the row (this happened on a click of
+                             the icon, including when the icon is disabled). The button's
+                             own handler runs first, so the dialog still opens. -->
+                        <span onclick="event.stopPropagation();">
               <p:commandButton icon="pi pi-trash" styleClass="rounded-button ui-button-text"
                                title="#{stageDocumentsBean.canDelete(doc) ? 'Delete' : 'Only the person who uploaded this document can delete it'}"
                                disabled="#{demoRoleBean.readOnly('Stage Documents') or not stageDocumentsBean.canDelete(doc)}"
@@ -1060,115 +1226,125 @@
                                actionListener="#{stageDocumentsBean.prepareDelete(doc)}"
                                oncomplete="PF('deleteStagedDocumentDialog').show();"/>
             </span>
-          </p:column>
+                    </p:column>
 
-        </p:dataTable>
+                </p:dataTable>
 
-        <div style="margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
-          <span>Showing #{stageDocumentsBean.stagedDocuments.size()} of #{stageDocumentsBean.stagedDocuments.size()} documents</span>
-          <!-- Renamed to match mockup ("Create Document Set", not "Review &
-               Group") and disabled when nothing is selected, matching the
-               greyed-out state shown there. Assumes stageDocumentsBean
-               exposes selectedDocuments as a List that's empty by default
-               confirm the getter name if this doesn't compile as-is. -->
-          <p:commandButton id="createSetButton" value="Create Contract Package" icon="pi pi-arrow-right" iconPos="right"
-                            disabled="#{empty stageDocumentsBean.selectedDocuments or demoRoleBean.readOnly('Stage Documents')}"
-                            process="@form" update=":createDocumentSetForm :stageDocumentsGrowl"
-                            actionListener="#{createDocumentSetBean.prepare(stageDocumentsBean.selectedDocuments)}"
-                            oncomplete="if (args &amp;&amp; args.open) { PF('createDocumentSetDialog').show(); }"/>
-        </div>
-      </h:form>
-    </h:panelGroup>
+                <div style="margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Showing #{stageDocumentsBean.stagedDocuments.size()} of #{stageDocumentsBean.stagedDocuments.size()} documents</span>
+                    <!-- Renamed to match mockup ("Create Document Set", not "Review &
+                         Group") and disabled when nothing is selected, matching the
+                         greyed-out state shown there. Assumes stageDocumentsBean
+                         exposes selectedDocuments as a List that's empty by default
+                         confirm the getter name if this doesn't compile as-is. -->
+                    <p:commandButton id="createSetButton" value="Create Document Set"
+                                     icon="pi pi-arrow-right" iconPos="right"
+                                     disabled="#{empty stageDocumentsBean.selectedDocuments or demoRoleBean.readOnly('Stage Documents')}"
+                                     process="@form"
+                                     update=":createDocumentSetForm :stageDocumentsGrowl"
+                                     actionListener="#{createDocumentSetBean.prepare(stageDocumentsBean.selectedDocuments)}"
+                                     oncomplete="if (args &amp;&amp; args.open) { PF('createDocumentSetDialog').show(); }"/>
+                </div>
+            </h:form>
+        </h:panelGroup>
 
-    <!-- ==================== CONTRACT PACKAGES ==================== -->
-    <h:panelGroup id="contractPackagesCard" layout="block" styleClass="dashboard-card"
-                  style="#{demoRoleBean.canSee('Contract Packages') ? '' : 'display:none;'}">
-      <div class="dashboard-card-header">
-        <h2>Contract Packages (#{contractPackagesBean.contractPackages.size()})</h2>
-        <i class="pi pi-info-circle" title="Packages group staged documents together before they're submitted for extraction."></i>
-      </div>
-      <p class="section-subtitle">Group staged documents into packages, then submit for processing.</p>
-
-      <h:form id="contractPackagesForm">
-        <!-- ADDED 2026-10-13 - refreshes the list every 10 seconds while a package is queued or
-             extracting. Once none is, the poll is no longer rendered and stops by itself. -->
-        <p:poll interval="10" listener="#{contractPackagesBean.refresh}" update=":contractPackagesCard"
-                rendered="#{contractPackagesBean.hasActiveStage}"/>
-        <p:dataTable id="contractPackagesTable"
-                     var="pkg"
-                     value="#{contractPackagesBean.contractPackages}"
-                     rowKey="#{pkg.id}"
-                     emptyMessage="No contract packages.">
-
-          <p:column headerText="Package ID">
-            <h:outputText value="#{pkg.packageCode}"/>
-          </p:column>
-
-          <p:column headerText="Docs">
-            <h:outputText value="#{pkg.docCount}"/>
-          </p:column>
-
-          <p:column headerText="Workspace">
-            <p:tag value="#{pkg.workspace}"/>
-          </p:column>
-
-          <p:column headerText="Assignee">
-            <h:outputText value="#{pkg.assignee}"/>
-          </p:column>
-
-          <p:column headerText="Roles">
-            <h:outputText value="#{pkg.roles}"/>
-          </p:column>
-
-          <p:column headerText="Status">
-            <!-- severity="success" hardcoded for now since Assembly is the
-                 only mock status value - once real statuses exist (Failed,
-                 Pending, etc.), this should map severity from pkg.status
-                 rather than assume every status is success. -->
-            <p:tag value="#{contractPackagesBean.statusText(pkg)}" severity="#{contractPackagesBean.statusSeverity(pkg)}"/>
-          </p:column>
-
-          <!-- REVISED 2026-10-07 - one row of icon buttons in the same style as the
-               Stage Documents row actions (rounded, text style, tooltip), instead of
-               three text buttons of different widths stacked in a narrow column. -->
-          <p:column headerText="Actions" style="width:11rem" exportable="false">
-            <div style="display: flex; flex-wrap: nowrap; gap: 0.25rem; align-items: center;">
-              <p:commandButton icon="pi pi-folder-open" styleClass="rounded-button ui-button-text" title="Open"
-                               process="@this" update=":packageDocumentsForm"
-                               actionListener="#{contractPackagesBean.open(pkg)}"
-                               oncomplete="PF('packageDocumentsDialog').show();"/>
-              <p:commandButton icon="pi pi-user-edit" styleClass="rounded-button ui-button-text"
-                               title="#{pkg.statusCode == 'ASSEMBLY' ? 'Reassign' : 'Only a draft package can be reassigned'}"
-                               disabled="#{demoRoleBean.readOnly('Contract Packages') or pkg.statusCode != 'ASSEMBLY'}"
-                               process="@this" update=":reassignPackageForm"
-                               actionListener="#{contractPackagesBean.prepareReassign(pkg)}"
-                               oncomplete="PF('reassignPackageDialog').show();"/>
-              <p:commandButton icon="pi pi-send" styleClass="rounded-button ui-button-text"
-                               rendered="#{pkg.statusCode == 'ASSEMBLY'}"
-                               title="#{contractPackagesBean.submitHint(pkg)}"
-                               disabled="#{demoRoleBean.readOnly('Contract Packages') or not contractPackagesBean.isReady(pkg)}"
-                               process="@this" update=":packageSubmitForm"
-                               actionListener="#{contractPackagesBean.prepareSubmit(pkg, false)}"
-                               oncomplete="PF('packageSubmitDialog').show();"/>
-              <p:commandButton icon="pi pi-chart-line" styleClass="rounded-button ui-button-text"
-                               rendered="#{pkg.statusCode == 'VALIDATED' or pkg.statusCode == 'COMPLETED'}"
-                               title="Extraction progress and results"
-                               process="@this" update=":extractionForm"
-                               actionListener="#{extractionBean.open(pkg)}"
-                               oncomplete="PF('extractionDialog').show(); PF('extractionPoll').start();"/>
-              <p:commandButton icon="pi pi-undo" styleClass="rounded-button ui-button-text"
-                               rendered="#{pkg.statusCode == 'VALIDATED'}"
-                               title="Unsubmit"
-                               disabled="#{demoRoleBean.readOnly('Contract Packages')}"
-                               process="@this" update=":packageSubmitForm"
-                               actionListener="#{contractPackagesBean.prepareSubmit(pkg, true)}"
-                               oncomplete="PF('packageSubmitDialog').show();"/>
+        <!-- ==================== CONTRACT PACKAGES ==================== -->
+        <h:panelGroup id="contractPackagesCard" layout="block" styleClass="dashboard-card"
+                      style="#{demoRoleBean.canSee('Contract Packages') ? '' : 'display:none;'}">
+            <div class="dashboard-card-header">
+                <h2>Contract Packages (#{contractPackagesBean.contractPackages.size()})</h2>
+                <i class="pi pi-info-circle"
+                   title="Packages group staged documents together before they're submitted for extraction."></i>
             </div>
-          </p:column>
+            <p class="section-subtitle">Group staged documents into packages, then submit for processing.</p>
 
-        </p:dataTable>
-      </h:form>
-    </h:panelGroup>
+            <h:form id="contractPackagesForm">
+                <!-- ADDED 2026-10-13 - refreshes the list every 10 seconds while a package is queued or
+                     extracting. Once none is, the poll is no longer rendered and stops by itself. -->
+                <p:poll interval="10" listener="#{contractPackagesBean.refresh}"
+                        update=":contractPackagesCard"
+                        rendered="#{contractPackagesBean.hasActiveStage}"/>
+                <p:dataTable id="contractPackagesTable"
+                             var="pkg"
+                             value="#{contractPackagesBean.contractPackages}"
+                             rowKey="#{pkg.id}"
+                             emptyMessage="No contract packages.">
 
-  </ui:define>
+                    <p:column headerText="Package ID">
+                        <h:outputText value="#{pkg.packageCode}"/>
+                    </p:column>
+
+                    <p:column headerText="Docs">
+                        <h:outputText value="#{pkg.docCount}"/>
+                    </p:column>
+
+                    <p:column headerText="Workspace">
+                        <p:tag value="#{pkg.workspace}"/>
+                    </p:column>
+
+                    <p:column headerText="Assignee">
+                        <h:outputText value="#{pkg.assignee}"/>
+                    </p:column>
+
+                    <p:column headerText="Roles">
+                        <h:outputText value="#{pkg.roles}"/>
+                    </p:column>
+
+                    <p:column headerText="Status">
+                        <!-- severity="success" hardcoded for now since Assembly is the
+                             only mock status value - once real statuses exist (Failed,
+                             Pending, etc.), this should map severity from pkg.status
+                             rather than assume every status is success. -->
+                        <p:tag value="#{contractPackagesBean.statusText(pkg)}"
+                               severity="#{contractPackagesBean.statusSeverity(pkg)}"/>
+                    </p:column>
+
+                    <!-- REVISED 2026-10-07 - one row of icon buttons in the same style as the
+                         Stage Documents row actions (rounded, text style, tooltip), instead of
+                         three text buttons of different widths stacked in a narrow column. -->
+                    <p:column headerText="Actions" style="width:11rem" exportable="false">
+                        <div style="display: flex; flex-wrap: nowrap; gap: 0.25rem; align-items: center;">
+                            <p:commandButton icon="pi pi-folder-open"
+                                             styleClass="rounded-button ui-button-text" title="Open"
+                                             process="@this" update=":packageDocumentsForm"
+                                             actionListener="#{contractPackagesBean.open(pkg)}"
+                                             oncomplete="PF('packageDocumentsDialog').show();"/>
+                            <p:commandButton icon="pi pi-user-edit"
+                                             styleClass="rounded-button ui-button-text"
+                                             title="#{pkg.statusCode == 'ASSEMBLY' ? 'Reassign' : 'Only a draft package can be reassigned'}"
+                                             disabled="#{demoRoleBean.readOnly('Contract Packages') or pkg.statusCode != 'ASSEMBLY'}"
+                                             process="@this" update=":reassignPackageForm"
+                                             actionListener="#{contractPackagesBean.prepareReassign(pkg)}"
+                                             oncomplete="PF('reassignPackageDialog').show();"/>
+                            <p:commandButton icon="pi pi-send"
+                                             styleClass="rounded-button ui-button-text"
+                                             rendered="#{pkg.statusCode == 'ASSEMBLY'}"
+                                             title="#{contractPackagesBean.submitHint(pkg)}"
+                                             disabled="#{demoRoleBean.readOnly('Contract Packages') or not contractPackagesBean.isReady(pkg)}"
+                                             process="@this" update=":packageSubmitForm"
+                                             actionListener="#{contractPackagesBean.prepareSubmit(pkg, false)}"
+                                             oncomplete="PF('packageSubmitDialog').show();"/>
+                            <p:commandButton icon="pi pi-chart-line"
+                                             styleClass="rounded-button ui-button-text"
+                                             rendered="#{pkg.statusCode == 'VALIDATED' or pkg.statusCode == 'COMPLETED'}"
+                                             title="Extraction progress and results"
+                                             process="@this" update=":extractionForm"
+                                             actionListener="#{extractionBean.open(pkg)}"
+                                             oncomplete="PF('extractionDialog').show(); PF('extractionPoll').start();"/>
+                            <p:commandButton icon="pi pi-undo"
+                                             styleClass="rounded-button ui-button-text"
+                                             rendered="#{pkg.statusCode == 'VALIDATED'}"
+                                             title="Unsubmit"
+                                             disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                             process="@this" update=":packageSubmitForm"
+                                             actionListener="#{contractPackagesBean.prepareSubmit(pkg, true)}"
+                                             oncomplete="PF('packageSubmitDialog').show();"/>
+                        </div>
+                    </p:column>
+
+                </p:dataTable>
+            </h:form>
+        </h:panelGroup>
+
+    </ui:define>
 </ui:composition>
