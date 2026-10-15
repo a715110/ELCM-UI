@@ -1,0 +1,405 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                template="/WEB-INF/template.xhtml">
+  <!--
+      ADDED 2026-10-14 - Extraction Templates screen for System Admin and Super Admin. A template
+      has versions: a draft is edited, published with a reason, and then used for new extractions;
+      the version it replaces is retired and kept. Every change is in the change log. Published
+      and retired versions are read only.
+  -->
+  <ui:define name="title">Extraction Templates</ui:define>
+
+  <ui:define name="head">
+    <style>
+      .et-card { background: #FFFFFF; border: 1px solid #E5E2D9; border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0; }
+      .et-card h2 { font-size: 1.15rem; margin: 0 0 0.25rem 0; }
+      .et-sub { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+      .et-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+      .et-facts { display: flex; flex-wrap: wrap; gap: 0.4rem 2rem; margin: 0.5rem 0 1rem 0; font-size: 0.9rem; }
+      .et-facts span.k { color: #6B6A63; margin-right: 0.35rem; }
+      .et-toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.75rem 0; }
+      .et-warn { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+      .et-note { color: #6B6A63; font-size: 0.85rem; margin-top: 0.5rem; }
+      .et-help { color: #6B6A63; font-size: 0.8rem; margin: 0.15rem 0 0.75rem 0; }
+      .et-desc { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+      .et-label { display: block; font-weight: 600; margin-top: 0.5rem; }
+      .et-wide { width: 100%; }
+      .et-section { margin-top: 1.5rem; }
+      .et-section h3 { font-size: 1rem; margin: 0 0 0.5rem 0; }
+      .et-added td { background: #F0FDF4; }
+      .et-removed td { background: #FEF2F2; }
+    </style>
+  </ui:define>
+
+  <ui:define name="content">
+    <p:growl id="tplGrowl" globalOnly="true" showDetail="true" life="8000" autoUpdate="true"/>
+    <h1>Extraction Templates</h1>
+    <p class="et-sub">
+      The fields the extractor looks for in a document, and the hints that help it find them.
+      Change a draft, publish it with a reason, and new extractions use it. Documents already
+      extracted keep the version they were read with.
+    </p>
+
+    <div class="et-card">
+      <h:form id="listForm">
+        <div class="et-head">
+          <h2>Versions (#{extractionTemplatesBean.templates.size()})</h2>
+          <div class="et-toolbar">
+            <p:commandButton value="New template" icon="pi pi-plus"
+                             process="@this" update=":newForm"
+                             actionListener="#{extractionTemplatesBean.prepareNew}"
+                             oncomplete="PF('newTemplateDialog').show();"/>
+            <p:commandButton value="Reload" icon="pi pi-refresh" styleClass="ui-button-outlined"
+                             process="@this" update="@form"
+                             actionListener="#{extractionTemplatesBean.reload}"/>
+          </div>
+        </div>
+        <h:panelGroup layout="block" styleClass="et-warn" rendered="#{extractionTemplatesBean.loadFailed}">
+          <h:outputText value="The templates could not be loaded. Try again in a moment."/>
+        </h:panelGroup>
+        <p:dataTable id="versionsTable" var="t" value="#{extractionTemplatesBean.templates}" rowKey="#{t.id}"
+                     paginator="true" rows="15" paginatorPosition="bottom"
+                     emptyMessage="No templates yet.">
+          <p:column headerText="Template" sortBy="#{t.name}">
+            <h:outputText value="#{t.name}" style="font-weight: 600;"/>
+          </p:column>
+          <p:column headerText="Version" style="width:6rem">
+            <h:outputText value="#{t.version}"/>
+          </p:column>
+          <p:column headerText="Status" style="width:8rem">
+            <p:tag value="#{t.status}"
+                   severity="#{t.status == 'PUBLISHED' ? 'success' : (t.status == 'DRAFT' ? 'warning' : 'secondary')}"/>
+          </p:column>
+          <p:column headerText="Contract type">
+            <h:outputText value="#{t.contractType}"/>
+          </p:column>
+          <p:column headerText="Fields" style="width:5rem">
+            <h:outputText value="#{t.fieldCount}"/>
+          </p:column>
+          <p:column headerText="Published by">
+            <h:outputText value="#{t.publishedBy == null ? '-' : t.publishedBy}"/>
+          </p:column>
+          <p:column headerText="Published at">
+            <h:outputText value="#{t.publishedText}"/>
+          </p:column>
+          <p:column headerText="Reason">
+            <h:outputText value="#{t.changeReason}" styleClass="et-desc" title="#{t.changeReason}"/>
+          </p:column>
+          <p:column headerText="" style="width:4rem" exportable="false">
+            <p:commandButton icon="#{t.draft ? 'pi pi-pencil' : 'pi pi-eye'}"
+                             styleClass="rounded-button ui-button-text"
+                             title="#{t.draft ? 'Edit this draft' : 'Show this version'}"
+                             process="@this" update=":detailCard"
+                             actionListener="#{extractionTemplatesBean.open(t)}"
+                             oncomplete="window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});"/>
+          </p:column>
+        </p:dataTable>
+      </h:form>
+    </div>
+
+    <h:panelGroup id="detailCard" layout="block">
+      <h:panelGroup layout="block" styleClass="et-card" rendered="#{extractionTemplatesBean.selected != null}">
+        <h:form id="detailForm">
+          <div class="et-head">
+            <div>
+              <h2>
+                <h:outputText value="#{extractionTemplatesBean.selected.summary.title}"/>
+              </h2>
+              <div class="et-sub">
+                <h:outputText rendered="#{extractionTemplatesBean.editable}"
+                              value="This is a draft. Change the fields, save, then publish. Nothing changes for extraction until it is published."/>
+                <h:outputText rendered="#{!extractionTemplatesBean.editable}"
+                              value="This version cannot be changed. To change the template, create a draft from it."/>
+              </div>
+            </div>
+            <p:commandButton value="Close" icon="pi pi-times" styleClass="ui-button-flat"
+                             process="@this" update=":detailCard"
+                             actionListener="#{extractionTemplatesBean.close}"/>
+          </div>
+          <div class="et-facts">
+            <span><span class="k">Status</span>
+              <p:tag value="#{extractionTemplatesBean.selected.summary.status}"
+                     severity="#{extractionTemplatesBean.selected.summary.status == 'PUBLISHED' ? 'success' : (extractionTemplatesBean.selected.summary.status == 'DRAFT' ? 'warning' : 'secondary')}"/>
+            </span>
+            <span><span class="k">Contract type</span><h:outputText value="#{extractionTemplatesBean.selected.summary.contractType}"/></span>
+            <span><span class="k">Fields</span><h:outputText value="#{extractionTemplatesBean.fields.size()}"/></span>
+            <span><span class="k">Published by</span><h:outputText value="#{extractionTemplatesBean.selected.summary.publishedBy == null ? '-' : extractionTemplatesBean.selected.summary.publishedBy}"/></span>
+            <span><span class="k">Published at</span><h:outputText value="#{extractionTemplatesBean.selected.summary.publishedText}"/></span>
+            <span><span class="k">Reason</span><h:outputText value="#{extractionTemplatesBean.selected.summary.changeReason == null ? '-' : extractionTemplatesBean.selected.summary.changeReason}"/></span>
+          </div>
+
+          <div class="et-toolbar">
+            <p:commandButton value="Add field" icon="pi pi-plus"
+                             rendered="#{extractionTemplatesBean.editable}"
+                             process="@this" update=":fieldForm"
+                             actionListener="#{extractionTemplatesBean.addField}"
+                             oncomplete="PF('fieldDialog').show();"/>
+            <p:commandButton value="Save draft" icon="pi pi-save"
+                             rendered="#{extractionTemplatesBean.editable}"
+                             process="@this" update=":detailCard"
+                             actionListener="#{extractionTemplatesBean.saveDraft}"/>
+            <p:commandButton value="Publish" icon="pi pi-check"
+                             styleClass="ui-button-success"
+                             rendered="#{extractionTemplatesBean.editable}"
+                             process="@this" update=":publishForm"
+                             actionListener="#{extractionTemplatesBean.preparePublish}"
+                             oncomplete="if (args &amp;&amp; args.ok) { PF('publishDialog').show(); }"/>
+            <p:commandButton value="Discard changes" icon="pi pi-undo"
+                             styleClass="ui-button-outlined"
+                             rendered="#{extractionTemplatesBean.editable and extractionTemplatesBean.dirty}"
+                             process="@this" update=":detailCard"
+                             actionListener="#{extractionTemplatesBean.revert}"/>
+            <p:commandButton value="Discard draft" icon="pi pi-trash"
+                             styleClass="ui-button-danger ui-button-outlined"
+                             rendered="#{extractionTemplatesBean.editable}"
+                             process="@this" update=":discardForm"
+                             actionListener="#{extractionTemplatesBean.prepareDiscard}"
+                             oncomplete="PF('discardDialog').show();"/>
+            <p:tag value="Unsaved changes" severity="warning"
+                   rendered="#{extractionTemplatesBean.editable and extractionTemplatesBean.dirty}"/>
+
+            <p:commandButton value="Create draft from this version" icon="pi pi-copy"
+                             rendered="#{!extractionTemplatesBean.editable and extractionTemplatesBean.selected.openDraftId == null}"
+                             process="@this" update=":detailCard :listForm"
+                             actionListener="#{extractionTemplatesBean.createDraft}"/>
+            <p:commandButton value="Open the draft" icon="pi pi-pencil"
+                             rendered="#{!extractionTemplatesBean.editable and extractionTemplatesBean.selected.openDraftId != null}"
+                             process="@this" update=":detailCard"
+                             actionListener="#{extractionTemplatesBean.openDraft}"/>
+            <h:outputText rendered="#{!extractionTemplatesBean.editable and extractionTemplatesBean.selected.openDraftId != null}"
+                          value="This template already has an open draft."
+                          styleClass="et-note"/>
+          </div>
+
+          <p:dataTable id="fieldsTable" var="fld" value="#{extractionTemplatesBean.fields}" rowKey="#{fld.key}"
+                       paginator="#{extractionTemplatesBean.fields.size() gt 25}" rows="25" paginatorPosition="bottom"
+                       emptyMessage="This version has no fields yet.">
+            <p:column headerText="#" style="width:3rem">
+              <h:outputText value="#{fld.order}"/>
+            </p:column>
+            <p:column headerText="Key">
+              <h:outputText value="#{fld.key}" style="font-family: monospace;"/>
+            </p:column>
+            <p:column headerText="Label">
+              <h:outputText value="#{fld.label}"/>
+            </p:column>
+            <p:column headerText="Type" style="width:7rem">
+              <h:outputText value="#{fld.dataType}"/>
+            </p:column>
+            <p:column headerText="Required" style="width:6rem">
+              <h:outputText value="#{fld.required ? 'Yes' : 'No'}"/>
+            </p:column>
+            <p:column headerText="Critical" style="width:6rem">
+              <h:outputText value="#{fld.critical ? 'Yes' : 'No'}"/>
+            </p:column>
+            <p:column headerText="Description">
+              <h:outputText value="#{fld.description}" styleClass="et-desc" title="#{fld.description}"/>
+            </p:column>
+            <p:column headerText="Hints" style="width:6rem">
+              <span title="#{fld.keywords}">
+                <p:tag value="#{fld.hasHints ? 'Set' : 'None'}" severity="#{fld.hasHints ? 'info' : 'secondary'}"/>
+              </span>
+            </p:column>
+            <p:column headerText="" style="width:11rem" exportable="false"
+                      rendered="#{extractionTemplatesBean.editable}">
+              <p:commandButton icon="pi pi-pencil" styleClass="rounded-button ui-button-text" title="Edit the field"
+                               process="@this" update=":fieldForm"
+                               actionListener="#{extractionTemplatesBean.editField(fld)}"
+                               oncomplete="PF('fieldDialog').show();"/>
+              <p:commandButton icon="pi pi-arrow-up" styleClass="rounded-button ui-button-text" title="Move up"
+                               process="@this" update=":detailForm:fieldsTable"
+                               actionListener="#{extractionTemplatesBean.moveUp(fld)}"/>
+              <p:commandButton icon="pi pi-arrow-down" styleClass="rounded-button ui-button-text" title="Move down"
+                               process="@this" update=":detailForm:fieldsTable"
+                               actionListener="#{extractionTemplatesBean.moveDown(fld)}"/>
+              <p:commandButton icon="pi pi-trash" styleClass="rounded-button ui-button-text ui-button-danger" title="Remove the field"
+                               process="@this" update=":detailForm:fieldsTable"
+                               actionListener="#{extractionTemplatesBean.removeField(fld)}"/>
+            </p:column>
+          </p:dataTable>
+          <div class="et-note">
+            Type, required and critical decide how the review screen treats a value. Description,
+            keywords and allowed values are the hints the extractor reads. Times are UTC.
+          </div>
+
+          <div class="et-section">
+            <h3>Compare with another version</h3>
+            <p:selectOneMenu id="compareWith" value="#{extractionTemplatesBean.compareWithId}" style="min-width: 16rem;">
+              <f:selectItem itemLabel="Choose a version" itemValue="#{null}" noSelectionOption="true"/>
+              <f:selectItems value="#{extractionTemplatesBean.compareChoices}" var="v"
+                             itemLabel="Version #{v.version} (#{v.status})" itemValue="#{v.id}"/>
+              <p:ajax process="@this" update="compareResult"
+                      listener="#{extractionTemplatesBean.runCompare}"/>
+            </p:selectOneMenu>
+            <h:panelGroup id="compareResult" layout="block">
+              <h:panelGroup rendered="#{extractionTemplatesBean.diff != null}">
+                <p style="margin: 0.75rem 0 0.25rem 0;">
+                  Changes from version #{extractionTemplatesBean.diff.fromVersion} to version #{extractionTemplatesBean.diff.toVersion}.
+                  Only saved versions are compared; unsaved edits are not included.
+                </p>
+                <p:dataTable var="c" value="#{extractionTemplatesBean.diff.changes}"
+                             rowStyleClass="#{c.kind == 'ADDED' ? 'et-added' : (c.kind == 'REMOVED' ? 'et-removed' : '')}"
+                             emptyMessage="The two versions have the same fields and hints.">
+                  <p:column headerText="Change" style="width:7rem">
+                    <h:outputText value="#{c.kind}"/>
+                  </p:column>
+                  <p:column headerText="Key">
+                    <h:outputText value="#{c.fieldKey}" style="font-family: monospace;"/>
+                  </p:column>
+                  <p:column headerText="Label">
+                    <h:outputText value="#{c.label}"/>
+                  </p:column>
+                  <p:column headerText="What changed">
+                    <h:outputText value="#{c.what}"/>
+                  </p:column>
+                </p:dataTable>
+              </h:panelGroup>
+            </h:panelGroup>
+          </div>
+
+          <div class="et-section">
+            <h3>Change log of this template</h3>
+            <p:dataTable var="e" value="#{extractionTemplatesBean.events}" rows="10" paginator="true"
+                         paginatorPosition="bottom" emptyMessage="No changes recorded.">
+              <p:column headerText="When" style="width:10rem">
+                <h:outputText value="#{e.createdText}"/>
+              </p:column>
+              <p:column headerText="Version" style="width:5rem">
+                <h:outputText value="#{e.versionLabel}"/>
+              </p:column>
+              <p:column headerText="Event" style="width:9rem">
+                <h:outputText value="#{e.eventText}"/>
+              </p:column>
+              <p:column headerText="By" style="width:9rem">
+                <h:outputText value="#{e.createdBy}"/>
+              </p:column>
+              <p:column headerText="Reason">
+                <h:outputText value="#{e.reason == null ? '-' : e.reason}"/>
+              </p:column>
+              <p:column headerText="What changed">
+                <h:outputText value="#{e.summary}"/>
+              </p:column>
+            </p:dataTable>
+          </div>
+        </h:form>
+      </h:panelGroup>
+    </h:panelGroup>
+
+    <p:dialog widgetVar="fieldDialog" header="Field" modal="true" resizable="false" draggable="true"
+              width="40rem" responsive="true" closeOnEscape="false">
+      <h:form id="fieldForm">
+        <label class="et-label" for="fieldForm:fKey">Key</label>
+        <p:inputText id="fKey" value="#{extractionTemplatesBean.editing.key}" maxlength="100" styleClass="et-wide"/>
+        <div class="et-help">Lower case letters, digits and underscores, for example base_rent_monthly. The key links the field to the contract record, so change it only when the field means something new.</div>
+
+        <label class="et-label" for="fieldForm:fLabel">Label</label>
+        <p:inputText id="fLabel" value="#{extractionTemplatesBean.editing.label}" maxlength="200" styleClass="et-wide"/>
+        <div class="et-help">The name people see on the review screen.</div>
+
+        <label class="et-label" for="fieldForm:fType">Data type</label>
+        <p:selectOneMenu id="fType" value="#{extractionTemplatesBean.editing.dataType}" styleClass="et-wide">
+          <f:selectItems value="#{extractionTemplatesBean.dataTypes}" var="o"
+                         itemLabel="#{o.label}" itemValue="#{o.code}"/>
+        </p:selectOneMenu>
+
+        <div class="et-toolbar">
+          <p:selectBooleanCheckbox id="fRequired" value="#{extractionTemplatesBean.editing.required}" itemLabel="Required"/>
+          <p:selectBooleanCheckbox id="fCritical" value="#{extractionTemplatesBean.editing.critical}" itemLabel="Critical"/>
+        </div>
+        <div class="et-help">Required: a missing value is flagged for the reviewer. Critical: the reviewer must confirm the value before the review can be completed.</div>
+
+        <label class="et-label" for="fieldForm:fDesc">Description for the extractor</label>
+        <p:inputTextarea id="fDesc" value="#{extractionTemplatesBean.editing.description}" rows="3" maxlength="1000" styleClass="et-wide"/>
+        <div class="et-help">Say what the value is and what it is not, for example: Base rent per month, as a plain number without currency symbol.</div>
+
+        <label class="et-label" for="fieldForm:fKeywords">Keywords</label>
+        <p:inputText id="fKeywords" value="#{extractionTemplatesBean.editing.keywords}" maxlength="500" styleClass="et-wide"/>
+        <div class="et-help">Words that appear near the value in the document, separated by commas, for example rent, payable.</div>
+
+        <label class="et-label" for="fieldForm:fAllowed">Allowed values</label>
+        <p:inputText id="fAllowed" value="#{extractionTemplatesBean.editing.allowedValues}" maxlength="1000" styleClass="et-wide"/>
+        <div class="et-help">Only for a text field with a fixed set of answers, separated by commas, for example USD, EUR, GBP. Leave empty for any value.</div>
+
+        <label class="et-label" for="fieldForm:fHints">Words for each allowed value</label>
+        <p:inputTextarea id="fHints" value="#{extractionTemplatesBean.editing.valueHints}" rows="3" maxlength="2000" styleClass="et-wide"/>
+        <div class="et-help">One line per allowed value, like USD: usd, u.s. dollar. These are the words a document may use for that value.</div>
+
+        <div class="et-toolbar" style="justify-content: flex-end;">
+          <p:commandButton value="Cancel" styleClass="ui-button-flat" type="button" onclick="PF('fieldDialog').hide();"/>
+          <p:commandButton value="OK" icon="pi pi-check"
+                           process="@form" update="@form :detailCard"
+                           actionListener="#{extractionTemplatesBean.applyField}"
+                           oncomplete="if (args &amp;&amp; args.ok) { PF('fieldDialog').hide(); }"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
+    <p:dialog widgetVar="publishDialog" header="Publish this draft" modal="true" resizable="false"
+              width="34rem" responsive="true" closeOnEscape="false">
+      <h:form id="publishForm">
+        <p>
+          The draft becomes the version used for new extractions. The version in use now is kept
+          as retired. Documents already extracted keep the version they were read with.
+        </p>
+        <label class="et-label" for="publishForm:pReason">Reason for the change</label>
+        <p:inputTextarea id="pReason" value="#{extractionTemplatesBean.publishReason}" rows="3" maxlength="500"
+                         counter="pCount" counterTemplate="{0} characters left" styleClass="et-wide"/>
+        <div class="et-help"><h:outputText id="pCount"/> At least 10 characters. It is kept in the change log.</div>
+        <div class="et-toolbar" style="justify-content: flex-end;">
+          <p:commandButton value="Cancel" styleClass="ui-button-flat" type="button" onclick="PF('publishDialog').hide();"/>
+          <p:commandButton value="Publish" icon="pi pi-check" styleClass="ui-button-success"
+                           process="@form" update="@form :detailCard :listForm"
+                           actionListener="#{extractionTemplatesBean.confirmPublish}"
+                           oncomplete="if (args &amp;&amp; args.ok) { PF('publishDialog').hide(); }"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
+    <p:dialog widgetVar="discardDialog" header="Discard this draft" modal="true" resizable="false"
+              width="30rem" responsive="true">
+      <h:form id="discardForm">
+        <p>The draft and the changes in it are deleted. The change log keeps a line saying it was discarded.</p>
+        <label class="et-label" for="discardForm:dReason">Reason (optional)</label>
+        <p:inputTextarea id="dReason" value="#{extractionTemplatesBean.discardReason}" rows="2" maxlength="500" styleClass="et-wide"/>
+        <div class="et-toolbar" style="justify-content: flex-end;">
+          <p:commandButton value="Cancel" styleClass="ui-button-flat" type="button" onclick="PF('discardDialog').hide();"/>
+          <p:commandButton value="Discard draft" icon="pi pi-trash" styleClass="ui-button-danger"
+                           process="@form" update=":detailCard :listForm"
+                           actionListener="#{extractionTemplatesBean.confirmDiscard}"
+                           oncomplete="PF('discardDialog').hide();"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
+    <p:dialog widgetVar="newTemplateDialog" header="New template" modal="true" resizable="false"
+              width="34rem" responsive="true" closeOnEscape="false">
+      <h:form id="newForm">
+        <label class="et-label" for="newForm:nName">Name</label>
+        <p:inputText id="nName" value="#{extractionTemplatesBean.newName}" maxlength="150" styleClass="et-wide"/>
+        <div class="et-help">For example Equipment Lease. The name is shown in the list and cannot be reused.</div>
+
+        <label class="et-label" for="newForm:nType">Contract type</label>
+        <p:selectOneMenu id="nType" value="#{extractionTemplatesBean.newContractTypeId}" styleClass="et-wide">
+          <f:selectItem itemLabel="Choose a contract type" itemValue="#{null}" noSelectionOption="true"/>
+          <f:selectItems value="#{extractionTemplatesBean.contractTypes}" var="o"
+                         itemLabel="#{o.label}" itemValue="#{o.id}"/>
+        </p:selectOneMenu>
+        <div class="et-help">Documents of this contract type are read with the template once it is published. Only one template can be in use for a contract type.</div>
+
+        <label class="et-label" for="newForm:nReason">Note (optional)</label>
+        <p:inputText id="nReason" value="#{extractionTemplatesBean.newReason}" maxlength="500" styleClass="et-wide"/>
+
+        <div class="et-toolbar" style="justify-content: flex-end;">
+          <p:commandButton value="Cancel" styleClass="ui-button-flat" type="button" onclick="PF('newTemplateDialog').hide();"/>
+          <p:commandButton value="Create draft" icon="pi pi-plus"
+                           process="@form" update="@form :detailCard :listForm"
+                           actionListener="#{extractionTemplatesBean.confirmNew}"
+                           oncomplete="if (args &amp;&amp; args.ok) { PF('newTemplateDialog').hide(); }"/>
+        </div>
+      </h:form>
+    </p:dialog>
+  </ui:define>
+</ui:composition>

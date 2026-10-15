@@ -92,6 +92,13 @@
                             <f:param name="Source" value="Menu"/>
                         </p:menuitem>
                     </p:submenu>
+                    <p:submenu id="om_administration" label="Administration"
+                               rendered="#{menuAccessBean.canSee('templates')}">
+                        <p:menuitem id="extractionTemplates" value="Extraction Templates"
+                                    outcome="/extractiontemplates" icon="pi pi-sliders-h">
+                            <f:param name="Source" value="Menu"/>
+                        </p:menuitem>
+                    </p:submenu>
 <!--                    <p:submenu id="quickActions" label="Quick Actions">-->
 <!--                        <p:menuitem id="allTasks" value="All Tasks"-->
 <!--                                    outcome="/collaborationTaskList" styleClass="menu-icon menu-icon-task">-->

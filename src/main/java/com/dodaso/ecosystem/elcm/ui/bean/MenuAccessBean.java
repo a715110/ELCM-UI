@@ -31,7 +31,8 @@ import org.springframework.beans.factory.annotation.Value;
  * <p>Role lists are properties (comma separated IAMS role names, matched without regard to case)
  * with these defaults: elcm.menu.my-submissions-roles = Document Submitter, Business Submitter,
  * Preparer; elcm.menu.work-queue-roles = Reviewer, Approver. Admin roles (elcm.menu.admin-roles,
- * default System Admin, Super Admin) see everything.
+ * default System Admin, Super Admin) see everything. The Administration group (Extraction
+ * Templates, ADDED 2026-10-14) is shown to the admin roles only.
  */
 @Named
 @SessionScoped
@@ -40,6 +41,7 @@ public class MenuAccessBean implements Serializable {
 
   private static final String MY_SUBMISSIONS = "mySubmissions";
   private static final String WORK_QUEUE = "workQueue";
+  private static final String TEMPLATES = "templates";
   private static final long RETRY_AFTER_MILLIS = 60_000L;
 
   @Value("${elcm.menu.admin-roles:System Admin,Super Admin}")
@@ -74,6 +76,7 @@ public class MenuAccessBean implements Serializable {
     return switch (item) {
       case MY_SUBMISSIONS -> hasAny(roles, mySubmissionsRoles);
       case WORK_QUEUE -> hasAny(roles, workQueueRoles);
+      case TEMPLATES -> false;
       default -> true;
     };
   }
