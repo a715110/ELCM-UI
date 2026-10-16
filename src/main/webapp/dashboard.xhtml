@@ -87,6 +87,53 @@
             font-weight: 600;
           }
 
+          /* ADDED 2026-10-16 - cards that are links to another page or table */
+          .metric-card-link,
+          .metric-card-form {
+            flex: 1 1 200px;
+            display: flex;
+            text-decoration: none;
+            color: inherit;
+          }
+
+          .metric-card-form .metric-card-link {
+            flex: 1 1 auto;
+          }
+
+          .metric-card-link .metric-card {
+            flex: 1 1 auto;
+            cursor: pointer;
+          }
+
+          .metric-card-link:hover .metric-card,
+          .metric-card-link:focus .metric-card {
+            border-color: #166534;
+          }
+
+          .dashboard-filter {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin: 1rem 0 0;
+          }
+
+          .dashboard-filter .filter-hint {
+            font-size: 0.8rem;
+            color: #8B8A82;
+          }
+
+          .stage-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.15rem 0.65rem;
+            border-radius: 999px;
+            background: #E7F0E9;
+            color: #166534;
+            font-size: 0.8rem;
+            font-weight: 600;
+          }
+
           .metric-card .metric-label {
             font-size: 0.85rem;
             color: #6B6A63;
@@ -308,69 +355,101 @@
 
         <!-- REVISED 2026-10-16 - five cards that follow the real flow replace the old
              Uploading, Validating, Valid and Submitted cards. The first card counts
-             documents, the others count packages (the small line says which). -->
+             documents, the others count packages (the small line says which).
+             ADDED 2026-10-16 - every card is clickable. Staged documents scrolls to its
+             table, In assembly filters the Contract Packages table, the other three open
+             the Work Queue on the matching tab. -->
+        <h:form id="dashboardFilterForm" styleClass="dashboard-filter">
+            <p:toggleSwitch id="mineOnlySwitch" value="#{pipelineMetricsBean.mineOnly}">
+                <p:ajax listener="#{pipelineMetricsBean.onMineChanged}" process="@this"
+                        update=":metricCards :stageDocumentsCard :contractPackagesCard :pipelineAlert"/>
+            </p:toggleSwitch>
+            <h:outputLabel for="mineOnlySwitch" value="Mine only"/>
+            <h:outputText styleClass="filter-hint" rendered="#{pipelineMetricsBean.mineOnly}"
+                          value="Documents you uploaded and packages assigned to you. The red badge always counts everyone."/>
+        </h:form>
         <h:panelGroup id="metricCards" layout="block">
             <div class="metric-cards">
-                <div class="metric-card">
-                    <i class="pi pi-inbox" aria-hidden="true"></i>
-                    <div>
-                        <div class="metric-value">
-                            <h:outputText value="#{pipelineMetricsBean.stagedDocuments}"/>
-                        </div>
-                        <div class="metric-label">Staged documents</div>
-                        <div class="metric-note">
-                            <h:outputText value="#{pipelineMetricsBean.stagedNote}"/>
-                        </div>
-                    </div>
-                </div>
-                <div class="metric-card">
-                    <i class="pi pi-folder-open" aria-hidden="true"></i>
-                    <div>
-                        <div class="metric-value">
-                            <h:outputText value="#{pipelineMetricsBean.inAssembly}"/>
-                        </div>
-                        <div class="metric-label">In assembly</div>
-                        <div class="metric-note">
-                            <h:outputText value="#{pipelineMetricsBean.assemblyNote}"/>
+                <a href="#stageDocumentsCard" class="metric-card-link">
+                    <div class="metric-card">
+                        <i class="pi pi-inbox" aria-hidden="true"></i>
+                        <div>
+                            <div class="metric-value">
+                                <h:outputText value="#{pipelineMetricsBean.stagedDocuments}"/>
+                            </div>
+                            <div class="metric-label">Staged documents</div>
+                            <div class="metric-note">
+                                <h:outputText value="#{pipelineMetricsBean.stagedNote}"/>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="metric-card">
-                    <i class="pi pi-sync" aria-hidden="true"></i>
-                    <div>
-                        <div class="metric-value">
-                            <h:outputText value="#{pipelineMetricsBean.extracting}"/>
+                </a>
+                <h:form id="assemblyCardForm" styleClass="metric-card-form">
+                    <p:commandLink styleClass="metric-card-link" action="#{pipelineMetricsBean.showAssembly}"
+                                   process="@this" update=":contractPackagesCard"
+                                   oncomplete="document.getElementById('contractPackagesCard').scrollIntoView({behavior: 'smooth'});">
+                        <div class="metric-card">
+                            <i class="pi pi-folder-open" aria-hidden="true"></i>
+                            <div>
+                                <div class="metric-value">
+                                    <h:outputText value="#{pipelineMetricsBean.inAssembly}"/>
+                                </div>
+                                <div class="metric-label">In assembly</div>
+                                <div class="metric-note">
+                                    <h:outputText value="#{pipelineMetricsBean.assemblyNote}"/>
+                                </div>
+                            </div>
                         </div>
-                        <div class="metric-label">Extracting</div>
-                        <div class="metric-note">
-                            <h:outputText value="#{pipelineMetricsBean.extractingNote}"/>
-                        </div>
-                    </div>
-                </div>
-                <div class="metric-card">
-                    <i class="pi pi-eye" aria-hidden="true"></i>
-                    <div>
-                        <div class="metric-value">
-                            <h:outputText value="#{pipelineMetricsBean.readyForReview}"/>
-                        </div>
-                        <div class="metric-label">Ready for review</div>
-                        <div class="metric-note">
-                            <h:outputText value="#{pipelineMetricsBean.readyNote}"/>
-                        </div>
-                    </div>
-                </div>
-                <div class="metric-card">
-                    <i class="pi pi-clock" aria-hidden="true"></i>
-                    <div>
-                        <div class="metric-value">
-                            <h:outputText value="#{pipelineMetricsBean.awaitingApproval}"/>
-                        </div>
-                        <div class="metric-label">Awaiting approval</div>
-                        <div class="metric-note">
-                            <h:outputText value="#{pipelineMetricsBean.awaitingNote}"/>
+                    </p:commandLink>
+                </h:form>
+                <h:link outcome="/workqueue" styleClass="metric-card-link">
+                    <f:param name="tab" value="EXTRACTING"/>
+                    <f:param name="mine" value="#{pipelineMetricsBean.mineOnly}"/>
+                    <div class="metric-card">
+                        <i class="pi pi-sync" aria-hidden="true"></i>
+                        <div>
+                            <div class="metric-value">
+                                <h:outputText value="#{pipelineMetricsBean.extracting}"/>
+                            </div>
+                            <div class="metric-label">Extracting</div>
+                            <div class="metric-note">
+                                <h:outputText value="#{pipelineMetricsBean.extractingNote}"/>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </h:link>
+                <h:link outcome="/workqueue" styleClass="metric-card-link">
+                    <f:param name="tab" value="REVIEW"/>
+                    <f:param name="mine" value="#{pipelineMetricsBean.mineOnly}"/>
+                    <div class="metric-card">
+                        <i class="pi pi-eye" aria-hidden="true"></i>
+                        <div>
+                            <div class="metric-value">
+                                <h:outputText value="#{pipelineMetricsBean.readyForReview}"/>
+                            </div>
+                            <div class="metric-label">Ready for review</div>
+                            <div class="metric-note">
+                                <h:outputText value="#{pipelineMetricsBean.readyNote}"/>
+                            </div>
+                        </div>
+                    </div>
+                </h:link>
+                <h:link outcome="/workqueue" styleClass="metric-card-link">
+                    <f:param name="tab" value="APPROVAL"/>
+                    <f:param name="mine" value="#{pipelineMetricsBean.mineOnly}"/>
+                    <div class="metric-card">
+                        <i class="pi pi-clock" aria-hidden="true"></i>
+                        <div>
+                            <div class="metric-value">
+                                <h:outputText value="#{pipelineMetricsBean.awaitingApproval}"/>
+                            </div>
+                            <div class="metric-label">Awaiting approval</div>
+                            <div class="metric-note">
+                                <h:outputText value="#{pipelineMetricsBean.awaitingNote}"/>
+                            </div>
+                        </div>
+                    </div>
+                </h:link>
             </div>
         </h:panelGroup>
 
@@ -1282,7 +1361,7 @@
         <h:panelGroup id="stageDocumentsCard" layout="block" styleClass="dashboard-card"
                       style="#{demoRoleBean.canSee('Stage Documents') ? '' : 'display:none;'}">
             <div class="dashboard-card-header">
-                <h2>Stage Documents (#{stageDocumentsBean.stagedDocuments.size()})</h2>
+                <h2>Stage Documents (#{pipelineMetricsBean.countText(pipelineMetricsBean.visibleDocuments(stageDocumentsBean.stagedDocuments).size(), stageDocumentsBean.stagedDocuments.size())})</h2>
                 <i class="pi pi-info-circle"
                    title="Documents land here after upload and stay until grouped into a contract package."></i>
             </div>
@@ -1299,7 +1378,7 @@
             <h:form id="stageDocumentsForm">
                 <p:dataTable id="stageDocumentsTable"
                              var="doc"
-                             value="#{stageDocumentsBean.stagedDocuments}"
+                             value="#{pipelineMetricsBean.visibleDocuments(stageDocumentsBean.stagedDocuments)}"
                              selection="#{stageDocumentsBean.selectedDocuments}"
                              rowKey="#{doc.id}"
                              emptyMessage="No staged documents.">
@@ -1536,7 +1615,7 @@
                 </p:dataTable>
 
                 <div style="margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
-                    <span>Showing #{stageDocumentsBean.stagedDocuments.size()} of #{stageDocumentsBean.stagedDocuments.size()} documents</span>
+                    <span>Showing #{pipelineMetricsBean.visibleDocuments(stageDocumentsBean.stagedDocuments).size()} of #{stageDocumentsBean.stagedDocuments.size()} documents</span>
                     <!-- Renamed to match mockup ("Create Document Set", not "Review &
                          Group") and disabled when nothing is selected, matching the
                          greyed-out state shown there. Assumes stageDocumentsBean
@@ -1557,7 +1636,15 @@
         <h:panelGroup id="contractPackagesCard" layout="block" styleClass="dashboard-card"
                       style="#{demoRoleBean.canSee('Contract Packages') ? '' : 'display:none;'}">
             <div class="dashboard-card-header">
-                <h2>Contract Packages (#{contractPackagesBean.contractPackages.size()})</h2>
+                <h2>Contract Packages (#{pipelineMetricsBean.countText(pipelineMetricsBean.visiblePackages(contractPackagesBean.contractPackages).size(), contractPackagesBean.contractPackages.size())})</h2>
+                <!-- ADDED 2026-10-16 - shown after the In assembly card is clicked -->
+                <h:form id="packageStageChipForm" rendered="#{pipelineMetricsBean.assemblyFilter}">
+                    <span class="stage-chip">Showing Assembly only
+                        <p:commandLink action="#{pipelineMetricsBean.clearPackageStage}" process="@this"
+                                       update=":contractPackagesCard" title="Show all packages"
+                                       styleClass="pi pi-times"/>
+                    </span>
+                </h:form>
                 <i class="pi pi-info-circle"
                    title="Packages group staged documents together before they're submitted for extraction."></i>
             </div>
@@ -1571,7 +1658,7 @@
                         rendered="#{contractPackagesBean.hasActiveStage}"/>
                 <p:dataTable id="contractPackagesTable"
                              var="pkg"
-                             value="#{contractPackagesBean.contractPackages}"
+                             value="#{pipelineMetricsBean.visiblePackages(contractPackagesBean.contractPackages)}"
                              rowKey="#{pkg.id}"
                              emptyMessage="No contract packages.">
 

@@ -10,6 +10,7 @@ import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TreeSet;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -58,8 +59,23 @@ public class WorkQueueBean extends BaseBean {
   @Setter private String workspace = "";
   @Setter private String query = "";
 
+  /**
+   * REVISED 2026-10-16: reads the optional request parameters "tab" and "mine" that the dashboard
+   * cards send, so a click on a card opens the matching tab (and "assigned to me" when Mine only
+   * is on). An unknown tab value is ignored and the default tab stays.
+   */
   @PostConstruct
   void init() {
+    final Map<String, String> params = getRequestParamMap();
+    if (params != null) {
+      final String requestedTab = params.get("tab");
+      for (final String[] t : TABS) {
+        if (t[0].equals(requestedTab)) {
+          tab = requestedTab;
+        }
+      }
+      mineOnly = "true".equalsIgnoreCase(params.get("mine"));
+    }
     refresh();
   }
 
