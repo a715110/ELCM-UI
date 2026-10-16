@@ -1,0 +1,300 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                template="/WEB-INF/template.xhtml">
+  <!--
+    ADDED 2026-10-16 - Extraction Quality: how accurate the extractor is, measured from what
+    reviewers kept and corrected in completed reviews. Administration screen, read only. The numbers
+    are worked out when the page opens and when Apply is pressed, nothing is stored for them.
+  -->
+  <ui:define name="title">Extraction Quality</ui:define>
+
+  <ui:define name="head">
+    <style>
+      .q-sub { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+      .q-card { background: #FFFFFF; border: 1px solid #E5E2D9; border-radius: 10px; padding: 1.25rem 1.5rem; margin: 1.25rem 0; }
+      .q-card h3 { margin: 0 0 0.75rem; font-size: 1.05rem; }
+      .q-filters { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; align-items: center; }
+      .q-tiles { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.25rem 0; }
+      .q-tile { flex: 1 1 180px; background: #FDFCFA; border: 1px solid #D6D2C7; border-radius: 10px; padding: 1rem 1.25rem; }
+      .q-tile .q-value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; color: #2B2A26; }
+      .q-tile .q-label { font-size: 0.85rem; color: #6B6A63; margin-top: 0.25rem; }
+      .q-tile .q-note { font-size: 0.75rem; color: #8B8A82; margin-top: 0.15rem; }
+      .q-good { color: #166534; font-weight: 600; }
+      .q-fair { color: #A16207; font-weight: 600; }
+      .q-poor { color: #B91C1C; font-weight: 600; }
+      .q-none { color: #8B8A82; }
+      .q-warn { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; padding: 0.5rem 0.75rem; margin: 0.75rem 0; }
+      .q-trend { display: flex; align-items: flex-end; gap: 0.5rem; height: 11rem; padding-top: 0.5rem; border-bottom: 1px solid #D6D2C7; overflow-x: auto; }
+      .q-bar-col { flex: 0 0 4.5rem; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+      .q-bar { width: 2rem; background: #166534; border-radius: 4px 4px 0 0; }
+      .q-bar-value { font-size: 0.75rem; margin-bottom: 0.2rem; }
+      .q-bar-labels { display: flex; gap: 0.5rem; overflow-x: auto; }
+      .q-bar-label { flex: 0 0 4.5rem; text-align: center; font-size: 0.7rem; color: #6B6A63; padding-top: 0.25rem; }
+      .q-note { color: #6B6A63; font-size: 0.85rem; margin-top: 0.5rem; }
+    </style>
+  </ui:define>
+
+  <ui:define name="content">
+    <h1>Extraction Quality</h1>
+    <p class="q-sub">How often reviewers kept what the extractor read, from completed reviews. Use it to spot weak templates, fields and models.</p>
+
+    <h:form id="qualityForm">
+      <div class="q-card">
+        <div class="q-filters">
+          <p:datePicker id="fromDate" value="#{extractionQualityBean.from}" pattern="yyyy-MM-dd"
+                        placeholder="From" showIcon="true"/>
+          <p:datePicker id="toDate" value="#{extractionQualityBean.to}" pattern="yyyy-MM-dd"
+                        placeholder="To" showIcon="true"/>
+          <p:selectOneMenu id="workspaceFilter" value="#{extractionQualityBean.workspace}">
+            <f:selectItem itemLabel="All workspaces" itemValue=""/>
+            <f:selectItems value="#{extractionQualityBean.report.options.workspaces}"/>
+          </p:selectOneMenu>
+          <p:selectOneMenu id="templateFilter" value="#{extractionQualityBean.template}">
+            <f:selectItem itemLabel="All templates" itemValue=""/>
+            <f:selectItems value="#{extractionQualityBean.report.options.templates}"/>
+          </p:selectOneMenu>
+          <p:selectOneMenu id="modelFilter" value="#{extractionQualityBean.model}">
+            <f:selectItem itemLabel="All models" itemValue=""/>
+            <f:selectItems value="#{extractionQualityBean.report.options.models}"/>
+          </p:selectOneMenu>
+          <p:selectOneButton id="granularity" value="#{extractionQualityBean.granularity}">
+            <f:selectItem itemLabel="Weekly" itemValue="WEEK"/>
+            <f:selectItem itemLabel="Monthly" itemValue="MONTH"/>
+          </p:selectOneButton>
+          <p:commandButton value="Apply" icon="pi pi-check" process="@form" update="@form"
+                           actionListener="#{extractionQualityBean.load}"/>
+          <p:commandButton value="30 days" styleClass="ui-button-flat" process="@this" update="@form"
+                           actionListener="#{extractionQualityBean.lastDays(30)}"/>
+          <p:commandButton value="90 days" styleClass="ui-button-flat" process="@this" update="@form"
+                           actionListener="#{extractionQualityBean.lastDays(90)}"/>
+          <p:commandButton value="1 year" styleClass="ui-button-flat" process="@this" update="@form"
+                           actionListener="#{extractionQualityBean.lastDays(365)}"/>
+          <p:commandButton value="Clear filters" styleClass="ui-button-flat" process="@this" update="@form"
+                           actionListener="#{extractionQualityBean.clearFilters}"/>
+        </div>
+      </div>
+
+      <h:panelGroup id="reportPanel" layout="block">
+        <h:panelGroup layout="block" styleClass="q-warn" rendered="#{extractionQualityBean.loadFailed}">
+          <h:outputText value="The report could not be loaded. You may not have access, or the service is busy. Try Apply again in a moment."/>
+        </h:panelGroup>
+
+        <h:panelGroup layout="block" styleClass="q-warn" rendered="#{not extractionQualityBean.loadFailed and extractionQualityBean.nothingReviewed}">
+          <h:outputText value="No completed reviews in this range yet. Complete a review, or widen the dates."/>
+        </h:panelGroup>
+
+        <div class="q-tiles">
+          <div class="q-tile">
+            <div class="q-value #{extractionQualityBean.tone(extractionQualityBean.report.summary.accuracyPct)}">
+              <h:outputText value="#{extractionQualityBean.pct(extractionQualityBean.report.summary.accuracyPct)}"/>
+            </div>
+            <div class="q-label">Accuracy, all fields</div>
+            <div class="q-note">kept as read, of #{extractionQualityBean.report.summary.decided} fields checked</div>
+          </div>
+          <div class="q-tile">
+            <div class="q-value #{extractionQualityBean.tone(extractionQualityBean.report.summary.criticalAccuracyPct)}">
+              <h:outputText value="#{extractionQualityBean.pct(extractionQualityBean.report.summary.criticalAccuracyPct)}"/>
+            </div>
+            <div class="q-label">Accuracy, critical fields</div>
+            <div class="q-note">of #{extractionQualityBean.report.summary.criticalDecided} critical fields checked</div>
+          </div>
+          <div class="q-tile">
+            <div class="q-value">
+              <h:outputText value="#{extractionQualityBean.pct(extractionQualityBean.report.summary.flaggedWrongPct)}"/>
+            </div>
+            <div class="q-label">Flagged fields that were wrong</div>
+            <div class="q-note">of #{extractionQualityBean.report.summary.flaggedDecided} fields marked needs review</div>
+          </div>
+          <div class="q-tile">
+            <div class="q-value"><h:outputText value="#{extractionQualityBean.report.summary.documents}"/></div>
+            <div class="q-label">Documents reviewed</div>
+            <div class="q-note">#{extractionQualityBean.report.summary.corrected} changed, #{extractionQualityBean.report.summary.missed} filled in, #{extractionQualityBean.report.summary.notFound} not found, #{extractionQualityBean.report.summary.unconfirmed} not confirmed</div>
+          </div>
+        </div>
+
+        <div class="q-card">
+          <h3>Accuracy trend</h3>
+          <h:panelGroup layout="block" rendered="#{empty extractionQualityBean.trendRows}">
+            <h:outputText value="Nothing reviewed in this range." styleClass="q-none"/>
+          </h:panelGroup>
+          <h:panelGroup layout="block" rendered="#{not empty extractionQualityBean.trendRows}">
+            <div class="q-trend">
+              <ui:repeat var="t" value="#{extractionQualityBean.trendRows}">
+                <div class="q-bar-col" title="#{t.label}: #{extractionQualityBean.pct(t.accuracyPct)} of #{t.decided} fields">
+                  <span class="q-bar-value #{extractionQualityBean.tone(t.accuracyPct)}">#{extractionQualityBean.pct(t.accuracyPct)}</span>
+                  <div class="q-bar" style="height: #{extractionQualityBean.barHeight(t.accuracyPct)}%;"></div>
+                </div>
+              </ui:repeat>
+            </div>
+            <div class="q-bar-labels">
+              <ui:repeat var="t" value="#{extractionQualityBean.trendRows}">
+                <div class="q-bar-label">#{t.label}</div>
+              </ui:repeat>
+            </div>
+          </h:panelGroup>
+          <div class="q-note">Bars show the share of checked fields the reviewer kept, by the week or month the review was completed. Green from 95%, amber from 85%, red below.</div>
+        </div>
+
+      <div class="q-card">
+        <h3>By template</h3>
+        <p:dataTable id="templateTable" var="s" value="#{extractionQualityBean.report.byTemplate}"
+                     emptyMessage="Nothing reviewed in this range." rowKey="#{s.label}">
+          <p:column headerText="Template" sortBy="#{s.label}">
+            <h:outputText value="#{s.label}"/>
+          </p:column>
+          <p:column headerText="Fields checked" sortBy="#{s.decided}" style="width:8rem">
+            <h:outputText value="#{s.decided}"/>
+          </p:column>
+          <p:column headerText="Kept" sortBy="#{s.accepted}" style="width:6rem">
+            <h:outputText value="#{s.accepted}"/>
+          </p:column>
+          <p:column headerText="Changed" sortBy="#{s.corrected + s.missed}" style="width:6rem">
+            <h:outputText value="#{s.corrected + s.missed}"/>
+          </p:column>
+          <p:column headerText="Accuracy" sortBy="#{s.accuracyPct}" style="width:8rem">
+            <h:outputText value="#{extractionQualityBean.pct(s.accuracyPct)}"
+                          styleClass="#{extractionQualityBean.tone(s.accuracyPct)}"/>
+          </p:column>
+          <p:column headerText="Critical fields" sortBy="#{s.criticalAccuracyPct}" style="width:9rem">
+            <h:outputText value="#{extractionQualityBean.pct(s.criticalAccuracyPct)}"
+                          styleClass="#{extractionQualityBean.tone(s.criticalAccuracyPct)}"/>
+          </p:column>
+        </p:dataTable>
+      </div>
+      <div class="q-card">
+        <h3>By model</h3>
+        <p:dataTable id="modelTable" var="s" value="#{extractionQualityBean.report.byModel}"
+                     emptyMessage="Nothing reviewed in this range." rowKey="#{s.label}">
+          <p:column headerText="Model" sortBy="#{s.label}">
+            <h:outputText value="#{s.label}"/>
+          </p:column>
+          <p:column headerText="Fields checked" sortBy="#{s.decided}" style="width:8rem">
+            <h:outputText value="#{s.decided}"/>
+          </p:column>
+          <p:column headerText="Kept" sortBy="#{s.accepted}" style="width:6rem">
+            <h:outputText value="#{s.accepted}"/>
+          </p:column>
+          <p:column headerText="Changed" sortBy="#{s.corrected + s.missed}" style="width:6rem">
+            <h:outputText value="#{s.corrected + s.missed}"/>
+          </p:column>
+          <p:column headerText="Accuracy" sortBy="#{s.accuracyPct}" style="width:8rem">
+            <h:outputText value="#{extractionQualityBean.pct(s.accuracyPct)}"
+                          styleClass="#{extractionQualityBean.tone(s.accuracyPct)}"/>
+          </p:column>
+          <p:column headerText="Critical fields" sortBy="#{s.criticalAccuracyPct}" style="width:9rem">
+            <h:outputText value="#{extractionQualityBean.pct(s.criticalAccuracyPct)}"
+                          styleClass="#{extractionQualityBean.tone(s.criticalAccuracyPct)}"/>
+          </p:column>
+        </p:dataTable>
+      </div>
+      <div class="q-card">
+        <h3>By workspace</h3>
+        <p:dataTable id="workspaceTable" var="s" value="#{extractionQualityBean.report.byWorkspace}"
+                     emptyMessage="Nothing reviewed in this range." rowKey="#{s.label}">
+          <p:column headerText="Workspace" sortBy="#{s.label}">
+            <h:outputText value="#{s.label}"/>
+          </p:column>
+          <p:column headerText="Fields checked" sortBy="#{s.decided}" style="width:8rem">
+            <h:outputText value="#{s.decided}"/>
+          </p:column>
+          <p:column headerText="Kept" sortBy="#{s.accepted}" style="width:6rem">
+            <h:outputText value="#{s.accepted}"/>
+          </p:column>
+          <p:column headerText="Changed" sortBy="#{s.corrected + s.missed}" style="width:6rem">
+            <h:outputText value="#{s.corrected + s.missed}"/>
+          </p:column>
+          <p:column headerText="Accuracy" sortBy="#{s.accuracyPct}" style="width:8rem">
+            <h:outputText value="#{extractionQualityBean.pct(s.accuracyPct)}"
+                          styleClass="#{extractionQualityBean.tone(s.accuracyPct)}"/>
+          </p:column>
+          <p:column headerText="Critical fields" sortBy="#{s.criticalAccuracyPct}" style="width:9rem">
+            <h:outputText value="#{extractionQualityBean.pct(s.criticalAccuracyPct)}"
+                          styleClass="#{extractionQualityBean.tone(s.criticalAccuracyPct)}"/>
+          </p:column>
+        </p:dataTable>
+      </div>
+      <div class="q-card">
+        <h3>By confidence band (does high confidence mean correct?)</h3>
+        <p:dataTable id="confidenceTable" var="s" value="#{extractionQualityBean.report.confidence}"
+                     emptyMessage="Nothing reviewed in this range." rowKey="#{s.label}">
+          <p:column headerText="Confidence band" sortBy="#{s.label}">
+            <h:outputText value="#{s.label}"/>
+          </p:column>
+          <p:column headerText="Fields checked" sortBy="#{s.decided}" style="width:8rem">
+            <h:outputText value="#{s.decided}"/>
+          </p:column>
+          <p:column headerText="Kept" sortBy="#{s.accepted}" style="width:6rem">
+            <h:outputText value="#{s.accepted}"/>
+          </p:column>
+          <p:column headerText="Changed" sortBy="#{s.corrected + s.missed}" style="width:6rem">
+            <h:outputText value="#{s.corrected + s.missed}"/>
+          </p:column>
+          <p:column headerText="Accuracy" sortBy="#{s.accuracyPct}" style="width:8rem">
+            <h:outputText value="#{extractionQualityBean.pct(s.accuracyPct)}"
+                          styleClass="#{extractionQualityBean.tone(s.accuracyPct)}"/>
+          </p:column>
+          <p:column headerText="Critical fields" sortBy="#{s.criticalAccuracyPct}" style="width:9rem">
+            <h:outputText value="#{extractionQualityBean.pct(s.criticalAccuracyPct)}"
+                          styleClass="#{extractionQualityBean.tone(s.criticalAccuracyPct)}"/>
+          </p:column>
+        </p:dataTable>
+      </div>
+      <div class="q-card">
+        <h3>Fields, least accurate first</h3>
+        <p:dataTable id="fieldTable" var="s" value="#{extractionQualityBean.report.fields}"
+                     paginator="true" rows="15" paginatorPosition="bottom" rowKey="#{s.label}"
+                     emptyMessage="Nothing reviewed in this range.">
+          <p:column headerText="Field" sortBy="#{s.label}">
+            <h:outputText value="#{s.label}"/>
+            <p:tag value="Critical" severity="warning" rendered="#{s.critical}" style="margin-left: 0.5rem;"/>
+          </p:column>
+          <p:column headerText="Fields checked" sortBy="#{s.decided}" style="width:8rem">
+            <h:outputText value="#{s.decided}"/>
+          </p:column>
+          <p:column headerText="Kept" sortBy="#{s.accepted}" style="width:6rem">
+            <h:outputText value="#{s.accepted}"/>
+          </p:column>
+          <p:column headerText="Changed" sortBy="#{s.corrected}" style="width:6rem">
+            <h:outputText value="#{s.corrected}"/>
+          </p:column>
+          <p:column headerText="Filled in" sortBy="#{s.missed}" style="width:6rem">
+            <h:outputText value="#{s.missed}"/>
+          </p:column>
+          <p:column headerText="Accuracy" sortBy="#{s.accuracyPct}" style="width:8rem">
+            <h:outputText value="#{extractionQualityBean.pct(s.accuracyPct)}"
+                          styleClass="#{extractionQualityBean.tone(s.accuracyPct)}"/>
+          </p:column>
+        </p:dataTable>
+      </div>
+
+      <div class="q-card">
+        <h3>Operations (same dates, all workspaces and templates)</h3>
+        <div class="q-tiles">
+          <div class="q-tile">
+            <div class="q-value"><h:outputText value="#{extractionQualityBean.report.operations.jobs}"/></div>
+            <div class="q-label">Extraction jobs</div>
+            <div class="q-note">#{extractionQualityBean.report.operations.completed} finished, #{extractionQualityBean.report.operations.failed} failed</div>
+          </div>
+          <div class="q-tile">
+            <div class="q-value"><h:outputText value="#{extractionQualityBean.report.operations.retried}"/></div>
+            <div class="q-label">Jobs that needed a retry</div>
+          </div>
+          <div class="q-tile">
+            <div class="q-value"><h:outputText value="#{extractionQualityBean.averageSeconds}"/></div>
+            <div class="q-label">Average read time</div>
+          </div>
+          <div class="q-tile">
+            <div class="q-value"><h:outputText value="#{extractionQualityBean.report.operations.reviewed}"/></div>
+            <div class="q-label">Reviews completed</div>
+            <div class="q-note">#{extractionQualityBean.report.operations.declined} declined</div>
+          </div>
+        </div>
+        <div class="q-note">Kept means the reviewer left the value as read. Changed means the reviewer edited it, Filled in means the extractor found nothing and the reviewer typed a value. Fields nobody confirmed or edited, and fields found empty and left empty, are not counted in the percentages. A reformatted value (currency symbol, commas, case) is not counted as changed.</div>
+      </div>
+      </h:panelGroup>
+    </h:form>
+  </ui:define>
+</ui:composition>
