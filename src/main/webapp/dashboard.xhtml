@@ -66,6 +66,27 @@
             line-height: 1;
           }
 
+          /* ADDED 2026-10-16 - small line under the card label */
+          .metric-card .metric-note {
+            font-size: 0.75rem;
+            color: #8B8A82;
+            margin-top: 0.15rem;
+          }
+
+          /* ADDED 2026-10-16 - red badge in the page header */
+          .pipeline-alert {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-top: 0.4rem;
+            padding: 0.2rem 0.65rem;
+            border-radius: 999px;
+            background: #FEE2E2;
+            color: #B91C1C;
+            font-size: 0.8rem;
+            font-weight: 600;
+          }
+
           .metric-card .metric-label {
             font-size: 0.85rem;
             color: #6B6A63;
@@ -238,6 +259,15 @@
             <div>
                 <h1>Document Pipeline</h1>
                 <p class="section-subtitle">Monitor and manage staged documents before submission to processing.</p>
+                <!-- ADDED 2026-10-16 - red badge for failed extractions and packages sent back.
+                     Hidden when there is nothing to report. -->
+                <h:panelGroup id="pipelineAlert" layout="block">
+                    <span class="pipeline-alert" title="Failed extractions and packages sent back by a reviewer"
+                          style="#{pipelineMetricsBean.alert ? '' : 'display:none'}">
+                        <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
+                        <h:outputText value="#{pipelineMetricsBean.alertText}"/>
+                    </span>
+                </h:panelGroup>
             </div>
             <!-- Wrapped in its own tiny form (there wasn't one before) because
                  this button now needs a real ajax action: it resets
@@ -276,42 +306,69 @@
             This changes what is shown on screen only; the data itself is not filtered.
         </h:panelGroup>
 
+        <!-- REVISED 2026-10-16 - five cards that follow the real flow replace the old
+             Uploading, Validating, Valid and Submitted cards. The first card counts
+             documents, the others count packages (the small line says which). -->
         <h:panelGroup id="metricCards" layout="block">
             <div class="metric-cards">
                 <div class="metric-card">
-                    <i class="pi pi-upload" aria-hidden="true"></i>
+                    <i class="pi pi-inbox" aria-hidden="true"></i>
                     <div>
                         <div class="metric-value">
-                            <h:outputText value="#{pipelineMetricsBean.uploadingCount}"/>
+                            <h:outputText value="#{pipelineMetricsBean.stagedDocuments}"/>
                         </div>
-                        <div class="metric-label">Uploading</div>
+                        <div class="metric-label">Staged documents</div>
+                        <div class="metric-note">
+                            <h:outputText value="#{pipelineMetricsBean.stagedNote}"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <i class="pi pi-folder-open" aria-hidden="true"></i>
+                    <div>
+                        <div class="metric-value">
+                            <h:outputText value="#{pipelineMetricsBean.inAssembly}"/>
+                        </div>
+                        <div class="metric-label">In assembly</div>
+                        <div class="metric-note">
+                            <h:outputText value="#{pipelineMetricsBean.assemblyNote}"/>
+                        </div>
                     </div>
                 </div>
                 <div class="metric-card">
                     <i class="pi pi-sync" aria-hidden="true"></i>
                     <div>
                         <div class="metric-value">
-                            <h:outputText value="#{pipelineMetricsBean.validatingCount}"/>
+                            <h:outputText value="#{pipelineMetricsBean.extracting}"/>
                         </div>
-                        <div class="metric-label">Validating</div>
+                        <div class="metric-label">Extracting</div>
+                        <div class="metric-note">
+                            <h:outputText value="#{pipelineMetricsBean.extractingNote}"/>
+                        </div>
                     </div>
                 </div>
                 <div class="metric-card">
-                    <i class="pi pi-check-circle" aria-hidden="true"></i>
+                    <i class="pi pi-eye" aria-hidden="true"></i>
                     <div>
                         <div class="metric-value">
-                            <h:outputText value="#{pipelineMetricsBean.validCount}"/>
+                            <h:outputText value="#{pipelineMetricsBean.readyForReview}"/>
                         </div>
-                        <div class="metric-label">Valid</div>
+                        <div class="metric-label">Ready for review</div>
+                        <div class="metric-note">
+                            <h:outputText value="#{pipelineMetricsBean.readyNote}"/>
+                        </div>
                     </div>
                 </div>
                 <div class="metric-card">
-                    <i class="pi pi-send" aria-hidden="true"></i>
+                    <i class="pi pi-clock" aria-hidden="true"></i>
                     <div>
                         <div class="metric-value">
-                            <h:outputText value="#{pipelineMetricsBean.submittedCount}"/>
+                            <h:outputText value="#{pipelineMetricsBean.awaitingApproval}"/>
                         </div>
-                        <div class="metric-label">Submitted</div>
+                        <div class="metric-label">Awaiting approval</div>
+                        <div class="metric-note">
+                            <h:outputText value="#{pipelineMetricsBean.awaitingNote}"/>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -325,13 +382,13 @@
              in its own form, outside the card it updates, so the form being
              re-rendered is never the one that issued the request. process="@this"
              keeps it from submitting the other forms on the page. The same call
-             also reloads the four metric cards (metricCards) through the
+             also reloads the metric cards (metricCards) through the
              pipelineMetricsBean.refresh listener, so the counts move too. -->
         <h:form id="stageDocumentsRefreshForm">
             <p:remoteCommand name="refreshStagedDocuments"
                              actionListener="#{pipelineMetricsBean.refresh}"
                              action="#{stageDocumentsBean.refresh}"
-                             process="@this" update=":stageDocumentsCard :metricCards"
+                             process="@this" update=":stageDocumentsCard :metricCards :pipelineAlert"
                              oncomplete="refreshContractPackages();"/>
             <p:remoteCommand name="refreshContractPackages" action="#{contractPackagesBean.refresh}"
                              process="@this" update=":contractPackagesCard"/>

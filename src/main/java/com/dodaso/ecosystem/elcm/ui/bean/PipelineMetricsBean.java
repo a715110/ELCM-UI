@@ -15,17 +15,17 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Backing bean for the four top metric cards on dashboard.xhtml
- * (Uploading/Validating/Valid/Submitted). Split out of the old
- * DashboardBean per the bean-per-section refactor.
+ * Backing bean for the metric cards on dashboard.xhtml.
  *
- * Exposes flat int getters rather than the service's PipelineMetrics
- * record directly -- the page binds #{pipelineMetricsBean.uploadingCount},
- * never a nested #{pipelineMetricsBean.metrics.uploading} path. That keeps
- * the record entirely on the Java side; EL never has to resolve a property
- * on it, so the earlier record-vs-EL accessor issue (see StagedDocumentRow)
- * doesn't apply here even though this service happens to use a record
- * internally.
+ * <p>REVISED 2026-10-16: five cards that follow the real flow (Staged documents, In assembly,
+ * Extracting, Ready for review, Awaiting approval) replace the old Uploading/Validating/Valid/
+ * Submitted cards. The first card counts documents, the others count packages. Failed extractions
+ * and sent-back packages feed the red badge in the page header.
+ *
+ * <p>The page binds flat getters, and the small lines under each number are built here so the
+ * page needs no logic. The response is read as a generic Map (no DTO binding). The JSON shape is
+ * the service's PipelineOverview record, flat. Fails open: on any error the cards stay at 0 and
+ * the dashboard still renders.
  */
 @Named
 @ViewScoped
@@ -34,30 +34,27 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PipelineMetricsBean extends BaseBean {
 
-    private int uploadingCount;
-    private int validatingCount;
-    private int validCount;
-    private int submittedCount;
+    private int stagedDocuments;
+    private int uploadedToday;
+    private int inAssembly;
+    private int sentBack;
+    private int extracting;
+    private int queued;
+    private int reading;
+    private int readyForReview;
+    private int fieldsNeedReview;
+    private int awaitingApproval;
+    private int oldestWaitingDays;
+    private int failedExtractions;
 
-    /**
-     * Loads the four counts from elcm-service. The response used to be
-     * discarded, which is why every card showed 0. It is read as a generic
-     * Map rather than PipelineMetricsDTOContainer on purpose: the DTO has no
-     * no-arg constructor, so binding to it depends on Jackson's parameter-name
-     * support, and a Map keeps this bean independent of that. The JSON shape is
-     * {"pipelineMetricsDTO": {"uploading": n, "validating": n, "valid": n,
-     * "submitted": n}}. Fails open: on any error the cards stay at 0 and the
-     * dashboard still renders.
-     */
     @PostConstruct
     void init() {
         refresh();
     }
 
     /**
-     * Re-reads the four counts. Called on page load via init() and again from
-     * the dashboard's refreshStagedDocuments remote command after a successful
-     * Add to Pipeline, so the cards move without a page reload.
+     * Re-reads the counts. Called on page load via init() and again from the dashboard's
+     * refreshStagedDocuments remote command after an action that moves documents or packages.
      */
     @Override
     public void refresh() {
@@ -67,16 +64,68 @@ public class PipelineMetricsBean extends BaseBean {
                 PipelineMetricsControllerAPIEnum.getMetrics.getEndPoint(),
                 new ParameterizedTypeReference<Map<String, Object>>() {
                 });
-            final Object node = response == null ? null : response.get("pipelineMetricsDTO");
-            if (node instanceof Map<?, ?> counts) {
-                this.uploadingCount = toInt(counts.get("uploading"));
-                this.validatingCount = toInt(counts.get("validating"));
-                this.validCount = toInt(counts.get("valid"));
-                this.submittedCount = toInt(counts.get("submitted"));
+            if (response != null) {
+                this.stagedDocuments = toInt(response.get("stagedDocuments"));
+                this.uploadedToday = toInt(response.get("uploadedToday"));
+                this.inAssembly = toInt(response.get("inAssembly"));
+                this.sentBack = toInt(response.get("sentBack"));
+                this.extracting = toInt(response.get("extracting"));
+                this.queued = toInt(response.get("queued"));
+                this.reading = toInt(response.get("reading"));
+                this.readyForReview = toInt(response.get("readyForReview"));
+                this.fieldsNeedReview = toInt(response.get("fieldsNeedReview"));
+                this.awaitingApproval = toInt(response.get("awaitingApproval"));
+                this.oldestWaitingDays = toInt(response.get("oldestWaitingDays"));
+                this.failedExtractions = toInt(response.get("failedExtractions"));
             }
         } catch (Exception e) {
             log.warn("Could not load pipeline metrics, showing zeros: {}", e.getMessage());
         }
+    }
+
+    public String getStagedNote() {
+        return "documents, " + uploadedToday + " uploaded today";
+    }
+
+    public String getAssemblyNote() {
+        return "packages, " + sentBack + " sent back by a reviewer";
+    }
+
+    public String getExtractingNote() {
+        return "packages, " + queued + " queued, " + reading + " reading";
+    }
+
+    public String getReadyNote() {
+        return "packages, " + fieldsNeedReview + (fieldsNeedReview == 1 ? " field needs" : " fields need")
+            + " review";
+    }
+
+    public String getAwaitingNote() {
+        if (awaitingApproval == 0) {
+            return "packages";
+        }
+        return "packages, oldest waiting "
+            + (oldestWaitingDays == 0 ? "less than a day" : oldestWaitingDays + (oldestWaitingDays == 1 ? " day" : " days"));
+    }
+
+    /** True when something needs attention: a failed extraction or a package sent back. */
+    public boolean isAlert() {
+        return failedExtractions > 0 || sentBack > 0;
+    }
+
+    /** Text of the red badge, for example "1 extraction failed, 2 sent back". */
+    public String getAlertText() {
+        final StringBuilder text = new StringBuilder();
+        if (failedExtractions > 0) {
+            text.append(failedExtractions).append(failedExtractions == 1 ? " extraction failed" : " extractions failed");
+        }
+        if (sentBack > 0) {
+            if (text.length() > 0) {
+                text.append(", ");
+            }
+            text.append(sentBack).append(" sent back");
+        }
+        return text.toString();
     }
 
     private static int toInt(final Object value) {
