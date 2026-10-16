@@ -141,6 +141,12 @@
                              rendered="#{extractionTemplatesBean.editable}"
                              process="@this" update=":detailCard"
                              actionListener="#{extractionTemplatesBean.saveDraft}"/>
+            <p:commandButton value="Trial run" icon="pi pi-play"
+                             styleClass="ui-button-outlined"
+                             title="Read one document with this version and see what is found. Nothing is saved."
+                             process="@this" update=":trialForm"
+                             actionListener="#{extractionTemplatesBean.prepareTrial}"
+                             oncomplete="if (args &amp;&amp; args.ok) { PF('trialDialog').show(); }"/>
             <p:commandButton value="Publish" icon="pi pi-check"
                              styleClass="ui-button-success"
                              rendered="#{extractionTemplatesBean.editable}"
@@ -284,6 +290,21 @@
               </p:column>
             </p:dataTable>
           </div>
+          <!-- ADDED 2026-10-15 - delete the whole template for good. Only possible while no document has
+               been read with any of its versions. -->
+          <div class="et-section">
+            <h3>Delete this template</h3>
+            <div class="et-help">
+              Removes every version of this template for good. It is only possible when no document was
+              ever read with it; otherwise keep it, and publish another version if it should no longer
+              be used.
+            </div>
+            <p:commandButton value="Delete this template" icon="pi pi-trash"
+                             styleClass="ui-button-danger ui-button-outlined"
+                             process="@this" update=":deleteForm"
+                             actionListener="#{extractionTemplatesBean.prepareDelete}"
+                             oncomplete="if (args &amp;&amp; args.ok) { PF('deleteDialog').show(); }"/>
+          </div>
         </h:form>
       </h:panelGroup>
     </h:panelGroup>
@@ -291,6 +312,7 @@
     <p:dialog widgetVar="fieldDialog" header="Field" modal="true" resizable="false" draggable="true"
               width="40rem" responsive="true" closeOnEscape="false">
       <h:form id="fieldForm">
+        <p:messages globalOnly="true" showDetail="true" closable="true"/>
         <label class="et-label" for="fieldForm:fKey">Key</label>
         <p:inputText id="fKey" value="#{extractionTemplatesBean.editing.key}" maxlength="100" styleClass="et-wide"/>
         <div class="et-help">Lower case letters, digits and underscores, for example base_rent_monthly. The key links the field to the contract record, so change it only when the field means something new.</div>
@@ -340,6 +362,7 @@
     <p:dialog widgetVar="publishDialog" header="Publish this draft" modal="true" resizable="false"
               width="34rem" responsive="true" closeOnEscape="false">
       <h:form id="publishForm">
+        <p:messages globalOnly="true" showDetail="true" closable="true"/>
         <p>
           The draft becomes the version used for new extractions. The version in use now is kept
           as retired. Documents already extracted keep the version they were read with.
@@ -354,6 +377,142 @@
                            process="@form" update="@form :detailCard :listForm"
                            actionListener="#{extractionTemplatesBean.confirmPublish}"
                            oncomplete="if (args &amp;&amp; args.ok) { PF('publishDialog').hide(); }"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
+    <!-- ADDED 2026-10-15 - trial run: read one document with the version that is shown and list what
+         is found. The document is read as soon as it is chosen; the dialog asks for the answer every
+         3 seconds. Nothing is saved. -->
+    <p:dialog widgetVar="trialDialog" header="Trial run" modal="true" resizable="false"
+              width="70rem" responsive="true" closeOnEscape="true"
+              onHide="PF('trialPoll').stop();">
+      <h:form id="trialForm" enctype="multipart/form-data">
+        <p:messages globalOnly="true" showDetail="true" closable="true"/>
+        <p:poll widgetVar="trialPoll" interval="3" autoStart="false"
+                listener="#{extractionTemplatesBean.pollTrial}" update="trialPanel"
+                stop="#{extractionTemplatesBean.trialFinished}"/>
+        <p>
+          Read one document with
+          <h:outputText value="#{extractionTemplatesBean.selected.summary.title}" style="font-weight: 600;"/>
+          and see what the extractor finds. Nothing is saved and extraction is not affected. Choosing
+          another document starts a new trial run.
+        </p>
+        <p:fileUpload widgetVar="trialUploadWidget"
+                      mode="advanced" multiple="false" auto="true" dragDrop="true"
+                      label="Choose a document"
+                      listener="#{extractionTemplatesBean.handleTrialUpload}"
+                      process="@this" update="trialPanel"
+                      oncomplete="PF('trialPoll').start();">
+          <p:validateFile sizeLimit="12582912"
+                          allowTypes="/(\.|\/)(pdf|docx?|jpe?g|png|tiff?)$/"/>
+        </p:fileUpload>
+        <div class="et-help">PDF, Word or image, up to 12 MB.</div>
+
+        <h:panelGroup id="trialPanel" layout="block" styleClass="et-section">
+          <h:panelGroup layout="block" styleClass="et-warn"
+                        rendered="#{extractionTemplatesBean.trial != null and extractionTemplatesBean.trial.stopped}">
+            <h:outputText value="#{extractionTemplatesBean.trial.message}"/>
+          </h:panelGroup>
+
+          <h:panelGroup layout="block"
+                        rendered="#{extractionTemplatesBean.trial != null and extractionTemplatesBean.trial.working}">
+            <i class="pi pi-spin pi-spinner" style="margin-right: 0.5rem;"></i>
+            <h:outputText value="Reading #{extractionTemplatesBean.trial.fileName}. "/>
+            <h:outputText value="Waiting for another trial run to finish. "
+                          rendered="#{extractionTemplatesBean.trial.queued}"/>
+            <h:outputText value="A long document can take a few minutes. "
+                          rendered="#{not extractionTemplatesBean.trial.queued}"/>
+            <h:outputText value="#{extractionTemplatesBean.trial.timeText} so far." styleClass="et-note"/>
+          </h:panelGroup>
+
+          <h:panelGroup layout="block"
+                        rendered="#{extractionTemplatesBean.trial != null and extractionTemplatesBean.trial.done}">
+            <p style="margin: 0 0 0.5rem 0;">
+              <h:outputText value="#{extractionTemplatesBean.trial.fileName}" style="font-weight: 600;"/>
+              read with #{extractionTemplatesBean.trial.templateTitle} in #{extractionTemplatesBean.trial.timeText}:
+              #{extractionTemplatesBean.trial.summaryText}.
+            </p>
+            <h:panelGroup layout="block" styleClass="et-note"
+                          rendered="#{not empty extractionTemplatesBean.trial.needsReview}">
+              The extractor asks for a check of:
+              <h:outputText value="#{extractionTemplatesBean.trial.needsReviewText}"/>
+            </h:panelGroup>
+            <p:dataTable var="tf" value="#{extractionTemplatesBean.trial.fields}"
+                         emptyMessage="Nothing was returned.">
+              <p:column headerText="Field">
+                <h:outputText value="#{tf.label}" style="font-weight: 600;"/>
+                <div class="et-help" style="margin: 0;">
+                  <h:outputText value="#{tf.key}" style="font-family: monospace;"/>
+                  <h:outputText value=" (required)" rendered="#{tf.required}"/>
+                </div>
+              </p:column>
+              <p:column headerText="Value">
+                <h:outputText value="#{tf.valueText}"/>
+              </p:column>
+              <p:column headerText="Status" style="width:8rem">
+                <p:tag value="#{tf.statusLabel}" severity="#{tf.severity}"/>
+              </p:column>
+              <p:column headerText="Page" style="width:4rem">
+                <h:outputText value="#{tf.pageText}"/>
+              </p:column>
+              <p:column headerText="Text in the document">
+                <h:outputText value="#{tf.quote}" styleClass="et-desc" title="#{tf.quote}"/>
+              </p:column>
+              <p:column headerText="Comment">
+                <h:outputText value="#{tf.comment}" styleClass="et-desc" title="#{tf.comment}"/>
+              </p:column>
+            </p:dataTable>
+          </h:panelGroup>
+        </h:panelGroup>
+
+        <div class="et-toolbar" style="justify-content: flex-end;">
+          <p:commandButton value="Close" styleClass="ui-button-flat" type="button"
+                           onclick="PF('trialDialog').hide();"/>
+        </div>
+      </h:form>
+    </p:dialog>
+
+    <!-- ADDED 2026-10-15 - delete a template for good. The administrator types the template name and a
+         reason. Nothing can be deleted while documents were read with the template. -->
+    <p:dialog widgetVar="deleteDialog" header="Delete this template" modal="true" resizable="false"
+              width="34rem" responsive="true" closeOnEscape="true">
+      <h:form id="deleteForm">
+        <p:messages globalOnly="true" showDetail="true" closable="true"/>
+        <h:panelGroup layout="block" rendered="#{extractionTemplatesBean.deleteImpact != null}">
+          <p>
+            <h:outputText value="#{extractionTemplatesBean.deleteImpact.name}" style="font-weight: 600;"/>
+            (#{extractionTemplatesBean.deleteImpact.contractType}) has
+            #{extractionTemplatesBean.deleteImpact.versions} version(s). All of them and their fields
+            will be deleted for good. This cannot be undone.
+          </p>
+          <h:panelGroup layout="block" styleClass="et-warn"
+                        rendered="#{extractionTemplatesBean.deleteImpact.published}">
+            A version of this template is in use now. After it is deleted, new
+            #{extractionTemplatesBean.deleteImpact.contractType} documents are not extracted until
+            another template is published for that contract type.
+          </h:panelGroup>
+          <h:panelGroup layout="block" styleClass="et-warn"
+                        rendered="#{extractionTemplatesBean.deleteImpact.blocked}">
+            #{extractionTemplatesBean.deleteImpact.jobs} extraction job(s) used this template. Deleting
+            it would erase their results and review history, so it cannot be deleted. Keep it, and
+            publish another version if it should no longer be used.
+          </h:panelGroup>
+          <h:panelGroup layout="block" rendered="#{not extractionTemplatesBean.deleteImpact.blocked}">
+            <label class="et-label" for="deleteForm:dName">Type the template name to confirm</label>
+            <p:inputText id="dName" value="#{extractionTemplatesBean.deleteConfirmName}" maxlength="150" styleClass="et-wide"/>
+            <label class="et-label" for="deleteForm:dReasonText">Reason for deleting</label>
+            <p:inputTextarea id="dReasonText" value="#{extractionTemplatesBean.deleteReasonText}" rows="3" maxlength="500" styleClass="et-wide"/>
+            <div class="et-help">At least 10 characters. A line saying the template was deleted stays in the change log table.</div>
+          </h:panelGroup>
+        </h:panelGroup>
+        <div class="et-toolbar" style="justify-content: flex-end;">
+          <p:commandButton value="Cancel" styleClass="ui-button-flat" type="button" onclick="PF('deleteDialog').hide();"/>
+          <p:commandButton value="Delete for good" icon="pi pi-trash" styleClass="ui-button-danger"
+                           disabled="#{extractionTemplatesBean.deleteImpact == null or extractionTemplatesBean.deleteImpact.blocked}"
+                           process="@form" update="@form :detailCard :listForm"
+                           actionListener="#{extractionTemplatesBean.confirmDelete}"
+                           oncomplete="if (args &amp;&amp; args.ok) { PF('deleteDialog').hide(); }"/>
         </div>
       </h:form>
     </p:dialog>
@@ -377,6 +536,7 @@
     <p:dialog widgetVar="newTemplateDialog" header="New template" modal="true" resizable="false"
               width="34rem" responsive="true" closeOnEscape="false">
       <h:form id="newForm">
+        <p:messages globalOnly="true" showDetail="true" closable="true"/>
         <label class="et-label" for="newForm:nName">Name</label>
         <p:inputText id="nName" value="#{extractionTemplatesBean.newName}" maxlength="150" styleClass="et-wide"/>
         <div class="et-help">For example Equipment Lease. The name is shown in the list and cannot be reused.</div>

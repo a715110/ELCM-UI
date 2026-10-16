@@ -141,6 +141,7 @@ public final class TemplateRows {
         case "DRAFT_SAVED" -> "Draft saved";
         case "DRAFT_DISCARDED" -> "Draft discarded";
         case "PUBLISHED" -> "Published";
+        case "TEMPLATE_DELETED" -> "Template deleted";
         default -> eventType;
       };
     }
@@ -214,6 +215,168 @@ public final class TemplateRows {
 
     public boolean isOk() {
       return outcome == PackageOutcome.OK && (problems == null || problems.isEmpty());
+    }
+  }
+
+  /** ADDED 2026-10-15 - what the extractor found for one field in a trial run. */
+  @Getter
+  @Setter
+  @NoArgsConstructor
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class TrialField implements Serializable {
+    private String key;
+    private String label;
+    private String dataType;
+    private boolean required;
+    private boolean critical;
+    private String value;
+    private String status;
+    private String quote;
+    private Integer page;
+    private String problem;
+    private String note;
+
+    /** The value, or a dash when nothing was found. */
+    public String getValueText() {
+      return value == null || value.isBlank() ? "-" : value;
+    }
+
+    /** Same words as the review screen. */
+    public String getStatusLabel() {
+      if (status == null) {
+        return "";
+      }
+      return switch (status) {
+        case "verified" -> "Verified";
+        case "inferred_absent" -> "Not in document";
+        case "unverified" -> "Check";
+        case "invalid" -> "Invalid";
+        case "missing" -> "Missing";
+        default -> status;
+      };
+    }
+
+    public String getSeverity() {
+      if (status == null) {
+        return "info";
+      }
+      return switch (status) {
+        case "verified" -> "success";
+        case "inferred_absent" -> "info";
+        case "unverified" -> "warning";
+        default -> "danger";
+      };
+    }
+
+    /** The extractor's problem or note, whichever there is. */
+    public String getComment() {
+      if (problem != null && !problem.isBlank()) {
+        return problem;
+      }
+      return note == null ? "" : note;
+    }
+
+    public String getPageText() {
+      return page == null ? "-" : String.valueOf(page);
+    }
+  }
+
+  /**
+   * ADDED 2026-10-15 - a trial run as elcm-service reports it. state is QUEUED, RUNNING, DONE,
+   * FAILED or REFUSED.
+   */
+  @Getter
+  @Setter
+  @NoArgsConstructor
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class Trial implements Serializable {
+    private String id;
+    private String state;
+    private String message;
+    private Long templateId;
+    private String templateTitle;
+    private String fileName;
+    private String model;
+    private long seconds;
+    private List<TrialField> fields = new ArrayList<>();
+    private List<String> needsReview = new ArrayList<>();
+
+    /** A trial that never reached elcm-service, with a message for the administrator. */
+    public static Trial refused(final String message) {
+      final Trial t = new Trial();
+      t.state = "REFUSED";
+      t.message = message;
+      return t;
+    }
+
+    /** True while the poll should keep asking. */
+    public boolean isWorking() {
+      return "QUEUED".equals(state) || "RUNNING".equals(state);
+    }
+
+    public boolean isDone() {
+      return "DONE".equals(state);
+    }
+
+    public boolean isQueued() {
+      return "QUEUED".equals(state);
+    }
+
+    /** True when the run ended without a result (failed or not accepted). */
+    public boolean isStopped() {
+      return "FAILED".equals(state) || "REFUSED".equals(state);
+    }
+
+    /** "3 verified, 1 to check, 2 missing" for the line above the table. */
+    public String getSummaryText() {
+      int verified = 0;
+      int check = 0;
+      int missing = 0;
+      int other = 0;
+      for (final TrialField f : fields) {
+        final String s = f.getStatus() == null ? "" : f.getStatus();
+        switch (s) {
+          case "verified" -> verified++;
+          case "unverified", "invalid" -> check++;
+          case "missing", "inferred_absent" -> missing++;
+          default -> other++;
+        }
+      }
+      final StringBuilder sb = new StringBuilder();
+      sb.append(verified).append(" verified, ").append(check).append(" to check, ");
+      sb.append(missing).append(" not found");
+      if (other > 0) {
+        sb.append(", ").append(other).append(" other");
+      }
+      return sb.toString();
+    }
+
+    /** The fields the extractor asks to have checked, as one line. */
+    public String getNeedsReviewText() {
+      return needsReview == null ? "" : String.join(", ", needsReview);
+    }
+
+    /** "1 min 12 s" or "45 s". */
+    public String getTimeText() {
+      return seconds >= 60 ? (seconds / 60) + " min " + (seconds % 60) + " s" : seconds + " s";
+    }
+  }
+
+  /** ADDED 2026-10-15 - what deleting a template would remove. */
+  @Getter
+  @Setter
+  @NoArgsConstructor
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public static class DeleteImpact implements Serializable {
+    private String name;
+    private String contractType;
+    private int versions;
+    private boolean published;
+    private long jobs;
+
+    /** True when documents were read with the template, so it cannot be deleted. */
+    public boolean isBlocked() {
+      return jobs > 0;
     }
   }
 

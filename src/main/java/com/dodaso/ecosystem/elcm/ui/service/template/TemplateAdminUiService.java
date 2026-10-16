@@ -3,6 +3,7 @@ package com.dodaso.ecosystem.elcm.ui.service.template;
 import com.dodaso.ecosystem.baseline.common.constant.ServiceDiscoveryEnum;
 import com.dodaso.ecosystem.baseline.common.proxy.RESTServiceClient;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.PackageOutcome;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -145,6 +146,75 @@ public class TemplateAdminUiService {
       log.error("Failed to discard extraction template draft {}", id, e);
       return PackageOutcome.FAILED;
     }
+  }
+
+  /**
+   * ADDED 2026-10-15 - starts a trial run of a version on one document. Never throws: a problem
+   * comes back as a REFUSED trial with a message to show.
+   */
+  public TemplateRows.Trial startTrial(
+      final Long id, final String fileName, final String contentType, final byte[] content) {
+    final Map<String, Object> body = new HashMap<>();
+    body.put("fileName", fileName);
+    body.put("contentType", contentType);
+    body.put("contentBase64", Base64.getEncoder().encodeToString(content));
+    try {
+      final TemplateRows.Trial trial =
+          restServiceClient.post(
+              SERVICE,
+              BASE + "/" + id + "/trial",
+              body,
+              new ParameterizedTypeReference<TemplateRows.Trial>() {});
+      return trial != null
+          ? trial
+          : TemplateRows.Trial.refused("The trial run could not be started. Please try again.");
+    } catch (final HttpStatusCodeException e) {
+      log.warn("elcm-service refused the trial run of version {}: HTTP {}", id, e.getStatusCode());
+      return TemplateRows.Trial.refused(
+          switch (e.getStatusCode().value()) {
+            case 403 -> "Trial runs need the System Admin or Super Admin role.";
+            case 404 -> "That version no longer exists. Reload the list.";
+            default -> "The trial run could not be started. Please try again.";
+          });
+    } catch (final Exception e) {
+      log.error("Failed to start a trial run of extraction template version {}", id, e);
+      return TemplateRows.Trial.refused("The trial run could not be started. Please try again.");
+    }
+  }
+
+  /** The trial run as it is now; null when it cannot be read (for example after a restart). */
+  public TemplateRows.Trial trialStatus(final String trialId) {
+    try {
+      return restServiceClient.get(
+          SERVICE,
+          BASE + "/trials/" + trialId,
+          new ParameterizedTypeReference<TemplateRows.Trial>() {});
+    } catch (final Exception e) {
+      log.warn("Failed to read trial run {}: {}", trialId, e.getMessage());
+      return null;
+    }
+  }
+
+  /** ADDED 2026-10-15 - what deleting the template of this version would remove; null on failure. */
+  public TemplateRows.DeleteImpact deleteImpact(final Long id) {
+    try {
+      return restServiceClient.get(
+          SERVICE,
+          BASE + "/" + id + "/delete-impact",
+          new ParameterizedTypeReference<TemplateRows.DeleteImpact>() {});
+    } catch (final Exception e) {
+      log.error("Failed to read what deleting extraction template version {} would remove", id, e);
+      return null;
+    }
+  }
+
+  /** ADDED 2026-10-15 - deletes the template of this version, every version, for good. */
+  public TemplateRows.Result deleteTemplate(
+      final Long id, final String confirmName, final String reason) {
+    final Map<String, Object> body = new HashMap<>();
+    body.put("confirmName", confirmName);
+    body.put("reason", reason);
+    return post(BASE + "/" + id + "/delete", body, "delete the template of version " + id);
   }
 
   private TemplateRows.Result post(

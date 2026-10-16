@@ -1,6 +1,7 @@
 package com.dodaso.ecosystem.elcm.ui.bean;
 
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.PackageOutcome;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.UploadContentCheck;
 import com.dodaso.ecosystem.elcm.ui.service.template.TemplateAdminUiService;
 import com.dodaso.ecosystem.elcm.ui.service.template.TemplateRows;
 import jakarta.annotation.PostConstruct;
@@ -16,6 +17,8 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.primefaces.PrimeFaces;
+import org.primefaces.event.FileUploadEvent;
+import org.primefaces.model.file.UploadedFile;
 
 /**
  * Backing bean of the Extraction Templates screen (ADDED 2026-10-14), for System Admin and Super
@@ -35,6 +38,9 @@ public class ExtractionTemplatesBean implements Serializable {
 
   /** Shortest reason accepted when publishing; elcm-service checks the same number. */
   public static final int MIN_REASON = 10;
+
+  /** Answers in a row that could not be read (every 3 seconds) before a trial run is given up. */
+  private static final int TRIAL_LOST_AFTER_MISSES = 5;
 
   private static final Pattern KEY = Pattern.compile("^[a-z][a-z0-9_]{0,99}$");
 
@@ -68,6 +74,18 @@ public class ExtractionTemplatesBean implements Serializable {
   @Setter private String newName;
   @Setter private Long newContractTypeId;
   @Setter private String newReason;
+
+  /** ADDED 2026-10-15 - the trial run shown in the trial dialog; null until a document is chosen. */
+  private TemplateRows.Trial trial;
+
+  /** ADDED 2026-10-15 - what deleting the shown template would remove, and what was typed to confirm. */
+  private TemplateRows.DeleteImpact deleteImpact;
+
+  @Setter private String deleteConfirmName;
+  @Setter private String deleteReasonText;
+
+  /** How many times in a row the trial run could not be read. */
+  private int trialMisses;
 
   @PostConstruct
   void init() {
@@ -312,6 +330,138 @@ public class ExtractionTemplatesBean implements Serializable {
     clearSelection();
     reload();
     add(FacesMessage.SEVERITY_INFO, "Draft discarded", "It stays in the change log.");
+  }
+
+  // ---- delete a template for good (ADDED 2026-10-15) ----
+
+  /** Opens the delete dialog for the template of the version that is shown. */
+  public void prepareDelete() {
+    deleteConfirmName = null;
+    deleteReasonText = null;
+    deleteImpact = null;
+    if (selected == null) {
+      callback("ok", false);
+      return;
+    }
+    deleteImpact = templateAdminUiService.deleteImpact(selected.getSummary().getId());
+    if (deleteImpact == null) {
+      add(FacesMessage.SEVERITY_ERROR, "Not available", "Please try again.");
+      callback("ok", false);
+      return;
+    }
+    callback("ok", true);
+  }
+
+  public void confirmDelete() {
+    if (selected == null || deleteImpact == null || deleteImpact.isBlocked()) {
+      callback("ok", false);
+      return;
+    }
+    final String typed = trim(deleteConfirmName);
+    if (typed == null || !typed.equals(deleteImpact.getName())) {
+      add(
+          FacesMessage.SEVERITY_ERROR,
+          "Name not confirmed",
+          "Type the name of the template exactly as shown: " + deleteImpact.getName());
+      callback("ok", false);
+      return;
+    }
+    final String reason = trim(deleteReasonText);
+    if (reason == null || reason.length() < MIN_REASON) {
+      add(
+          FacesMessage.SEVERITY_ERROR,
+          "Reason needed",
+          "Give a reason of at least " + MIN_REASON + " characters.");
+      callback("ok", false);
+      return;
+    }
+    final TemplateRows.Result r =
+        templateAdminUiService.deleteTemplate(selected.getSummary().getId(), typed, reason);
+    if (!report(r, "Template not deleted")) {
+      callback("ok", false);
+      return;
+    }
+    callback("ok", true);
+    final String name = deleteImpact.getName();
+    clearSelection();
+    reload();
+    add(FacesMessage.SEVERITY_INFO, "Template deleted", name + " and all its versions are gone.");
+  }
+
+  // ---- trial run (ADDED 2026-10-15) ----
+
+  /** Opens the trial dialog for the version that is shown. */
+  public void prepareTrial() {
+    trial = null;
+    trialMisses = 0;
+    if (selected == null) {
+      callback("ok", false);
+      return;
+    }
+    if (dirty) {
+      add(
+          FacesMessage.SEVERITY_WARN,
+          "Save the draft first",
+          "The trial run uses the saved draft.");
+      callback("ok", false);
+      return;
+    }
+    callback("ok", true);
+  }
+
+  /** A document was chosen in the trial dialog: start reading it at once. */
+  public void handleTrialUpload(final FileUploadEvent event) {
+    trialMisses = 0;
+    if (selected == null) {
+      return;
+    }
+    final UploadedFile file = event.getFile();
+    final byte[] content;
+    try {
+      content = file.getContent();
+    } catch (final RuntimeException e) {
+      trial = TemplateRows.Trial.refused("The file could not be read. Please try again.");
+      return;
+    }
+    final String problem = UploadContentCheck.problem(file.getFileName(), content);
+    if (problem != null) {
+      trial = TemplateRows.Trial.refused(problem);
+      return;
+    }
+    trial =
+        templateAdminUiService.startTrial(
+            selected.getSummary().getId(), file.getFileName(), file.getContentType(), content);
+  }
+
+  /** Asked every few seconds by the dialog while the document is being read. */
+  public void pollTrial() {
+    if (trial == null || !trial.isWorking() || trial.getId() == null) {
+      return;
+    }
+    final TemplateRows.Trial now = templateAdminUiService.trialStatus(trial.getId());
+    if (now == null) {
+      trialMisses++;
+      if (trialMisses >= TRIAL_LOST_AFTER_MISSES) {
+        trial =
+            TemplateRows.Trial.refused(
+                "The trial run was lost (the service may have restarted). Choose the document"
+                    + " again.");
+      }
+      return;
+    }
+    trialMisses = 0;
+    trial = now;
+  }
+
+  /** True when the dialog should stop asking. */
+  public boolean isTrialFinished() {
+    return trial == null || !trial.isWorking();
+  }
+
+  /** Called when the dialog is closed or another document is wanted. */
+  public void clearTrial() {
+    trial = null;
+    trialMisses = 0;
   }
 
   // ---- compare ----
