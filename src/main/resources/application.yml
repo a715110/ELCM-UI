@@ -113,7 +113,13 @@ eureka:
       defaultZone: ${EUREKA_SERVICE_URL}
     register-with-eureka: true
     fetch-registry: true
-    registry-fetch-interval-seconds: 30
+    # DISCOVERY TUNING 2026-10-16: 30 -> 5. RESTServiceClient reads only this app's
+    # local copy of the registry, so a service that started after the last fetch
+    # stayed invisible to the UI for up to 30 s.
+    registry-fetch-interval-seconds: 5
+    # DISCOVERY TUNING 2026-10-16: default 30 -> 5. How often this app re-checks its
+    # health and pushes its own status (it first registers as DOWN, before it is ready).
+    instance-info-replication-interval-seconds: 5
     initial-instance-info-replication-interval-seconds: 5
     healthcheck:
       enabled: true           # needs spring-boot-starter-actuator (added in STEP1 pom)
