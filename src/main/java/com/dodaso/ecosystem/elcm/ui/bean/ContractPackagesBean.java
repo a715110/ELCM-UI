@@ -125,11 +125,13 @@ public class ContractPackagesBean implements Serializable {
     if (contractPackages == null) {
       return;
     }
+    // REVISED 2026-10-15 -- the stage comes with the package list; it used to be one request to
+    // elcm-service per Validated package, on every load and every 10 second refresh.
     for (final ContractPackageRow row : contractPackages) {
-      if ("VALIDATED".equals(row.getStatusCode())) {
-        final ExtractionStatusRow ex = extractionUiService.status(row.getId());
-        if (ex != null && ex.getState() != null) {
-          stageByPackage.put(row.getId(), stageLabel(ex.getState()));
+      if ("VALIDATED".equals(row.getStatusCode()) && row.getExtractionState() != null) {
+        final String stage = stageLabel(row.getExtractionState());
+        if (stage != null) {
+          stageByPackage.put(row.getId(), stage);
         }
       }
     }
