@@ -6,6 +6,9 @@ import jakarta.inject.Named;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.TaskRailPageRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.TaskRailRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.TaskRailUiService;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -38,11 +41,17 @@ import org.springframework.web.util.UriComponentsBuilder;
  * taskrail.xhtml. As more ECWS routes are confirmed, add them to init()
  * below.
  *
- * ALL badge counts here are hardcoded placeholder data, not from a real
- * service -- there is no persistence layer wired up yet (see DashboardBean's
- * MINIMUM-JARS note). Replace with a real query against CollaborationTaskDTO
- * / EventLogDTO (see BaseBean) once the ECWS task service is available from
- * this UI.
+ * REVISED 2026-10-18: the rail now shows the Review and Approval tasks the
+ * signed-in user may see, in two tabs: Open (the default) and Closed. The data
+ * comes from the ELCM service (TaskRailUiService, /api/v1/pipeline/task-rail),
+ * which applies the access rules, so this bean only displays what it is given.
+ * Nothing is read until it is needed: the badge number is read when a page is
+ * drawn, the Open list when the user first hovers or taps the rail, and the
+ * Closed list only when the user opens the Closed tab. Every list is kept for
+ * REFRESH_MILLIS (30 seconds) before a hover reads it again, so there is no
+ * polling and no database read per page. The old placeholder badge numbers
+ * (4, 7, 2, 3) are gone; the other items keep their "Coming soon" place in the
+ * footer.
  *
  * Scope: SessionScoped rather than ViewScoped/RequestScoped because
  * template.xhtml (and therefore this include) renders on every view in the
@@ -79,19 +88,53 @@ public class TaskRailBean implements Serializable {
    * (a user preference toggle raised via the pin icon in taskrail.xhtml). */
   private boolean pinned = false;
 
+  // ---- ADDED 2026-10-18: Review and Approval tasks ----
+
+  /** How long a list or the badge is kept before the next hover reads it again. */
+  static final long REFRESH_MILLIS = 30_000L;
+
+  static final String TAB_OPEN = "OPEN";
+  static final String TAB_CLOSED = "CLOSED";
+
+  @Autowired
+  private TaskRailUiService taskRailUiService;
+
+  /** The tab being shown: Open (the default) or Closed. */
+  private String activeTab = TAB_OPEN;
+
+  /** True for "Mine" (the default), false for "All" (everything the user may see). */
+  private boolean mineOnly = true;
+
+  private List<TaskRailRow> openItems = new ArrayList<>();
+  private boolean openLoaded;
+  private boolean openFailed;
+  private long openLoadedAt;
+
+  private List<TaskRailRow> closedItems = new ArrayList<>();
+  private boolean closedLoaded;
+  private boolean closedFailed;
+  private long closedLoadedAt;
+  /** Cursor for "Load more"; null when the Closed list has no more. */
+  private Long closedNext;
+
+  /** Open tasks assigned to the user, shown on the handle. */
+  private int badge;
+  private long badgeLoadedAt;
+
   @PostConstruct
   private void init() {
     loginId = authenticationUtil.getUsername();
 
     railItems = new ArrayList<>();
 
-    // CONFIRMED: dashboard.xhtml is served at /ecws/dashboard (rewrite-clean
-    // URL, no .xhtml suffix). My Tasks points here for now per instruction;
-    // swap for a real /ecws/tasks/... route once that view exists.
+    // REVISED 2026-10-18: My Tasks now opens the ECWS task list,
+    // https://<ecws>/collaborationTaskList?Source=Menu&Action=List (it used
+    // to open /dashboard). The route carries its own query string;
+    // getEcwsUrl() keeps it and appends loginId.
     railItems.add(new TaskRailItem(
         "myTasks", "My Tasks", "pi pi-check-square",
         "Tasks assigned to you across all contract packages",
-        "/dashboard", 4));
+        "/collaborationTaskList?Source=Menu&Action=List", 0));
 
     // NOT YET CONFIRMED -- route left null so the item renders disabled
     // (see TaskRailItem.isAvailable()) instead of linking to a guessed,
@@ -101,13 +144,13 @@ public class TaskRailBean implements Serializable {
     railItems.add(new TaskRailItem(
         "taskInbox", "Task Inbox", "pi pi-inbox",
         "All incoming collaboration tasks awaiting action",
-        null, 7));
+        null, 0));
     railItems.add(new TaskRailItem(
         "createTask", "Create Task", "pi pi-plus-circle",
         "Start a new ad-hoc collaboration task", null, 0));
     railItems.add(new TaskRailItem(
         "approvals", "Approvals Queue", "pi pi-thumbs-up",
-        "Items routed to you for review/approval", null, 2));
+        "Items routed to you for review/approval", null, 0));
     railItems.add(new TaskRailItem(
         "reassign", "Reassign Task", "pi pi-user-plus",
         "Reassign a task to another user or role", null, 0));
@@ -116,11 +159,200 @@ public class TaskRailBean implements Serializable {
         "Recent task activity and status changes", null, 0));
     railItems.add(new TaskRailItem(
         "notifications", "Notifications", "pi pi-bell",
-        "Task-related notifications", null, 3));
+        "Task-related notifications", null, 0));
   }
 
+  /**
+   * REVISED 2026-10-18: the number on the handle is now real: open Review and Approval tasks
+   * assigned to the user. It is read at most every 30 seconds; when the read fails the last number
+   * stays. (It used to add up placeholder numbers.)
+   */
   public int getTotalBadgeCount() {
-    return railItems.stream().mapToInt(TaskRailItem::getBadgeCount).sum();
+    if (now() - badgeLoadedAt >= REFRESH_MILLIS) {
+      refreshBadge();
+    }
+    return badge;
+  }
+
+  // ---- ADDED 2026-10-18: tabs, lists and actions ----
+
+  /**
+   * Called when the user hovers or taps the rail (taskrail.xhtml remoteCommand, throttled in
+   * task-rail.js). Reads the shown list again only when it is older than 30 seconds.
+   */
+  public void loadIfStale() {
+    if (TAB_CLOSED.equals(activeTab)) {
+      if (!closedLoaded || now() - closedLoadedAt >= REFRESH_MILLIS) {
+        loadClosedFirstPage();
+      }
+    } else if (!openLoaded || now() - openLoadedAt >= REFRESH_MILLIS) {
+      loadOpen();
+    }
+    if (now() - badgeLoadedAt >= REFRESH_MILLIS) {
+      refreshBadge();
+    }
+  }
+
+  public void showOpen() {
+    activeTab = TAB_OPEN;
+    if (!openLoaded || now() - openLoadedAt >= REFRESH_MILLIS) {
+      loadOpen();
+    }
+  }
+
+  /** The Closed list is read here, the first time the tab is opened, and not before. */
+  public void showClosed() {
+    activeTab = TAB_CLOSED;
+    if (!closedLoaded || now() - closedLoadedAt >= REFRESH_MILLIS) {
+      loadClosedFirstPage();
+    }
+  }
+
+  public void showMine() {
+    setScope(true);
+  }
+
+  public void showAll() {
+    setScope(false);
+  }
+
+  /** Reads the shown tab again now (the refresh icon). */
+  public void refresh() {
+    if (TAB_CLOSED.equals(activeTab)) {
+      loadClosedFirstPage();
+    } else {
+      loadOpen();
+    }
+    refreshBadge();
+  }
+
+  /** Adds the next page of the Closed list below the current lines. */
+  public void loadMoreClosed() {
+    if (closedNext == null) {
+      return;
+    }
+    final TaskRailPageRow page = taskRailUiService.closed(mineOnly, closedNext);
+    if (page == null) {
+      closedFailed = true;
+      return;
+    }
+    closedFailed = false;
+    closedItems.addAll(page.getItems());
+    closedNext = page.getNextBefore();
+  }
+
+  public boolean isOpenTab() {
+    return TAB_OPEN.equals(activeTab);
+  }
+
+  public boolean isClosedTab() {
+    return TAB_CLOSED.equals(activeTab);
+  }
+
+  /** The lines of the tab being shown. */
+  public List<TaskRailRow> getItems() {
+    return isClosedTab() ? closedItems : openItems;
+  }
+
+  /** True when the shown tab was read and came back empty. */
+  public boolean isEmptyShown() {
+    return isClosedTab()
+        ? closedLoaded && !closedFailed && closedItems.isEmpty()
+        : openLoaded && !openFailed && openItems.isEmpty();
+  }
+
+  /** True when the shown tab has not been read yet (the first hover is still loading it). */
+  public boolean isLoadingShown() {
+    return isClosedTab()
+        ? !closedLoaded && !closedFailed
+        : !openLoaded && !openFailed;
+  }
+
+  /** True when reading the shown tab failed. */
+  public boolean isFailedShown() {
+    return isClosedTab() ? closedFailed : openFailed;
+  }
+
+  public boolean isHasMoreClosed() {
+    return closedNext != null;
+  }
+
+  /** The Open tab title with its count once the list has been read, such as "Open (3)". */
+  public String getOpenTitle() {
+    return openLoaded && !openFailed ? "Open (" + openItems.size() + ")" : "Open";
+  }
+
+  /**
+   * ADDED 2026-10-18: link to the task's detail page in ECWS,
+   * {ecws.base-url}/collaborationTask?taskId=N&Action=Update, or null while the task has not been
+   * sent to ECWS yet (taskrail.xhtml then shows a greyed icon).
+   */
+  public String getEcwsTaskUrl(final TaskRailRow row) {
+    if (row == null || row.getEcwsTaskId() == null) {
+      return null;
+    }
+    return UriComponentsBuilder
+        .fromUriString(ecwsBaseUrl + "/collaborationTask")
+        .queryParam("taskId", row.getEcwsTaskId())
+        .queryParam("Action", "Update")
+        .build()
+        .encode()
+        .toUriString();
+  }
+
+  private void setScope(final boolean mine) {
+    if (mineOnly == mine) {
+      return;
+    }
+    mineOnly = mine;
+    // Both lists depend on the scope. Closed stays unread until its tab is opened again.
+    closedLoaded = false;
+    closedItems = new ArrayList<>();
+    closedNext = null;
+    closedFailed = false;
+    openLoaded = false;
+    if (isClosedTab()) {
+      loadClosedFirstPage();
+    } else {
+      loadOpen();
+    }
+  }
+
+  private void loadOpen() {
+    final TaskRailPageRow page = taskRailUiService.open(mineOnly);
+    openLoadedAt = now();
+    if (page == null) {
+      openFailed = true;
+      return;
+    }
+    openFailed = false;
+    openLoaded = true;
+    openItems = new ArrayList<>(page.getItems());
+  }
+
+  private void loadClosedFirstPage() {
+    final TaskRailPageRow page = taskRailUiService.closed(mineOnly, null);
+    closedLoadedAt = now();
+    if (page == null) {
+      closedFailed = true;
+      return;
+    }
+    closedFailed = false;
+    closedLoaded = true;
+    closedItems = new ArrayList<>(page.getItems());
+    closedNext = page.getNextBefore();
+  }
+
+  private void refreshBadge() {
+    final int count = taskRailUiService.assignedToMe();
+    badgeLoadedAt = now();
+    if (count >= 0) {
+      badge = count;
+    }
+  }
+
+  private static long now() {
+    return System.currentTimeMillis();
   }
 
   public void togglePinned() {

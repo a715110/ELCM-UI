@@ -5,7 +5,7 @@
 
 :root {
   --task-rail-collapsed-w: 48px;
-  --task-rail-expanded-w: 300px;
+  --task-rail-expanded-w: 380px; /* REVISED 2026-10-18: was 300px, wider for the task lists */
   --task-rail-bg: #ffffff;
   --task-rail-border: rgba(0, 0, 0, 0.08);
   --task-rail-handle-bg: var(--elcm-accent, #2f5d50); /* falls back if elcm-custom var absent */
@@ -255,4 +255,251 @@
 .layout-menu-dark .task-rail-item-desc,
 .layout-topbar-dark .task-rail-item-desc {
   color: rgba(255, 255, 255, 0.35);
+}
+
+/* ============================================================
+   ADDED 2026-10-18 -- Review and Approval task lists
+   ============================================================ */
+
+/* Fixed inner width, so the content does not reflow while the panel grows open. */
+.task-rail-panel-inner {
+  width: calc(var(--task-rail-expanded-w) - var(--task-rail-collapsed-w));
+}
+
+.task-rail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.task-rail-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--task-rail-border);
+}
+
+.task-rail-tab {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #777;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.task-rail-tab:hover {
+  color: #333;
+}
+.task-rail-tab-active {
+  color: var(--task-rail-handle-bg);
+  border-bottom-color: var(--task-rail-handle-bg);
+}
+
+.task-rail-scope {
+  margin-left: auto;
+  display: inline-flex;
+  border: 1px solid var(--task-rail-border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.task-rail-scope-btn {
+  padding: 2px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #777;
+  text-decoration: none;
+  cursor: pointer;
+}
+.task-rail-scope-active {
+  background: var(--task-rail-handle-bg);
+  color: #fff;
+}
+
+.task-rail-note {
+  padding: 16px 14px;
+  font-size: 0.8rem;
+  color: #888;
+}
+.task-rail-note-error {
+  color: #c0392b;
+}
+
+.task-rail-tasks {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.task-rail-task-link {
+  display: block;
+  padding: 9px 14px;
+  text-decoration: none;
+  color: #333;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  transition: background 0.1s;
+}
+.task-rail-task-link:hover {
+  background: rgba(47, 93, 80, 0.08);
+}
+
+.task-rail-task-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-rail-chip {
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.task-rail-chip-review {
+  background: #e3f0ec;
+  color: #2f5d50;
+}
+.task-rail-chip-approval {
+  background: #fdf0d5;
+  color: #8a5a00;
+}
+
+.task-rail-task-code {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-rail-due {
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.task-rail-due-later {
+  color: #777;
+}
+.task-rail-due-today {
+  color: #b9770e;
+}
+.task-rail-due-overdue {
+  color: #c0392b;
+}
+
+.task-rail-task-line {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.75rem;
+  color: #666;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task-rail-task-meta {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.68rem;
+  color: #999;
+}
+
+.task-rail-more {
+  padding: 8px 14px 10px;
+  text-align: center;
+}
+.task-rail-more-btn {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--task-rail-handle-bg);
+  cursor: pointer;
+}
+
+.task-rail-footer {
+  padding: 10px 14px 12px;
+  border-top: 1px solid var(--task-rail-border);
+}
+.task-rail-footer-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--task-rail-handle-bg);
+  text-decoration: none;
+}
+.task-rail-footer-soon {
+  margin-top: 6px;
+  font-size: 0.68rem;
+  font-style: italic;
+  color: #aaa;
+}
+
+@media (max-width: 768px) {
+  .task-rail-panel-inner {
+    width: 100%;
+  }
+}
+
+.layout-menu-dark .task-rail-task-link,
+.layout-topbar-dark .task-rail-task-link {
+  color: #d8dae8;
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+.layout-menu-dark .task-rail-task-line,
+.layout-topbar-dark .task-rail-task-line {
+  color: rgba(255, 255, 255, 0.55);
+}
+.layout-menu-dark .task-rail-tab:hover,
+.layout-topbar-dark .task-rail-tab:hover {
+  color: #fff;
+}
+.layout-menu-dark .task-rail-chip-review,
+.layout-topbar-dark .task-rail-chip-review {
+  background: rgba(47, 93, 80, 0.45);
+  color: #bfe3d8;
+}
+.layout-menu-dark .task-rail-chip-approval,
+.layout-topbar-dark .task-rail-chip-approval {
+  background: rgba(138, 90, 0, 0.45);
+  color: #ffd98a;
+}
+
+/* ADDED 2026-10-18 -- second link on a task line: the task's detail page in ECWS. */
+.task-rail-task-row {
+  display: flex;
+  align-items: stretch;
+}
+.task-rail-task-row .task-rail-task-link {
+  flex: 1;
+  min-width: 0;
+}
+.task-rail-ecws-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  flex-shrink: 0;
+  color: var(--task-rail-handle-bg);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  border-left: 1px solid rgba(0, 0, 0, 0.04);
+}
+.task-rail-ecws-link:hover {
+  background: rgba(47, 93, 80, 0.08);
+}
+.task-rail-ecws-link-off {
+  color: #c4c4c4;
+  cursor: default;
+}
+.task-rail-ecws-link-off:hover {
+  background: transparent;
 }

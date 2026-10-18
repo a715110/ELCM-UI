@@ -5,85 +5,184 @@
                 xmlns:p="http://primefaces.org/ui">
 
     <!--
-        Task Rail: hover-to-expand icon panel docked to the right edge of the
-        viewport, giving access to ECWS collaboration-task functions from any
-        page. Collapsed state shows only icons + badge counts; hovering (or
-        tapping, on touch) expands it to show labels/descriptions, in the
-        style of Smartsheet's right-side panel rail.
+        Task Rail: hover-to-expand panel docked to the right edge of the viewport, available on
+        every page. Collapsed, it shows only the handle with a badge (open Review and Approval
+        tasks assigned to you). Hovering, or tapping on touch screens, expands it.
 
-        Deliberately independent of the existing .layout-rightpanel /
-        .layout-rightpanel-button click-toggle mechanism already wired up in
-        layout.js (see rightpanel.xhtml in ADEV-ECWS-UI) that is a
-        full-height slide-in drawer toggled by a topbar button; this is a
-        persistently-docked, hover-driven rail. The two can coexist.
+        REVISED 2026-10-18: the panel now lists Review and Approval tasks in two tabs. Open is the
+        default. Closed is read only when its tab is clicked. Each line links to the package in
+        ELCM (dashboard with the review parameter, the same link the Work Queue uses). The lists
+        come from the ELCM service, which decides what each person may see. The footer keeps the
+        link to ECWS and the items that are not available yet.
 
-        Backing bean: com.dodaso.ecosystem.elcm.ui.bean.TaskRailBean
-        (SessionScoped; see class Javadoc for data-source TODOs).
+        Backing bean: com.dodaso.ecosystem.elcm.ui.bean.TaskRailBean (SessionScoped).
+        Lazy loading: task-rail.js calls the remoteCommand taskRailLoad when the rail is hovered
+        or tapped; the bean reads again only when its data is older than 30 seconds.
     -->
     <h:form id="taskRailForm" prependId="false">
+        <p:remoteCommand name="taskRailLoad"
+                         actionListener="#{taskRailBean.loadIfStale}"
+                         process="@this"
+                         update="taskRailBody taskRailBadge"
+                         global="false"/>
+
         <div id="taskRail"
              class="task-rail #{taskRailBean.pinned ? 'task-rail-pinned' : ''}">
 
             <!-- Collapsed handle: always visible, sits flush with the edge -->
-            <div class="task-rail-handle" aria-label="ECWS Task Menu">
+            <div class="task-rail-handle" aria-label="Task panel">
                 <i class="pi pi-briefcase task-rail-handle-icon"/>
-                <ui:fragment rendered="#{taskRailBean.totalBadgeCount gt 0}">
-                    <span class="task-rail-handle-badge">#{taskRailBean.totalBadgeCount}</span>
-                </ui:fragment>
+                <h:panelGroup id="taskRailBadge" layout="inline">
+                    <ui:fragment rendered="#{taskRailBean.totalBadgeCount gt 0}">
+                        <span class="task-rail-handle-badge">#{taskRailBean.totalBadgeCount}</span>
+                    </ui:fragment>
+                </h:panelGroup>
             </div>
 
-            <!-- Expanded panel: revealed via CSS on hover of #taskRail,
-                 or permanently if pinned -->
-            <div class="task-rail-panel" role="menu" aria-label="ECWS Task Functions">
-                <div class="task-rail-panel-header">
-                    <span class="task-rail-title">ECWS Tasks</span>
-                    <p:commandLink actionListener="#{taskRailBean.togglePinned}"
-                                   update="taskRailForm"
-                                   styleClass="task-rail-pin-btn"
-                                   title="#{taskRailBean.pinned ? 'Unpin panel' : 'Keep panel open'}">
-                        <i class="pi #{taskRailBean.pinned ? 'pi-lock' : 'pi-lock-open'}"/>
-                    </p:commandLink>
-                </div>
+            <!-- Expanded panel: revealed by CSS on hover of #taskRail, or when pinned -->
+            <div class="task-rail-panel" aria-label="Review and approval tasks">
+                <div class="task-rail-panel-inner">
+                    <div class="task-rail-panel-header">
+                        <span class="task-rail-title">Tasks</span>
+                        <span class="task-rail-header-actions">
+                            <p:commandLink actionListener="#{taskRailBean.refresh}"
+                                           process="@this"
+                                           update="taskRailBody taskRailBadge"
+                                           global="false"
+                                           styleClass="task-rail-pin-btn"
+                                           title="Refresh">
+                                <i class="pi pi-refresh"/>
+                            </p:commandLink>
+                            <p:commandLink actionListener="#{taskRailBean.togglePinned}"
+                                           update="taskRailForm"
+                                           styleClass="task-rail-pin-btn"
+                                           title="#{taskRailBean.pinned ? 'Unpin panel' : 'Keep panel open'}">
+                                <i class="pi #{taskRailBean.pinned ? 'pi-lock' : 'pi-lock-open'}"/>
+                            </p:commandLink>
+                        </span>
+                    </div>
 
-                <ul class="task-rail-items">
-                    <ui:repeat var="item" value="#{taskRailBean.railItems}">
-                        <li class="task-rail-item #{item.available ? '' : 'task-rail-item-disabled'}">
+                    <h:panelGroup id="taskRailBody" layout="block" styleClass="task-rail-body">
+                        <div class="task-rail-tabs">
+                            <p:commandLink actionListener="#{taskRailBean.showOpen}"
+                                           process="@this"
+                                           update="taskRailBody"
+                                           global="false"
+                                           styleClass="task-rail-tab #{taskRailBean.openTab ? 'task-rail-tab-active' : ''}">
+                                #{taskRailBean.openTitle}
+                            </p:commandLink>
+                            <p:commandLink actionListener="#{taskRailBean.showClosed}"
+                                           process="@this"
+                                           update="taskRailBody"
+                                           global="false"
+                                           styleClass="task-rail-tab #{taskRailBean.closedTab ? 'task-rail-tab-active' : ''}">
+                                Closed
+                            </p:commandLink>
+                            <span class="task-rail-scope">
+                                <p:commandLink actionListener="#{taskRailBean.showMine}"
+                                               process="@this"
+                                               update="taskRailBody"
+                                               global="false"
+                                               title="Tasks assigned to you, and packages you submitted or reviewed"
+                                               styleClass="task-rail-scope-btn #{taskRailBean.mineOnly ? 'task-rail-scope-active' : ''}">
+                                    Mine
+                                </p:commandLink>
+                                <p:commandLink actionListener="#{taskRailBean.showAll}"
+                                               process="@this"
+                                               update="taskRailBody"
+                                               global="false"
+                                               title="Everything you are allowed to see"
+                                               styleClass="task-rail-scope-btn #{taskRailBean.mineOnly ? '' : 'task-rail-scope-active'}">
+                                    All
+                                </p:commandLink>
+                            </span>
+                        </div>
+
+                        <ui:fragment rendered="#{taskRailBean.loadingShown}">
+                            <div class="task-rail-note">Loading tasks...</div>
+                        </ui:fragment>
+                        <ui:fragment rendered="#{taskRailBean.failedShown}">
+                            <div class="task-rail-note task-rail-note-error">
+                                The tasks could not be loaded. Use the refresh icon to try again.
+                            </div>
+                        </ui:fragment>
+                        <ui:fragment rendered="#{taskRailBean.emptyShown}">
+                            <div class="task-rail-note">
+                                #{taskRailBean.closedTab ? 'No closed tasks in the last 30 days.' : 'No open tasks.'}
+                            </div>
+                        </ui:fragment>
+
+                        <ul class="task-rail-tasks">
+                            <ui:repeat var="t" value="#{taskRailBean.items}">
+                                <li class="task-rail-task task-rail-task-row">
+                                    <h:link outcome="/dashboard" styleClass="task-rail-task-link">
+                                        <f:param name="review" value="#{t.packageId}"/>
+                                        <f:param name="Source" value="TaskRail"/>
+                                        <span class="task-rail-task-top">
+                                            <span class="task-rail-chip task-rail-chip-#{t.chipStyle}">#{t.eventLabel}</span>
+                                            <span class="task-rail-task-code">#{t.packageCode}</span>
+                                            <ui:fragment rendered="#{not taskRailBean.closedTab and not empty t.dueText}">
+                                                <span class="task-rail-due task-rail-due-#{t.dueStyle}">#{t.dueText}</span>
+                                            </ui:fragment>
+                                        </span>
+                                        <ui:fragment rendered="#{not taskRailBean.closedTab}">
+                                            <span class="task-rail-task-line">#{t.relationText}</span>
+                                        </ui:fragment>
+                                        <ui:fragment rendered="#{taskRailBean.closedTab}">
+                                            <span class="task-rail-task-line">#{t.outcome}</span>
+                                            <span class="task-rail-task-meta">#{t.closedAt}</span>
+                                        </ui:fragment>
+                                    </h:link>
+                                    <ui:fragment rendered="#{not empty t.ecwsTaskId}">
+                                        <h:outputLink value="#{taskRailBean.getEcwsTaskUrl(t)}"
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      styleClass="task-rail-ecws-link"
+                                                      title="Open this task in ECWS">
+                                            <i class="pi pi-external-link"/>
+                                        </h:outputLink>
+                                    </ui:fragment>
+                                    <ui:fragment rendered="#{empty t.ecwsTaskId}">
+                                        <span class="task-rail-ecws-link task-rail-ecws-link-off"
+                                              title="Not created in ECWS yet">
+                                            <i class="pi pi-external-link"/>
+                                        </span>
+                                    </ui:fragment>
+                                </li>
+                            </ui:repeat>
+                        </ul>
+
+                        <ui:fragment rendered="#{taskRailBean.closedTab and taskRailBean.hasMoreClosed}">
+                            <div class="task-rail-more">
+                                <p:commandLink actionListener="#{taskRailBean.loadMoreClosed}"
+                                               process="@this"
+                                               update="taskRailBody"
+                                               global="false"
+                                               styleClass="task-rail-more-btn">
+                                    Load more
+                                </p:commandLink>
+                            </div>
+                        </ui:fragment>
+                    </h:panelGroup>
+
+                    <div class="task-rail-footer">
+                        <ui:repeat var="item" value="#{taskRailBean.railItems}">
                             <ui:fragment rendered="#{item.available}">
-                                <!-- ECWS is a separate app (see nginx /ecws vs /elcm routing)
-                                     an absolute cross-app URL opened in a new tab, not a JSF
-                                     outcome/h:link. rel="noopener noreferrer" per new-tab best
-                                     practice (prevents the new tab from getting a handle back
-                                     to this window). -->
                                 <h:outputLink value="#{taskRailBean.getEcwsUrl(item)}"
                                               target="_blank"
                                               rel="noopener noreferrer"
-                                              styleClass="task-rail-item-link">
-                                    <i class="#{item.icon} task-rail-item-icon"/>
-                                    <span class="task-rail-item-body">
-                                        <span class="task-rail-item-label">#{item.label}</span>
-                                        <span class="task-rail-item-desc">#{item.description}</span>
-                                    </span>
-                                    <ui:fragment rendered="#{item.badgeCount gt 0}">
-                                        <span class="task-rail-item-badge">#{item.badgeCount}</span>
-                                    </ui:fragment>
+                                              styleClass="task-rail-footer-link">
+                                    <i class="#{item.icon}"/>
+                                    <span>Open #{item.label} in ECWS</span>
                                 </h:outputLink>
                             </ui:fragment>
-                            <ui:fragment rendered="#{not item.available}">
-                                <!-- Route not yet confirmed against a real ECWS page 
-                                     rendered inert (no href) rather than a guessed/dead link.
-                                     See TaskRailBean init() to wire this up once confirmed. -->
-                                <span class="task-rail-item-link task-rail-item-link-disabled"
-                                      title="Not yet available">
-                                    <i class="#{item.icon} task-rail-item-icon"/>
-                                    <span class="task-rail-item-body">
-                                        <span class="task-rail-item-label">#{item.label}</span>
-                                        <span class="task-rail-item-desc">Coming soon</span>
-                                    </span>
-                                </span>
-                            </ui:fragment>
-                        </li>
-                    </ui:repeat>
-                </ul>
+                        </ui:repeat>
+                        <div class="task-rail-footer-soon">
+                            More coming soon: Task Inbox, Create Task, Approvals Queue,
+                            Reassign Task, Activity Log, Notifications.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </h:form>
