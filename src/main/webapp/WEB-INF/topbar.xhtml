@@ -277,11 +277,14 @@
                             </a>
                             <ul>
                                 <li>
-                                    <a href="#">
+                                    <a href="#{request.contextPath}/profile">
                                         <i class="pi pi-user"/>
                                         <span>Profile</span>
                                     </a>
                                 </li>
+                                <!-- REVISED 2026-10-18: Settings, Messages and Notifications are hidden until they are built.
+                                     The markup is kept inside ui:remove so it can be put back. -->
+                                <ui:remove>
                                 <li>
                                     <a href="#">
                                         <i class="pi pi-cog"/>
@@ -300,6 +303,7 @@
                                         <span>Notifications</span>
                                     </a>
                                 </li>
+                                </ui:remove>
                                 <li>
                                     <!-- Logout: asks for confirmation first, through the session script
                                          when it is loaded (the other open tabs then sign out too),
@@ -324,4 +328,4 @@
 
     </div>
 
-</ui:composition>
+</ui:composition>

@@ -14,6 +14,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import com.dodaso.ecosystem.baseline.common.profile.UserPreferences;
 import com.dodaso.ecosystem.baseline.common.security.AuthenticationUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -121,9 +122,18 @@ public class TaskRailBean implements Serializable {
   private int badge;
   private long badgeLoadedAt;
 
+  /** ADDED 2026-10-18: the user's saved choices from the Profile page. */
+  @Autowired
+  private UserPreferences userPreferences;
+
   @PostConstruct
   private void init() {
     loginId = authenticationUtil.getUsername();
+
+    // ADDED 2026-10-18: start with what the user chose on the Profile page. Nothing saved, or
+    // IAMS not reachable, leaves the standard start (Mine, hover to open).
+    mineOnly = !"ALL".equals(userPreferences.get("taskPanel.scope", "MINE"));
+    pinned = "true".equals(userPreferences.get("taskPanel.pinned", "false"));
 
     railItems = new ArrayList<>();
 

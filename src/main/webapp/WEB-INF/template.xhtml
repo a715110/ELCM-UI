@@ -7,6 +7,8 @@
       lang="en">
 <h:head>
     <f:facet name="first">
+        <!-- ADDED 2026-10-18: applies the saved theme once per session, before the style sheets -->
+        <h:outputText value="#{userPreferences.applied}"/>
         <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
         <meta name="viewport"
@@ -124,4 +126,4 @@
          rules each override replaces. -->
     <h:outputStylesheet name="css/theme-override.css" library="elcm-custom"/>
 </h:body>
-</html>
+</html>

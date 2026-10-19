@@ -1,0 +1,18 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                template="/WEB-INF/template.xhtml">
+  <!--
+    ADDED 2026-10-18 - Profile. The page itself is shared with ECWS and lives in baseline-common
+    (dodaso-profile/profile-content.xhtml); ELCM adds its own parts through ElcmProfileExtension.
+  -->
+  <ui:define name="title">Profile</ui:define>
+
+  <ui:define name="head">
+    <h:outputStylesheet name="profile.css" library="dodaso-profile"/>
+  </ui:define>
+
+  <ui:define name="content">
+    <ui:include src="/dodaso-profile/profile-content.xhtml"/>
+  </ui:define>
+</ui:composition>
