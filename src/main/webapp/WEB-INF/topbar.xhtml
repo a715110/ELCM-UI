@@ -272,10 +272,11 @@
                             rendered="#{rainPreferences.profileMode == 'popup' ? true : false}">
                         <li class="topbar-item user-profile">
                             <a href="#">
-                                <p:graphicImage name="images/avatar-profilemenu.png"
-                                                library="rain-layout"/>
+                                <!-- REVISED 2026-10-18: the stock photo is replaced by the shared initials avatar. -->
+                                <ui:include src="/dodaso-profile/avatar-button.xhtml"/>
                             </a>
                             <ul>
+                                <ui:include src="/dodaso-profile/avatar-header.xhtml"/>
                                 <li>
                                     <a href="#{request.contextPath}/profile">
                                         <i class="pi pi-user"/>
