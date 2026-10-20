@@ -169,6 +169,32 @@ body .p-tag.p-tag-success {
   color: var(--elcm-accent-text) !important;
 }
 
+/*
+    ADDED 2026-10-19: status tags other than success took the page design kit's own colors, so
+    "Validated - Ready for review" (severity info) showed in a bright blue that belongs to no other
+    part of the screen. The three remaining severities now use muted colors that sit with the green
+    and warm neutral palette, and the same warning and error colors as the Extraction Quality screen.
+    Both the legacy ui-tag and the modern p-tag class names are covered, as for success above.
+    info: in progress or ready for someone. warning: waiting or needs attention. danger: failed.
+*/
+body .ui-tag.ui-tag-info,
+body .p-tag.p-tag-info {
+  background: #E3ECEA !important;
+  color: #1F4F46 !important;
+}
+
+body .ui-tag.ui-tag-warning,
+body .p-tag.p-tag-warning {
+  background: #FEF3C7 !important;
+  color: #92400E !important;
+}
+
+body .ui-tag.ui-tag-danger,
+body .p-tag.p-tag-danger {
+  background: #FEE2E2 !important;
+  color: #B91C1C !important;
+}
+
 
 /* ---- Sidebar menu: warm neutral, accent only on active/hover ---- */
 
