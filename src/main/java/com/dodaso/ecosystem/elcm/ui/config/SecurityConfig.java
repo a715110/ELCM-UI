@@ -1,5 +1,6 @@
 package com.dodaso.ecosystem.elcm.ui.config;
 
+import com.dodaso.ecosystem.baseline.common.profile.LandingPageService;
 import com.dodaso.ecosystem.baseline.common.session.IdleClockFilter;
 import com.dodaso.ecosystem.baseline.common.session.LogoutMarkerFilter;
 import com.dodaso.ecosystem.baseline.common.session.SessionCleanupLogoutHandler;
@@ -12,6 +13,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -49,10 +51,14 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequ
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.context.SecurityContextHolderFilter;
+import org.springframework.security.web.savedrequest.DefaultSavedRequest;
+import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+import org.springframework.security.web.savedrequest.SavedRequest;
 import org.springframework.security.web.session.InvalidSessionStrategy;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -77,6 +83,10 @@ public class SecurityConfig {
 
   @Autowired
   private SessionCleanupLogoutHandler sessionCleanupLogoutHandler;
+
+  /** ADDED 2026-10-20. Where a user lands after sign-in (the Profile page choice). */
+  @Autowired
+  private ObjectProvider<LandingPageService> landingPageService;
 
   /** SSO base URL, where the identity provider's /logout lives. */
   @Value("${dodaso.instance.auth-issuer-uri}")
@@ -178,6 +188,11 @@ public class SecurityConfig {
 
   @Bean
   SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    // ADDED 2026-10-20: remembers the page asked for before the SSO login so the login can return
+    // to it (see returnToRequestedPage). The "continue" parameter is switched off so the saved
+    // page is found again on the callback request. Same as ECWS.
+    final HttpSessionRequestCache requestCache = new HttpSessionRequestCache();
+    requestCache.setMatchingRequestParameterName(null);
     http
         .addFilterBefore(oauth2DebugFilter(), OAuth2LoginAuthenticationFilter.class)
         // Ends a session created before the shared logout marker (see LogoutMarkerFilter).
@@ -208,6 +223,7 @@ public class SecurityConfig {
         .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
             new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED), sessionApiMatcher()))
         .csrf(csrf -> csrf.disable()) // Temporarily disable for testing
+        .requestCache(cache -> cache.requestCache(requestCache)) // ADDED 2026-10-20
         // ADDED 2026-10-02 -- without this, Spring Security's own default
         // X-Frame-Options header-writer runs AFTER SimpleCORSFilter (which
         // tries to set X-Frame-Options: SAMEORIGIN) and overrides it with
@@ -247,7 +263,10 @@ public class SecurityConfig {
                 .accessTokenResponseClient(accessTokenResponseClient())
             )
             .loginPage("/oauth2/authorization/sso?reason=timeout")
-            .defaultSuccessUrl("/dashboard", true)
+            // REVISED 2026-10-20: was defaultSuccessUrl("/dashboard", true), which always went to
+            // the dashboard. Now: the page that was asked for, else the user's landing page from
+            // the Profile page, else the dashboard (LandingPageService in baseline-common).
+            .successHandler(returnToRequestedPage(requestCache))
             // FIX: the previous handler used response.sendRedirect("/oauth2/authorization/sso"),
             // which is relative to the SERVER root, not to this app: behind nginx it became
             // https://localhost/oauth2/authorization/sso (no /ecws or /elcm) and returned 404.
@@ -282,6 +301,31 @@ public class SecurityConfig {
         );
 
     return http.build();
+  }
+
+  /**
+   * ADDED 2026-10-20. After the SSO login, goes to the page the user asked for, or else to their
+   * chosen landing page, or else to the dashboard. The redirect stays relative to this app's
+   * context path. Calls under /api/ are never used as a return page.
+   */
+  private AuthenticationSuccessHandler returnToRequestedPage(
+      final HttpSessionRequestCache cache) {
+    return (request, response, authentication) -> {
+      final String context = request.getContextPath();
+      String requestedPath = null;
+      String requestedQuery = null;
+      final SavedRequest saved = cache.getRequest(request, response);
+      if (saved instanceof DefaultSavedRequest page) {
+        requestedPath = page.getRequestURI();
+        requestedQuery = page.getQueryString();
+      }
+      cache.removeRequest(request, response);
+      final LandingPageService landing = landingPageService.getIfAvailable();
+      final String target = landing != null
+          ? landing.target(context, requestedPath, requestedQuery)
+          : context + "/dashboard";
+      response.sendRedirect(target);
+    };
   }
 
   private static OrRequestMatcher sessionApiMatcher() {

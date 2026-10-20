@@ -1,6 +1,7 @@
 package com.dodaso.ecosystem.elcm.ui.bean;
 
 import com.dodaso.ecosystem.baseline.common.constant.ServiceDiscoveryEnum;
+import com.dodaso.ecosystem.baseline.common.profile.ProfileChoice;
 import com.dodaso.ecosystem.baseline.common.profile.ProfileExtension;
 import com.dodaso.ecosystem.baseline.common.profile.ProfileLink;
 import com.dodaso.ecosystem.baseline.common.profile.ProfileOption;
@@ -48,6 +49,9 @@ public class ElcmProfileExtension implements ProfileExtension {
   private ObjectProvider<TaskRailBean> taskRailBean;
 
   @Autowired
+  private ObjectProvider<MenuAccessBean> menuAccessBean;
+
+  @Autowired
   private TaskRailUiService taskRailUiService;
 
   @Autowired
@@ -73,6 +77,26 @@ public class ElcmProfileExtension implements ProfileExtension {
   @Override
   public String currentTheme() {
     return rainPreferences.getObject().getDarkMode();
+  }
+
+  /**
+   * ADDED 2026-10-20. The main pages the user can choose to land on after sign-in. The Dashboard is
+   * the first choice and always offered; My Submissions and Work Queue follow the same role check
+   * as the menu (MenuAccessBean), so a user is only offered pages the menu shows.
+   */
+  @Override
+  public List<ProfileChoice> landingChoices() {
+    final MenuAccessBean access = menuAccessBean.getObject();
+    final List<ProfileChoice> list = new ArrayList<>();
+    list.add(new ProfileChoice("/dashboard", "Dashboard"));
+    if (access.canSee("mySubmissions")) {
+      list.add(new ProfileChoice("/mysubmissions?Source=Menu", "My Submissions"));
+    }
+    if (access.canSee("workQueue")) {
+      list.add(new ProfileChoice("/workqueue?Source=Menu", "Work Queue"));
+    }
+    list.add(new ProfileChoice("/contractrecords?Source=Menu", "Contract Records"));
+    return list;
   }
 
   @Override
