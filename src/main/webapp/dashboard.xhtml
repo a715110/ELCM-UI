@@ -521,7 +521,7 @@
              per document is optional. One workspace per package: a selection that
              spans workspaces is refused before the dialog opens. -->
         <p:dialog widgetVar="createDocumentSetDialog"
-                  header="Create Document Set"
+                  header="Create a Contract Package"
                   modal="true"
                   resizable="false"
                   draggable="false"
@@ -1663,7 +1663,7 @@
                          greyed-out state shown there. Assumes stageDocumentsBean
                          exposes selectedDocuments as a List that's empty by default
                          confirm the getter name if this doesn't compile as-is. -->
-                    <p:commandButton id="createSetButton" value="Create Document Set"
+                    <p:commandButton id="createSetButton" value="Create a Contract Package"
                                      icon="pi pi-arrow-right" iconPos="right"
                                      disabled="#{empty stageDocumentsBean.selectedDocuments or demoRoleBean.readOnly('Stage Documents')}"
                                      process="@form"
