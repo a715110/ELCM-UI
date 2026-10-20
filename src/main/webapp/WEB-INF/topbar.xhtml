@@ -81,6 +81,10 @@
                             </h:form>
                         </li>
                     </ui:fragment>
+                    <!-- REVISED 2026-10-19: the Notifications, Messages and Sales icons held the theme's sample
+                         content (New Order, Mat Black Case) and no real function, so they are hidden until they
+                         are built. The markup is kept inside ui:remove so it can be put back. -->
+                    <ui:remove>
                     <li class="topbar-item notifications">
                         <a href="#">
                             <i class="topbar-icon pi pi-bell"/>
@@ -268,6 +272,7 @@
                             </li>
                         </ul>
                     </li>
+                    </ui:remove>
                     <ui:fragment
                             rendered="#{rainPreferences.profileMode == 'popup' ? true : false}">
                         <li class="topbar-item user-profile">
