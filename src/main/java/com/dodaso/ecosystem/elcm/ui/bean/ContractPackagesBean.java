@@ -143,6 +143,7 @@ public class ContractPackagesBean implements Serializable {
       case "RUNNING" -> "Extracting";
       case "DONE" -> "Ready for review";
       case "FAILED" -> "Extraction failed";
+      case "STOPPED" -> "Extraction stopped";
       case "REVIEWED" -> "Awaiting approval";
       default -> null;
     };

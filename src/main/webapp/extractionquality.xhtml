@@ -34,12 +34,95 @@
       .q-bar-labels { display: flex; gap: 0.5rem; overflow-x: auto; }
       .q-bar-label { flex: 0 0 4.5rem; text-align: center; font-size: 0.7rem; color: #6B6A63; padding-top: 0.25rem; }
       .q-note { color: #6B6A63; font-size: 0.85rem; margin-top: 0.5rem; }
+      .c-head { display: flex; flex-wrap: wrap; gap: 0.75rem 1rem; align-items: center; justify-content: space-between; }
+      .c-state { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
+      .c-detail { color: #6B6A63; font-size: 0.9rem; margin-top: 0.5rem; }
+      .c-log { width: 100%; border-collapse: collapse; margin-top: 0.75rem; font-size: 0.85rem; }
+      .c-log td { padding: 0.25rem 0.5rem; border-top: 1px solid #E5E2D9; color: #2B2A26; vertical-align: top; }
     </style>
   </ui:define>
 
   <ui:define name="content">
     <h1>Extraction Quality</h1>
     <p class="q-sub">How often reviewers kept what the extractor read, from completed reviews. Use it to spot weak templates, fields and models.</p>
+
+    <!-- ADDED 2026-10-18 - Pause and Resume of the extraction agent. The state is saved in the
+         database, so a pause survives a restart. Only administrators reach this page. -->
+    <h:form id="controlForm">
+      <div class="q-card">
+        <div class="c-head">
+          <div class="c-state">
+            <h3 style="margin: 0;">Extraction agent</h3>
+            <p:tag value="Paused" severity="warn" rendered="#{extractionControlBean.state.paused}"/>
+            <p:tag value="Running" severity="success" rendered="#{not extractionControlBean.state.paused and not extractionControlBean.loadFailed}"/>
+            <p:tag value="Unknown" severity="secondary" rendered="#{extractionControlBean.loadFailed}"/>
+            <h:outputText value="#{extractionControlBean.state.queued} waiting, #{extractionControlBean.state.processing} being read"
+                          rendered="#{not extractionControlBean.loadFailed}"/>
+          </div>
+          <div>
+            <p:commandButton value="Pause extraction" icon="pi pi-pause"
+                             rendered="#{not extractionControlBean.state.paused and not extractionControlBean.loadFailed}"
+                             process="@this" update="pauseForm"
+                             actionListener="#{extractionControlBean.preparePause}"
+                             oncomplete="PF('pauseDialog').show();"/>
+            <p:commandButton value="Resume extraction" icon="pi pi-play"
+                             rendered="#{extractionControlBean.state.paused}"
+                             process="@this" update="@form"
+                             actionListener="#{extractionControlBean.resume}"/>
+            <p:commandButton value="Refresh" icon="pi pi-refresh" styleClass="ui-button-flat"
+                             process="@this" update="@form"
+                             actionListener="#{extractionControlBean.load}"/>
+          </div>
+        </div>
+        <h:panelGroup layout="block" styleClass="c-detail" rendered="#{extractionControlBean.loadFailed}">
+          <h:outputText value="The agent state could not be read. Run extraction_control.sql if it has not been run, or try Refresh."/>
+        </h:panelGroup>
+        <h:panelGroup layout="block" styleClass="c-detail" rendered="#{extractionControlBean.state.paused}">
+          <h:outputText value="Paused by #{extractionControlBean.state.pausedBy} on #{extractionControlBean.state.pausedAtText}: #{extractionControlBean.state.reason}"/>
+          <br/>
+          <h:outputText value="Nothing new starts. A package being read goes back in the queue after the document it is on, and carries on when you resume."/>
+        </h:panelGroup>
+        <h:panelGroup layout="block" styleClass="c-detail"
+                      rendered="#{not extractionControlBean.state.paused and not extractionControlBean.loadFailed}">
+          <h:outputText value="To stop one package, open it from Contract Packages and use Stop extraction."/>
+        </h:panelGroup>
+        <table class="c-log">
+          <ui:repeat var="e" value="#{extractionControlBean.state.recent}">
+            <tr>
+              <td><h:outputText value="#{e.atText}"/></td>
+              <td><h:outputText value="#{e.actionText}"/></td>
+              <td><h:outputText value="#{e.actor}"/></td>
+              <td><h:outputText value="#{e.reason}"/></td>
+            </tr>
+          </ui:repeat>
+        </table>
+      </div>
+    </h:form>
+
+    <p:dialog widgetVar="pauseDialog" header="Pause extraction" modal="true" resizable="false"
+              draggable="false" closeOnEscape="true" width="34rem">
+      <h:form id="pauseForm">
+        <p style="margin-top: 0;">
+          No new package will start. A package being read is put back in the queue after the document
+          it is on. Nothing is lost, and it carries on when you resume.
+        </p>
+        <p:outputLabel for="pauseReasonText" value="Reason"/>
+        <br/>
+        <p:inputTextarea id="pauseReasonText" value="#{extractionControlBean.pauseReason}"
+                         rows="3" maxlength="500" counter="pauseReasonCounter"
+                         counterTemplate="{0} characters remaining" style="width: 100%;"/>
+        <br/>
+        <h:outputText id="pauseReasonCounter" style="color: #6b7280; font-size: 0.85rem;"/>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+          <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                           onclick="PF('pauseDialog').hide();"/>
+          <p:commandButton value="Pause extraction" icon="pi pi-pause"
+                           process="@form" update="@form :controlForm"
+                           actionListener="#{extractionControlBean.pause}"
+                           oncomplete="if (args &amp;&amp; args.done) { PF('pauseDialog').hide(); }"/>
+        </div>
+      </h:form>
+    </p:dialog>
 
     <h:form id="qualityForm">
       <div class="q-card">

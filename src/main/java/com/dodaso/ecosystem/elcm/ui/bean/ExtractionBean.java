@@ -200,9 +200,9 @@ public class ExtractionBean implements Serializable {
     final PackageOutcome outcome = extractionUiService.retry(extractionPackage.getId());
     switch (outcome) {
       case OK -> add(FacesMessage.SEVERITY_INFO, "Extraction restarted",
-          "Only the documents that failed will run again.");
+          "Only the documents that failed or were not finished will run again.");
       case CONFLICT -> add(FacesMessage.SEVERITY_WARN, "Cannot retry",
-          "The extraction is not in a failed state.");
+          "The extraction is not in a failed or stopped state.");
       case NOT_FOUND ->
           add(FacesMessage.SEVERITY_WARN, "Not available", "The package has no submission.");
       default -> add(FacesMessage.SEVERITY_ERROR, "Retry failed", "Please try again.");
@@ -387,6 +387,60 @@ public class ExtractionBean implements Serializable {
    */
   public void prepareDecline() {
     declineReason = null;
+  }
+
+  /**
+   * Reason typed in the "Stop extraction" dialog (ADDED 2026-10-18).
+   */
+  @Setter
+  private String stopReason;
+
+  /** Clears the reason before the Stop dialog opens (ADDED 2026-10-18). */
+  public void prepareStop() {
+    stopReason = null;
+  }
+
+  /**
+   * Stop confirmed (ADDED 2026-10-18). Callback parameter "done" is true when the extraction was
+   * stopped or could no longer be (it finished meanwhile); on a refused reason the dialog stays open.
+   */
+  public void confirmStop() {
+    if (extractionPackage == null) {
+      return;
+    }
+    final String reason = stopReason == null ? "" : stopReason.trim();
+    if (reason.isEmpty()) {
+      add(FacesMessage.SEVERITY_WARN, "Reason needed", "Say why the extraction is stopped.");
+      PrimeFaces.current().ajax().addCallbackParam("done", false);
+      return;
+    }
+    final PackageOutcome outcome = extractionUiService.stop(extractionPackage.getId(), reason);
+    boolean done = false;
+    switch (outcome) {
+      case OK -> {
+        done = true;
+        add(FacesMessage.SEVERITY_INFO, "Extraction stopped",
+            extractionPackage.getPackageCode() + " can be retried; finished documents keep their results.");
+      }
+      case INVALID -> add(FacesMessage.SEVERITY_WARN, "Reason not accepted",
+          "The reason is required and at most 500 characters.");
+      case CONFLICT -> {
+        add(FacesMessage.SEVERITY_WARN, "Cannot stop",
+            "The extraction is not queued or running (anymore).");
+        done = true;
+      }
+      case NOT_FOUND ->
+          add(FacesMessage.SEVERITY_WARN, "Not available", "The package has no submission.");
+      case FORBIDDEN ->
+          add(FacesMessage.SEVERITY_WARN, "No permission", "Only administrators can stop an extraction.");
+      default -> add(FacesMessage.SEVERITY_ERROR, "Stop failed", "Please try again.");
+    }
+    if (done) {
+      stopReason = null;
+      results = null;
+      load();
+    }
+    PrimeFaces.current().ajax().addCallbackParam("done", done);
   }
 
   /**

@@ -835,12 +835,19 @@
                         </h:panelGroup>
                         <div style="margin-top: 0.75rem;">
                             <p:commandButton value="Retry" icon="pi pi-refresh"
-                                             rendered="#{extractionBean.status.failed}"
+                                             rendered="#{extractionBean.status.failed or extractionBean.status.stopped}"
                                              disabled="#{demoRoleBean.readOnly('Contract Packages')}"
                                              process="@this"
                                              update="extractionPanel :stageDocumentsGrowl"
                                              actionListener="#{extractionBean.retry}"
                                              oncomplete="PF('extractionPoll').start();"/>
+                            <!-- ADDED 2026-10-18 - administrators can stop a queued or running extraction -->
+                            <p:commandButton value="Stop extraction" icon="pi pi-stop-circle"
+                                             styleClass="ui-button-warning ui-button-outlined"
+                                             rendered="#{extractionBean.status.active and menuAccessBean.canSee('templates')}"
+                                             process="@this" update=":extractionStopForm"
+                                             actionListener="#{extractionBean.prepareStop}"
+                                             oncomplete="PF('extractionStopDialog').show();"/>
                             <p:commandButton value="Decline" icon="pi pi-undo"
                                              styleClass="ui-button-danger ui-button-outlined"
                                              style="margin-left: 0.5rem;"
@@ -1171,6 +1178,41 @@
         <!-- ADDED 2026-10-12 - Decline: the reviewer sends the package back to Assembly with a
              reason. The submitter sees the reason on the package, fixes the documents and
              submits again, which runs a fresh extraction. -->
+        <!-- ADDED 2026-10-18 - An administrator stops the extraction of one package, with a reason that
+             is kept in the control log. Finished documents keep their results; Retry runs the rest. -->
+        <p:dialog widgetVar="extractionStopDialog"
+                  header="Stop extraction"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closeOnEscape="true"
+                  width="34rem">
+            <h:form id="extractionStopForm">
+                <p style="margin-top: 0;">
+                    <strong><h:outputText value="#{extractionBean.extractionPackage.packageCode}"/></strong>
+                    stops reading. Documents already read keep their results, and Retry runs the others.
+                    The document being read now is given up.
+                </p>
+                <p:outputLabel for="stopReasonText" value="Reason"/>
+                <br/>
+                <p:inputTextarea id="stopReasonText" value="#{extractionBean.stopReason}"
+                                 rows="3" maxlength="500" counter="stopReasonCounter"
+                                 counterTemplate="{0} characters remaining" style="width: 100%;"/>
+                <br/>
+                <h:outputText id="stopReasonCounter"
+                              style="color: #6b7280; font-size: 0.85rem;"/>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
+                    <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
+                                     onclick="PF('extractionStopDialog').hide();"/>
+                    <p:commandButton value="Stop extraction" icon="pi pi-stop-circle"
+                                     styleClass="ui-button-warning"
+                                     process="@form" update="@form :extractionForm:extractionPanel :stageDocumentsGrowl"
+                                     actionListener="#{extractionBean.confirmStop}"
+                                     oncomplete="if (args &amp;&amp; args.done) { PF('extractionStopDialog').hide(); refreshContractPackages(); }"/>
+                </div>
+            </h:form>
+        </p:dialog>
+
         <p:dialog widgetVar="extractionDeclineDialog"
                   header="Decline package"
                   modal="true"

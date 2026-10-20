@@ -37,6 +37,11 @@ public class ExtractionStatusRow implements Serializable {
         return "FAILED".equals(state);
     }
 
+    /** ADDED 2026-10-18 -- an administrator stopped the extraction; Retry runs it again. */
+    public boolean isStopped() {
+        return "STOPPED".equals(state);
+    }
+
     public boolean isDone() {
         return "DONE".equals(state);
     }

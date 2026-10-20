@@ -128,6 +128,17 @@ public class ExtractionUiService {
   }
 
   /**
+   * ADDED 2026-10-18 -- administrator: stops a queued or running extraction, with a reason. CONFLICT
+   * means it is not queued or running (anymore), INVALID a missing or too long reason, FORBIDDEN that
+   * the caller is not an administrator.
+   */
+  public PackageOutcome stop(final Long packageId, final String reason) {
+    final Map<String, Object> body = new HashMap<>();
+    body.put("reason", reason);
+    return post(BASE + "/" + packageId + "/extraction/stop", body, "stop extraction of package " + packageId);
+  }
+
+  /**
    * Reviewer: save one field (corrected value and confirmed flag). INVALID is a value that does not
    * fit the field type (400), CONFLICT means the package can no longer be reviewed (409).
    */

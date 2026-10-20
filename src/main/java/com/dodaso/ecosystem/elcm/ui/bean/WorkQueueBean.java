@@ -45,6 +45,7 @@ public class WorkQueueBean extends BaseBean {
     {"REVIEW", "Ready for review"},
     {"APPROVAL", "Awaiting approval"},
     {"FAILED", "Failed"},
+    {"STOPPED", "Stopped"},
     {"APPLIED", "Applied"},
     {ALL, "All"}
   };
@@ -138,7 +139,7 @@ public class WorkQueueBean extends BaseBean {
     return switch (row.getStageCode()) {
       case "REVIEW" -> "Review";
       case "APPROVAL" -> "Approve";
-      case "FAILED" -> "Look at it";
+      case "FAILED", "STOPPED" -> "Look at it";
       default -> "Open";
     };
   }
