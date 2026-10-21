@@ -663,6 +663,74 @@
             </h:form>
         </p:dialog>
 
+        <!-- ADDED 2026-10-20 - Activity Log of one package: who did what and when, newest first,
+             25 lines a page. The lines are kept by EARS. Times are UTC. The CSV holds the whole log. -->
+        <p:dialog widgetVar="activityDialog"
+                  header="Activity log"
+                  modal="true"
+                  resizable="false"
+                  draggable="false"
+                  closeOnEscape="true"
+                  width="58rem">
+            <h:form id="activityForm">
+                <p style="margin-top: 0;">
+                    <strong><h:outputText value="#{activityLogBean.packageCode}"/></strong>
+                    <h:outputText value=" - newest first, times in UTC"/>
+                </p>
+                <h:panelGroup layout="block"
+                              rendered="#{activityLogBean.loadFailed}"
+                              style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
+                    <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
+                    <h:outputText value="The activity log is not available right now. Please try again in a moment."/>
+                </h:panelGroup>
+                <p:dataTable id="activityTable" var="a"
+                             value="#{activityLogBean.entries}"
+                             rendered="#{not activityLogBean.loadFailed}"
+                             emptyMessage="No activity has been recorded for this package yet.">
+                    <p:column headerText="When" style="width: 11rem;">
+                        <h:outputText value="#{a.occurredAtText}"/>
+                    </p:column>
+                    <p:column headerText="Who" style="width: 11rem;">
+                        <h:outputText value="#{a.who}"/>
+                    </p:column>
+                    <p:column headerText="Event" style="width: 12rem;">
+                        <h:outputText value="#{a.event}"/>
+                    </p:column>
+                    <p:column headerText="Details">
+                        <h:outputText value="#{a.message}"/>
+                    </p:column>
+                </p:dataTable>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <p:commandButton icon="pi pi-chevron-left" title="Newer"
+                                         styleClass="ui-button-flat"
+                                         rendered="#{activityLogBean.hasNewer}"
+                                         process="@this" update="@form"
+                                         actionListener="#{activityLogBean.newer}"/>
+                        <h:outputText value="#{activityLogBean.rangeText}"/>
+                        <p:commandButton icon="pi pi-chevron-right" title="Older"
+                                         styleClass="ui-button-flat"
+                                         rendered="#{activityLogBean.hasOlder}"
+                                         process="@this" update="@form"
+                                         actionListener="#{activityLogBean.older}"/>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <p:commandButton value="Refresh" icon="pi pi-refresh"
+                                         styleClass="ui-button-flat"
+                                         process="@this" update="@form"
+                                         actionListener="#{activityLogBean.refresh}"/>
+                        <p:commandButton value="Export CSV" icon="pi pi-download"
+                                         styleClass="ui-button-outlined"
+                                         ajax="false" title="Download the whole log as a CSV file">
+                            <p:fileDownload value="#{activityLogBean.activityCsv}"/>
+                        </p:commandButton>
+                        <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
+                                         onclick="PF('activityDialog').hide();"/>
+                    </div>
+                </div>
+            </h:form>
+        </p:dialog>
+
         <!-- ADDED 2026-10-07 - Reassign a draft package. The person is picked the
              same way as in Upload Files and Create Document Set. -->
         <p:dialog widgetVar="reassignPackageDialog"
@@ -1736,13 +1804,20 @@
                     <!-- REVISED 2026-10-07 - one row of icon buttons in the same style as the
                          Stage Documents row actions (rounded, text style, tooltip), instead of
                          three text buttons of different widths stacked in a narrow column. -->
-                    <p:column headerText="Actions" style="width:11rem" exportable="false">
+                    <p:column headerText="Actions" style="width:13.5rem" exportable="false">
                         <div style="display: flex; flex-wrap: nowrap; gap: 0.25rem; align-items: center;">
                             <p:commandButton icon="pi pi-folder-open"
                                              styleClass="rounded-button ui-button-text" title="Open"
                                              process="@this" update=":packageDocumentsForm"
                                              actionListener="#{contractPackagesBean.open(pkg)}"
                                              oncomplete="PF('packageDocumentsDialog').show();"/>
+                            <!-- ADDED 2026-10-20 - the Activity Log of the package. -->
+                            <p:commandButton icon="pi pi-history"
+                                             styleClass="rounded-button ui-button-text"
+                                             title="Activity log"
+                                             process="@this" update=":activityForm"
+                                             actionListener="#{activityLogBean.open(pkg)}"
+                                             oncomplete="PF('activityDialog').show();"/>
                             <p:commandButton icon="pi pi-user-edit"
                                              styleClass="rounded-button ui-button-text"
                                              title="#{pkg.statusCode == 'ASSEMBLY' ? 'Reassign' : 'Only a draft package can be reassigned'}"

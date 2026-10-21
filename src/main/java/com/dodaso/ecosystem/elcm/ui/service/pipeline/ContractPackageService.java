@@ -57,6 +57,22 @@ public class ContractPackageService {
         }
     }
 
+    /**
+     * ADDED 2026-10-20. One page of a package's Activity Log, newest first (pages start at 0). Null
+     * when elcm-service could not be reached or EARS is unavailable, so the dialog can say so.
+     */
+    public ActivityPageRow findActivity(final Long packageId, final int page, final int size) {
+        try {
+            return restServiceClient.get(SERVICE,
+                BASE + "/" + packageId + "/activity?page=" + page + "&size=" + size,
+                new ParameterizedTypeReference<ActivityPageRow>() {
+                });
+        } catch (final Exception e) {
+            log.warn("Failed to load the activity of package {} from elcm-service: {}", packageId, e.getMessage());
+            return null;
+        }
+    }
+
     public List<DocumentRoleOptionRow> findDocumentRoles() {
         try {
             final List<DocumentRoleOptionRow> rows = restServiceClient.get(SERVICE,
