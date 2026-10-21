@@ -40,6 +40,11 @@
           <p:commandButton widgetVar="recordSearchBtn" value="Search" icon="pi pi-search"
                            process="@form" update="@form :detailCard"
                            actionListener="#{contractRecordsBean.search}"/>
+          <!-- ADDED 2026-10-20: CSV of the records listed now (the search applies). -->
+          <p:commandButton value="Export CSV" icon="pi pi-download" styleClass="ui-button-outlined"
+                           ajax="false" title="Download the listed records as a CSV file">
+            <p:fileDownload value="#{contractRecordsBean.recordsCsv}"/>
+          </p:commandButton>
         </div>
         <h:panelGroup layout="block" styleClass="cr-warn" rendered="#{contractRecordsBean.loadFailed}">
           <h:outputText value="The records could not be loaded. Try again in a moment."/>
@@ -86,9 +91,16 @@
               <h2>Applied terms: <h:outputText value="#{contractRecordsBean.selected.recordCode}"/></h2>
               <div class="cr-sub">Values applied from reviewed extractions. A newer Apply replaces an older value; the older one is kept.</div>
             </div>
-            <p:commandButton value="Close" icon="pi pi-times" styleClass="ui-button-flat"
-                             process="@this" update=":detailCard"
-                             actionListener="#{contractRecordsBean.close}"/>
+            <div style="display: flex; gap: 0.5rem;">
+              <!-- ADDED 2026-10-20: CSV of the terms shown below (with replaced values when shown). -->
+              <p:commandButton value="Export CSV" icon="pi pi-download" styleClass="ui-button-outlined"
+                               ajax="false" title="Download these terms as a CSV file">
+                <p:fileDownload value="#{contractRecordsBean.termsCsv}"/>
+              </p:commandButton>
+              <p:commandButton value="Close" icon="pi pi-times" styleClass="ui-button-flat"
+                               process="@this" update=":detailCard"
+                               actionListener="#{contractRecordsBean.close}"/>
+            </div>
           </div>
           <div class="cr-facts">
             <span><span class="k">Counterparty</span><h:outputText value="#{contractRecordsBean.selected.counterparty}"/></span>
