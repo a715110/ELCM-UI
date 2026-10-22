@@ -25,6 +25,22 @@ dodaso:
     # Signs the shared idle clock cookie. The SAME value in ELCM and ECWS (Key Vault in the cloud).
     idle-secret: ${DODASO_IDLE_SECRET:}
     idle-limit-minutes: 30    # 25 min warning + 5 min countdown in session-timeout-manager.js
+  # ADDED 2026-10-22 - encrypted URL parameters (UrlParamConfiguration in baseline-common).
+  url:
+    # Blank: nothing is encrypted. 32 or more random characters (Key Vault in the cloud).
+    secret: ${DODASO_URL_SECRET:}
+    # Parameter names to protect, only on the paths below (empty paths means every page).
+    params: fileUploadId,recordId,fileName,type,workspace,record,assignee,uploadedAt
+    # REVISED 2026-10-22: empty, because mode query covers every page. Only used by mode names.
+    paths:
+    # true: a plain value still works. upgrade-plain: a plain link is redirected to its encrypted form.
+    accept-plain: true
+    upgrade-plain: true
+    # mode query: the whole query string is one token (page?q=e1.xxxx), no names to list.
+    # mode names: only the params above. exclude-paths are never touched in query mode.
+    mode: query
+    query-param: q
+    exclude-paths: /oauth2,/login,/logout,/error,/api
 
 # Task Rail (WEB-INF/taskrail.xhtml) cross-app links. Derived, so it is never
 # set per environment again.

@@ -5,6 +5,7 @@ import com.dodaso.ecosystem.baseline.common.session.IdleClockFilter;
 import com.dodaso.ecosystem.baseline.common.session.LogoutMarkerFilter;
 import com.dodaso.ecosystem.baseline.common.session.SessionCleanupLogoutHandler;
 import com.dodaso.ecosystem.baseline.common.session.SharedSessionConfiguration;
+import com.dodaso.ecosystem.baseline.common.urlparam.UrlParamConfiguration;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.net.URI;
@@ -74,7 +75,7 @@ import java.net.URLEncoder;
 @Configuration
 @EnableWebSecurity
 // Logout marker, idle clock cleanup handler and back-channel logout receiver (baseline-common).
-@Import(SharedSessionConfiguration.class)
+@Import({SharedSessionConfiguration.class, UrlParamConfiguration.class}) // REVISED 2026-10-22, UrlParamConfiguration added
 @Slf4j
 public class SecurityConfig {
 

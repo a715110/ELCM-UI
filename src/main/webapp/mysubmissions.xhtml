@@ -108,10 +108,10 @@
               <p:column headerText="" style="width:4rem" exportable="false">
                 <p:button outcome="documentviewer" target="_blank" icon="pi pi-eye"
                           styleClass="rounded-button ui-button-text" title="View">
-                  <f:param name="fileUploadId" value="#{d.fileUploadId}"/>
-                  <f:param name="fileName" value="#{d.fileName}"/>
-                  <f:param name="workspace" value="#{d.workspace}"/>
-                  <f:param name="record" value="#{d.targetRecord}"/>
+                  <f:param name="fileUploadId" value="#{urlCrypt.enc('fileUploadId', d.fileUploadId)}"/>
+                  <f:param name="fileName" value="#{urlCrypt.enc('fileName', d.fileName)}"/>
+                  <f:param name="workspace" value="#{urlCrypt.enc('workspace', d.workspace)}"/>
+                  <f:param name="record" value="#{urlCrypt.enc('record', d.targetRecord)}"/>
                 </p:button>
               </p:column>
             </p:dataTable>

@@ -1692,14 +1692,14 @@
               <p:button outcome="documentviewer" target="_blank" icon="pi pi-eye"
                         rendered="#{demoRoleBean.canSee('Document Viewer')}"
                         styleClass="rounded-button ui-button-text" title="View">
-                <f:param name="fileUploadId" value="#{doc.fileUploadId}"/>
-                <f:param name="recordId" value="#{doc.targetRecordId}"/>
-                <f:param name="fileName" value="#{doc.fileName}"/>
-                <f:param name="type" value="#{doc.type}"/>
-                <f:param name="workspace" value="#{doc.workspace}"/>
-                <f:param name="record" value="#{doc.record}"/>
-                <f:param name="assignee" value="#{doc.assignee}"/>
-                <f:param name="uploadedAt" value="#{doc.uploadedAt}"/>
+                <f:param name="fileUploadId" value="#{urlCrypt.enc('fileUploadId', doc.fileUploadId)}"/>
+                <f:param name="recordId" value="#{urlCrypt.enc('recordId', doc.targetRecordId)}"/>
+                <f:param name="fileName" value="#{urlCrypt.enc('fileName', doc.fileName)}"/>
+                <f:param name="type" value="#{urlCrypt.enc('type', doc.type)}"/>
+                <f:param name="workspace" value="#{urlCrypt.enc('workspace', doc.workspace)}"/>
+                <f:param name="record" value="#{urlCrypt.enc('record', doc.record)}"/>
+                <f:param name="assignee" value="#{urlCrypt.enc('assignee', doc.assignee)}"/>
+                <f:param name="uploadedAt" value="#{urlCrypt.enc('uploadedAt', doc.uploadedAt)}"/>
               </p:button>
             </span>
                         <!-- REVISED 2026-10-07 - the trash icon now opens the delete

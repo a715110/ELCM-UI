@@ -20,6 +20,10 @@
 dodaso:
   local:
     cert-dir: ${DODASO_CERT_DIR:${user.home}/.dodaso/certs}
+  # ADDED 2026-10-22 - local development secret for encrypted URL parameters. Local only: in the
+  # cloud use the DODASO_URL_SECRET environment variable (Key Vault).
+  url:
+    secret: 85dxjmWJnYE58j3mwqpgMqHD3TwRnXAi3LICvV_OCyDteVrb
   instance:
     customer-code: local
     display-name: Local Dev
