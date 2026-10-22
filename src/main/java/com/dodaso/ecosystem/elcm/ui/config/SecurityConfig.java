@@ -212,7 +212,7 @@ public class SecurityConfig {
               if (sessionApiMatcher().matches(event.getRequest())) {
                 event.getResponse().sendError(HttpServletResponse.SC_UNAUTHORIZED);
               } else {
-                event.getResponse().sendRedirect(event.getRequest().getContextPath() + "/login");
+                restartSsoLogin(event.getRequest(), event.getResponse()); // REVISED 2026-10-22, was the /login page
               }
             })
             .and()
@@ -334,6 +334,25 @@ public class SecurityConfig {
         new AntPathRequestMatcher("/api/extend-session"));
   }
 
+  /**
+   * ADDED 2026-10-22. A page request whose session is gone (ended by the logout marker, a
+   * back-channel logout, or a newer login) used to be sent to /login, which is only the Rain
+   * template page and leads nowhere. It now starts the SSO login instead: with the SSO session
+   * still alive the user lands in the app without seeing a form, otherwise the SSO login form
+   * shows. A JSF AJAX call gets a redirect instruction, since a plain redirect is not followed.
+   */
+  private static void restartSsoLogin(HttpServletRequest request, HttpServletResponse response)
+      throws java.io.IOException {
+    final String target = request.getContextPath() + OAUTH2_LOGIN_PATH;
+    if ("partial/ajax".equals(request.getHeader("Faces-Request"))) {
+      response.setContentType("text/xml;charset=UTF-8");
+      response.getWriter().write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+          + "<partial-response><redirect url=\"" + target + "\"/></partial-response>");
+    } else {
+      response.sendRedirect(target);
+    }
+  }
+
   /** An invalid session: 401 for the session script's calls, the login page for everything else. */
   private InvalidSessionStrategy invalidSessionStrategy() {
     final OrRequestMatcher sessionApi = sessionApiMatcher();
@@ -341,7 +360,7 @@ public class SecurityConfig {
       if (sessionApi.matches(request)) {
         response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
       } else {
-        response.sendRedirect(request.getContextPath() + "/login");
+        restartSsoLogin(request, response); // REVISED 2026-10-22, was the /login page
       }
     };
   }
