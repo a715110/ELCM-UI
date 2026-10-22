@@ -23,6 +23,17 @@
   }
 
   var lastLoad = 0;
+  var retries = 0;
+  var watchdog = null;
+
+  // REVISED 2026-10-22: a load that fails or does not answer in 12 seconds is retried once, so the
+  // panel does not stay on "Loading tasks..." until the next hover.
+  function clearWatchdog() {
+    if (watchdog) {
+      window.clearTimeout(watchdog);
+      watchdog = null;
+    }
+  }
 
   // ADDED 2026-10-18: ask the server to load the lists, throttled to once per 5 seconds.
   function requestLoad() {
@@ -30,8 +41,28 @@
     if (now - lastLoad < 5000) return;
     if (typeof window.taskRailLoad !== 'function') return;
     lastLoad = now;
+    clearWatchdog();
+    watchdog = window.setTimeout(retryLoad, 12000);
     window.taskRailLoad();
   }
+
+  function retryLoad() {
+    watchdog = null;
+    if (retries >= 1) return;
+    retries++;
+    lastLoad = 0;
+    requestLoad();
+  }
+
+  // Called by the oncomplete and onerror of the taskRailLoad remote command (taskrail.xhtml).
+  window.taskRailLoadDone = function () {
+    clearWatchdog();
+    retries = 0;
+  };
+  window.taskRailLoadFailed = function () {
+    clearWatchdog();
+    window.setTimeout(retryLoad, 3000);
+  };
 
   function bind() {
     var $rail = $('#taskRail');

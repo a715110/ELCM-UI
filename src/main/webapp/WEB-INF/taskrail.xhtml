@@ -9,6 +9,11 @@
         every page. Collapsed, it shows only the handle with a badge (open Review and Approval
         tasks assigned to you). Hovering, or tapping on touch screens, expands it.
 
+        REVISED 2026-10-22: the load call and the links of the panel are asynchronous (async true),
+        so they no longer wait in the page's AJAX queue behind another slow request, and task-rail.js
+        retries a load that failed or did not answer. The three reads of the ELCM service have a
+        short time limit (TaskRailUiService).
+
         REVISED 2026-10-18: the panel now lists Review and Approval tasks in two tabs. Open is the
         default. Closed is read only when its tab is clicked. Each line links to the package in
         ELCM (dashboard with the review parameter, the same link the Work Queue uses). The lists
@@ -24,7 +29,10 @@
                          actionListener="#{taskRailBean.loadIfStale}"
                          process="@this"
                          update="taskRailBody taskRailBadge"
-                         global="false"/>
+                         global="false"
+                         async="true"
+                         oncomplete="taskRailLoadDone()"
+                         onerror="taskRailLoadFailed()"/>
 
         <div id="taskRail"
              class="task-rail #{taskRailBean.pinned ? 'task-rail-pinned' : ''}">
@@ -49,6 +57,7 @@
                                            process="@this"
                                            update="taskRailBody taskRailBadge"
                                            global="false"
+                                           async="true"
                                            styleClass="task-rail-pin-btn"
                                            title="Refresh">
                                 <i class="pi pi-refresh"/>
@@ -68,6 +77,7 @@
                                            process="@this"
                                            update="taskRailBody"
                                            global="false"
+                                           async="true"
                                            styleClass="task-rail-tab #{taskRailBean.openTab ? 'task-rail-tab-active' : ''}">
                                 #{taskRailBean.openTitle}
                             </p:commandLink>
@@ -75,6 +85,7 @@
                                            process="@this"
                                            update="taskRailBody"
                                            global="false"
+                                           async="true"
                                            styleClass="task-rail-tab #{taskRailBean.closedTab ? 'task-rail-tab-active' : ''}">
                                 Closed
                             </p:commandLink>
@@ -83,6 +94,7 @@
                                                process="@this"
                                                update="taskRailBody"
                                                global="false"
+                                               async="true"
                                                title="Tasks assigned to you, and packages you submitted or reviewed"
                                                styleClass="task-rail-scope-btn #{taskRailBean.mineOnly ? 'task-rail-scope-active' : ''}">
                                     Mine
@@ -91,6 +103,7 @@
                                                process="@this"
                                                update="taskRailBody"
                                                global="false"
+                                               async="true"
                                                title="Everything you are allowed to see"
                                                styleClass="task-rail-scope-btn #{taskRailBean.mineOnly ? '' : 'task-rail-scope-active'}">
                                     All
@@ -158,6 +171,7 @@
                                                process="@this"
                                                update="taskRailBody"
                                                global="false"
+                                               async="true"
                                                styleClass="task-rail-more-btn">
                                     Load more
                                 </p:commandLink>
