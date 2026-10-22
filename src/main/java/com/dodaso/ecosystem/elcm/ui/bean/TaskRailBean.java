@@ -16,9 +16,9 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import com.dodaso.ecosystem.baseline.common.profile.UserPreferences;
 import com.dodaso.ecosystem.baseline.common.security.AuthenticationUtil;
+import com.dodaso.ecosystem.baseline.common.urlparam.UrlCrypt;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * Backing bean for the right-edge "Task Rail" (WEB-INF/taskrail.xhtml) -- the
@@ -99,6 +99,10 @@ public class TaskRailBean implements Serializable {
 
   @Autowired
   private TaskRailUiService taskRailUiService;
+
+  /** ADDED 2026-10-22: encrypts the query of links to ECWS (same secret in both apps). */
+  @Autowired
+  private UrlCrypt urlCrypt;
 
   /** The tab being shown: Open (the default) or Closed. */
   private String activeTab = TAB_OPEN;
@@ -301,13 +305,9 @@ public class TaskRailBean implements Serializable {
     if (row == null || row.getEcwsTaskId() == null) {
       return null;
     }
-    return UriComponentsBuilder
-        .fromUriString(ecwsBaseUrl + "/collaborationTask")
-        .queryParam("taskId", row.getEcwsTaskId())
-        .queryParam("Action", "Update")
-        .build()
-        .encode()
-        .toUriString();
+    // REVISED 2026-10-22: the query is encrypted for ECWS when dodaso.url.peer-encrypt is on.
+    return ecwsBaseUrl + "/collaborationTask?"
+        + urlCrypt.peer("taskId=" + UrlCrypt.encode(row.getEcwsTaskId()) + "&Action=Update");
   }
 
   private void setScope(final boolean mine) {
@@ -398,11 +398,15 @@ public class TaskRailBean implements Serializable {
     if (item == null || item.getRoute() == null) {
       return null;
     }
-    return UriComponentsBuilder
-        .fromUriString(ecwsBaseUrl + item.getRoute())
-        .queryParamIfPresent("loginId", java.util.Optional.ofNullable(loginId))
-        .build()
-        .encode()
-        .toUriString();
+    // REVISED 2026-10-22: the route may carry its own query; loginId is added, then the whole
+    // query is encrypted for ECWS when dodaso.url.peer-encrypt is on.
+    final String route = item.getRoute();
+    final int mark = route.indexOf('?');
+    final String path = mark < 0 ? route : route.substring(0, mark);
+    String query = mark < 0 ? "" : route.substring(mark + 1);
+    if (loginId != null) {
+      query += (query.isEmpty() ? "" : "&") + "loginId=" + UrlCrypt.encode(loginId);
+    }
+    return ecwsBaseUrl + path + (query.isEmpty() ? "" : "?" + urlCrypt.peer(query));
   }
 }

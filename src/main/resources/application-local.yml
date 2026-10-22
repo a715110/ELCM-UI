@@ -20,10 +20,10 @@
 dodaso:
   local:
     cert-dir: ${DODASO_CERT_DIR:${user.home}/.dodaso/certs}
-  # ADDED 2026-10-22 - local development secret for encrypted URL parameters. Local only: in the
+  # ADDED 2026-10-22 - local development secret for encrypted URL parameters, the SAME value as ECWS (links between the apps). Local only: in the
   # cloud use the DODASO_URL_SECRET environment variable (Key Vault).
   url:
-    secret: 85dxjmWJnYE58j3mwqpgMqHD3TwRnXAi3LICvV_OCyDteVrb
+    secret: TS2MRiPL2O-anECzjygsmon5aZ6gQ4Fx4w2SZWjvjYEtxcyL
   instance:
     customer-code: local
     display-name: Local Dev

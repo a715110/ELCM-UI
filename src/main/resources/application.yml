@@ -41,6 +41,10 @@ dodaso:
     mode: query
     query-param: q
     exclude-paths: /oauth2,/login,/logout,/error,/api
+    # ADDED 2026-10-22: links the page or a redirect writes are encrypted as they are written.
+    encode-links: true
+    # Links to ECWS (Task Rail) are encrypted only when true and ELCM and ECWS use the SAME secret.
+    peer-encrypt: true
 
 # Task Rail (WEB-INF/taskrail.xhtml) cross-app links. Derived, so it is never
 # set per environment again.
