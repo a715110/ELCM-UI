@@ -261,7 +261,14 @@ function convertUserProfileDTOToMentionFormat(userProfileDTO) {
 function selectUser(user, currentMentionRange, quillEditor, editorWidget) {
   if (!currentMentionRange) return;
 
-  const mentionText = user.displayName || (user.firstName + ' ' + user.lastName).trim();
+  const baseName = user.displayName || (user.firstName + ' ' + user.lastName).trim();
+  // REVISED 2026-10-23: when two people share a name, add the login in brackets so the mention
+  // still points at the person who was picked (the comment text is all that gets saved).
+  const sameName = (cachedUserProfiles || []).filter(u =>
+      ((u.displayName || (u.firstName + ' ' + u.lastName)).trim().toLowerCase()
+          === baseName.toLowerCase())).length > 1;
+  const mentionText = sameName && user.loginId
+      ? baseName + ' (' + user.loginId + ')' : baseName;
 
   try {
     // Step 1: Delete the @ and query
@@ -771,7 +778,8 @@ function findQuillEditor() {
 
 function showEnhancedMentionPopup(mentionText, element) {
   const upn = resolveRecipientUpnFromMention(mentionText);
-  const displayName = (mentionText || '').replace(/^@/, '').trim();
+  // REVISED 2026-10-23: show the name only, without the "(login)" part added for duplicates
+  const displayName = (mentionText || '').replace(/^@/, '').replace(/\s*\([^()]*\)\s*$/, '').trim();
 
   // Use dm-multichannel.js if available (preferred)
   if (typeof window.openDmPopupWithChannel === 'function') {
@@ -1022,6 +1030,16 @@ function closeUserProfilePopupScreenshot() {
 function resolveRecipientUpnFromMention(mentionText) {
   const clean = (mentionText || '').replace(/^@/, '').trim().toLowerCase();
   if (!clean) return '';
+
+  // ADDED 2026-10-23: "Name (login)" is how a mention of a duplicated name is written, so the
+  // login in brackets decides who it is.
+  const bracket = clean.match(/\(([^()]+)\)\s*$/);
+  if (bracket) {
+    const byLogin = (cachedUserProfiles || []).find(u =>
+        (u.loginId && u.loginId.toLowerCase() === bracket[1].trim())
+        || (u.email && u.email.toLowerCase() === bracket[1].trim()));
+    if (byLogin) return byLogin.loginId || byLogin.email || bracket[1].trim();
+  }
 
   // Try to find in cached profiles
   let hit = (cachedUserProfiles || []).find(u =>

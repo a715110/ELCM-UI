@@ -187,13 +187,24 @@ public class SecurityConfig {
     return manager;
   }
 
+  /**
+   * ADDED 2026-10-23. The one place that remembers the page asked for before the SSO login. It was
+   * created inside filterChain, out of reach of restartSsoLogin, which sends users with an ended
+   * or stale session to the SSO login WITHOUT remembering the page, so a link landed on the
+   * dashboard after sign-in. Same fix as ECWS.
+   */
+  private static final HttpSessionRequestCache RETURN_CACHE = new HttpSessionRequestCache();
+
+  static {
+    RETURN_CACHE.setMatchingRequestParameterName(null);
+  }
+
   @Bean
   SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     // ADDED 2026-10-20: remembers the page asked for before the SSO login so the login can return
     // to it (see returnToRequestedPage). The "continue" parameter is switched off so the saved
     // page is found again on the callback request. Same as ECWS.
-    final HttpSessionRequestCache requestCache = new HttpSessionRequestCache();
-    requestCache.setMatchingRequestParameterName(null);
+    final HttpSessionRequestCache requestCache = RETURN_CACHE; // REVISED 2026-10-23, shared
     http
         .addFilterBefore(oauth2DebugFilter(), OAuth2LoginAuthenticationFilter.class)
         // Ends a session created before the shared logout marker (see LogoutMarkerFilter).
@@ -321,6 +332,8 @@ public class SecurityConfig {
         requestedQuery = page.getQueryString();
       }
       cache.removeRequest(request, response);
+      log.info("Sign-in return: saved page [{}{}]", requestedPath,
+          requestedQuery == null ? "" : "?" + requestedQuery.substring(0, Math.min(60, requestedQuery.length())));
       final LandingPageService landing = landingPageService.getIfAvailable();
       final String target = landing != null
           ? landing.target(context, requestedPath, requestedQuery)
@@ -350,6 +363,14 @@ public class SecurityConfig {
       response.getWriter().write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
           + "<partial-response><redirect url=\"" + target + "\"/></partial-response>");
     } else {
+      // ADDED 2026-10-23: remember the page asked for, so the sign-in returns to it. Never the
+      // login, logout or REST paths. The cache itself only keeps plain GET page requests.
+      final String ctx = request.getContextPath();
+      final String path = request.getRequestURI();
+      if (!path.startsWith(ctx + "/oauth2") && !path.startsWith(ctx + "/login")
+          && !path.startsWith(ctx + "/logout") && !path.startsWith(ctx + "/api/")) {
+        RETURN_CACHE.saveRequest(request, response);
+      }
       response.sendRedirect(target);
     }
   }
