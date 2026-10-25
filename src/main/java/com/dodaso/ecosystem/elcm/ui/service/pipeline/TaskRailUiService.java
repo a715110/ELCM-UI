@@ -35,10 +35,10 @@ public class TaskRailUiService {
         Duration.ofSeconds(Math.max(1L, timeoutSeconds)));
   }
 
-  /** Open Review and Approval tasks; mine keeps only the viewer's own. */
-  public TaskRailPageRow open(final boolean mine) {
+  /** REVISED 2026-10-25: one page of open tasks; offset is how many lines are already shown. */
+  public TaskRailPageRow open(final boolean mine, final int offset) {
     try {
-      return read(BASE + "/open?mine=" + mine,
+      return read(BASE + "/open?mine=" + mine + "&offset=" + offset,
           new ParameterizedTypeReference<TaskRailPageRow>() {
           });
     } catch (final Exception e) {

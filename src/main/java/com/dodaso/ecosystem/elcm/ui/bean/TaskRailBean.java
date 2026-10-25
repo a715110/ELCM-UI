@@ -114,6 +114,12 @@ public class TaskRailBean implements Serializable {
   private boolean openLoaded;
   private boolean openFailed;
   private long openLoadedAt;
+  /** ADDED 2026-10-25: where the next page of Open starts; null when there is no more. */
+  private Integer openNext;
+  /** ADDED 2026-10-25: all open tasks the user may see, for the tab title. */
+  private int openTotal;
+  /** ADDED 2026-10-25: the service says whether the user may use the All view. */
+  private boolean canSeeAll;
 
   private List<TaskRailRow> closedItems = new ArrayList<>();
   private boolean closedLoaded;
@@ -136,6 +142,8 @@ public class TaskRailBean implements Serializable {
 
     // ADDED 2026-10-18: start with what the user chose on the Profile page. Nothing saved, or
     // IAMS not reachable, leaves the standard start (Mine, hover to open).
+    // REVISED 2026-10-25: a saved "All" is dropped for a user who may not use it, once the first
+    // read tells (see loadOpen).
     mineOnly = !"ALL".equals(userPreferences.get("taskPanel.scope", "MINE"));
     pinned = "true".equals(userPreferences.get("taskPanel.pinned", "false"));
 
@@ -240,6 +248,26 @@ public class TaskRailBean implements Serializable {
     refreshBadge();
   }
 
+  /** ADDED 2026-10-25: adds the next 20 open tasks below the current lines. */
+  public void loadMoreOpen() {
+    if (openNext == null) {
+      return;
+    }
+    final TaskRailPageRow page = taskRailUiService.open(mineOnly, openItems.size());
+    if (page == null) {
+      openFailed = true;
+      return;
+    }
+    openFailed = false;
+    openItems.addAll(page.getItems());
+    openNext = page.getNextOffset();
+    openTotal = page.getTotal() == null ? openItems.size() : page.getTotal();
+  }
+
+  public boolean isHasMoreOpen() {
+    return openNext != null;
+  }
+
   /** Adds the next page of the Closed list below the current lines. */
   public void loadMoreClosed() {
     if (closedNext == null) {
@@ -293,7 +321,7 @@ public class TaskRailBean implements Serializable {
 
   /** The Open tab title with its count once the list has been read, such as "Open (3)". */
   public String getOpenTitle() {
-    return openLoaded && !openFailed ? "Open (" + openItems.size() + ")" : "Open";
+    return openLoaded && !openFailed ? "Open (" + openTotal + ")" : "Open";
   }
 
   /**
@@ -329,7 +357,7 @@ public class TaskRailBean implements Serializable {
   }
 
   private void loadOpen() {
-    final TaskRailPageRow page = taskRailUiService.open(mineOnly);
+    final TaskRailPageRow page = taskRailUiService.open(mineOnly, 0);
     openLoadedAt = now();
     if (page == null) {
       openFailed = true;
@@ -338,6 +366,17 @@ public class TaskRailBean implements Serializable {
     openFailed = false;
     openLoaded = true;
     openItems = new ArrayList<>(page.getItems());
+    openNext = page.getNextOffset();
+    openTotal = page.getTotal() == null ? openItems.size() : page.getTotal();
+    canSeeAll = page.isCanSeeAll();
+    if (!canSeeAll && !mineOnly) {
+      // The saved choice was "All" but the user may not use it: show Mine and read again.
+      mineOnly = true;
+      closedLoaded = false;
+      closedItems = new ArrayList<>();
+      closedNext = null;
+      loadOpen();
+    }
   }
 
   private void loadClosedFirstPage() {

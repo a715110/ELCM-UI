@@ -15,4 +15,13 @@ public class TaskRailPageRow implements Serializable {
 
   private List<TaskRailRow> items = new ArrayList<>();
   private Long nextBefore;
+
+  /** ADDED 2026-10-25, Open list: all open tasks the user may see. */
+  private Integer total;
+
+  /** ADDED 2026-10-25, Open list: start of the next page; null when there is no more. */
+  private Integer nextOffset;
+
+  /** ADDED 2026-10-25: whether the user may use the All view. */
+  private boolean canSeeAll;
 }

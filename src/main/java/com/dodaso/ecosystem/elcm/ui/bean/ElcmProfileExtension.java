@@ -141,7 +141,7 @@ public class ElcmProfileExtension implements ProfileExtension {
 
   @Override
   public List<ProfileWorkGroup> work() {
-    final TaskRailPageRow open = taskRailUiService.open(true);
+    final TaskRailPageRow open = taskRailUiService.open(true, 0);
     final TaskRailPageRow closed = taskRailUiService.closed(true, null);
     final List<TaskRailRow> openRows = open == null ? List.of() : open.getItems();
     final List<TaskRailRow> closedRows = closed == null ? List.of() : closed.getItems();

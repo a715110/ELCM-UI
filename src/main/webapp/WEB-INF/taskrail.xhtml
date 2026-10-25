@@ -89,26 +89,28 @@
                                            styleClass="task-rail-tab #{taskRailBean.closedTab ? 'task-rail-tab-active' : ''}">
                                 Closed
                             </p:commandLink>
-                            <span class="task-rail-scope">
-                                <p:commandLink actionListener="#{taskRailBean.showMine}"
-                                               process="@this"
-                                               update="taskRailBody"
-                                               global="false"
-                                               async="true"
-                                               title="Tasks assigned to you, and packages you submitted or reviewed"
-                                               styleClass="task-rail-scope-btn #{taskRailBean.mineOnly ? 'task-rail-scope-active' : ''}">
-                                    Mine
-                                </p:commandLink>
-                                <p:commandLink actionListener="#{taskRailBean.showAll}"
-                                               process="@this"
-                                               update="taskRailBody"
-                                               global="false"
-                                               async="true"
-                                               title="Everything you are allowed to see"
-                                               styleClass="task-rail-scope-btn #{taskRailBean.mineOnly ? '' : 'task-rail-scope-active'}">
-                                    All
-                                </p:commandLink>
-                            </span>
+                            <ui:fragment rendered="#{taskRailBean.canSeeAll}">
+                                <span class="task-rail-scope">
+                                    <p:commandLink actionListener="#{taskRailBean.showMine}"
+                                                   process="@this"
+                                                   update="taskRailBody"
+                                                   global="false"
+                                                   async="true"
+                                                   title="Tasks assigned to you, and packages you submitted or reviewed"
+                                                   styleClass="task-rail-scope-btn #{taskRailBean.mineOnly ? 'task-rail-scope-active' : ''}">
+                                        Mine
+                                    </p:commandLink>
+                                    <p:commandLink actionListener="#{taskRailBean.showAll}"
+                                                   process="@this"
+                                                   update="taskRailBody"
+                                                   global="false"
+                                                   async="true"
+                                                   title="Everything you are allowed to see"
+                                                   styleClass="task-rail-scope-btn #{taskRailBean.mineOnly ? '' : 'task-rail-scope-active'}">
+                                        All
+                                    </p:commandLink>
+                                </span>
+                            </ui:fragment>
                         </div>
 
                         <ui:fragment rendered="#{taskRailBean.loadingShown}">
@@ -164,6 +166,19 @@
                                 </li>
                             </ui:repeat>
                         </ul>
+
+                        <ui:fragment rendered="#{taskRailBean.openTab and taskRailBean.hasMoreOpen}">
+                            <div class="task-rail-more">
+                                <p:commandLink actionListener="#{taskRailBean.loadMoreOpen}"
+                                               process="@this"
+                                               update="taskRailBody"
+                                               global="false"
+                                               async="true"
+                                               styleClass="task-rail-more-btn">
+                                    Load more
+                                </p:commandLink>
+                            </div>
+                        </ui:fragment>
 
                         <ui:fragment rendered="#{taskRailBean.closedTab and taskRailBean.hasMoreClosed}">
                             <div class="task-rail-more">

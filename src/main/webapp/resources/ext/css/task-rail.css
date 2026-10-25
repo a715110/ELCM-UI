@@ -98,6 +98,10 @@
   box-shadow: var(--task-rail-shadow);
   max-height: 70vh;
   overflow-y: auto;
+  /* REVISED 2026-10-25: the scroll bar is thin and its space is always reserved, so it no longer
+     covers the Open in ECWS icon at the right end of a task line. */
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
   transition: width 0.18s cubic-bezier(0.16, 1, 0.3, 1),
               opacity 0.12s ease;
   opacity: 0;
@@ -486,7 +490,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
+  /* REVISED 2026-10-25: a little wider, with room on the right, so the icon is never clipped. */
+  width: 40px;
+  box-sizing: border-box;
+  padding-right: 4px;
   flex-shrink: 0;
   color: var(--task-rail-handle-bg);
   text-decoration: none;
