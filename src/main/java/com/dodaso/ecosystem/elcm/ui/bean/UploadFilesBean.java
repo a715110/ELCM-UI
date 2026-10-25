@@ -24,6 +24,9 @@ import com.dodaso.ecosystem.common.dto.FileUploadRequestDTO;
 import com.dodaso.ecosystem.elcm.dto.ContractRecordDTO;
 import com.dodaso.ecosystem.elcm.ui.constant.DestinationChoiceEnum;
 import com.dodaso.ecosystem.elcm.ui.constant.FileStorageControllerAPIEnum;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.AddressVerifyRequestRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.AddressVerifyRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.AddressVerifyUiService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.AssignableUserOptionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractRecordOptionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.DuplicateMatchRow;
@@ -151,6 +154,9 @@ public class UploadFilesBean extends BaseBean {
 
   private final UploadFilesService uploadFilesService;
 
+  /** ADDED 2026-10-25: the Verify address button of the New Record panel. */
+  private final AddressVerifyUiService addressVerifyUiService;
+
   private WorkspaceOptionRow assignedWorkspace;
 
   private String assignedWorkspaceCode;
@@ -211,6 +217,9 @@ public class UploadFilesBean extends BaseBean {
   private String newRecordCity;
   private String newRecordState;
   private String newRecordZip;
+
+  /** ADDED 2026-10-25: the last answer of the Verify address button; null before it is used. */
+  private AddressVerifyRow addressResult;
 
   /**
    * Existing Record sub-panel's search field -- only meaningful when destinationChoice ==
@@ -308,6 +317,29 @@ public class UploadFilesBean extends BaseBean {
   }
 
   /**
+   * ADDED 2026-10-25: checks the address typed in the New Record panel. Only shows a message; it
+   * never changes the fields and never blocks saving.
+   */
+  public void verifyAddress() {
+    addressResult = addressVerifyUiService.verify(new AddressVerifyRequestRow(
+        newRecordPropertyAddress, newRecordAddressLine2, newRecordCity, newRecordState,
+        newRecordZip));
+  }
+
+  /** ADDED 2026-10-25: copies the suggested standard address into the fields ("Use this address"). */
+  public void applyAddressSuggestion() {
+    if (addressResult == null || !addressResult.isSuggested()) {
+      return;
+    }
+    newRecordPropertyAddress = addressResult.getLine1();
+    newRecordAddressLine2 = addressResult.getLine2();
+    newRecordCity = addressResult.getCity();
+    newRecordState = addressResult.getState();
+    newRecordZip = addressResult.getZip();
+    addressResult = AddressVerifyRow.of("VERIFIED", "The suggested address was applied.");
+  }
+
+  /**
    * Pick list for uploadfilesdialog.xhtml's "WHERE SHOULD THESE DOCUMENTS GO?" destination cards,
    * bound as a custom-layout p:selectOneRadio over destinationChoice. Deliberately just
    * DestinationChoiceEnum.values() -- the visible card copy ("New Record" / "Existing Record" /
@@ -353,6 +385,7 @@ public class UploadFilesBean extends BaseBean {
     newRecordCity = null;
     newRecordState = null;
     newRecordZip = null;
+    addressResult = null;
     existingRecordQuery = null;
     existingRecordId = null;
     existingRecordDetail = null;

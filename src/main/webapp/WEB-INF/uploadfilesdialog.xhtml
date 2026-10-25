@@ -437,6 +437,40 @@
                             </div>
                         </div>
 
+                        <!-- ADDED 2026-10-25: Verify address. Checks the typed address with the
+                             address service (USPS for the demo). It only shows a message and an
+                             optional suggestion; it never blocks Add to Pipeline. Only the five
+                             address inputs and the result block are updated, so this sub-panel
+                             keeps the visibility the dialog script gave it. -->
+                        <div style="margin-top:0.75rem;">
+                            <p:commandButton id="ufdVerifyAddressBtn" value="Verify address"
+                                             icon="pi pi-map-marker"
+                                             styleClass="ui-button-outlined"
+                                             actionListener="#{uploadFilesBean.verifyAddress}"
+                                             process="ufdNewPropertyAddress ufdNewAddressLine2 ufdNewCity ufdNewState ufdNewZip @this"
+                                             update="ufdAddressResult"
+                                             global="false"/>
+                        </div>
+                        <h:panelGroup id="ufdAddressResult" layout="block">
+                            <ui:fragment rendered="#{uploadFilesBean.addressResult != null}">
+                                <div style="margin-top:0.5rem; font-size:0.9rem; color:#{uploadFilesBean.addressResult.color};">
+                                    #{uploadFilesBean.addressResult.message}
+                                </div>
+                                <ui:fragment rendered="#{uploadFilesBean.addressResult.suggested}">
+                                    <div style="margin-top:0.25rem; font-weight:600;">
+                                        #{uploadFilesBean.addressResult.formatted}
+                                    </div>
+                                    <p:commandButton id="ufdUseSuggestionBtn" value="Use this address"
+                                                     styleClass="ui-button-sm"
+                                                     style="margin-top:0.5rem;"
+                                                     actionListener="#{uploadFilesBean.applyAddressSuggestion}"
+                                                     process="@this"
+                                                     update="ufdNewPropertyAddress ufdNewAddressLine2 ufdNewCity ufdNewState ufdNewZip ufdAddressResult"
+                                                     global="false"/>
+                                </ui:fragment>
+                            </ui:fragment>
+                        </h:panelGroup>
+
                         <div class="ufd-field-label">CONTRACT TYPE</div>
                         <p:selectOneMenu id="ufdNewContractType" styleClass="ufd-workspace-select"
                                          value="#{uploadFilesBean.newRecordContractType}">
