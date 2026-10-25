@@ -51,6 +51,9 @@
     #dm-popup .btn.pri:hover { background:#2563eb; }
     #dm-popup .btn.ok  { background:#10b981; color:#fff; }
     #dm-popup .btn.ok:hover { background:#059669; }
+    /* ADDED 2026-10-24 (ELCM): the clickable user name, as in the ECWS tables. */
+    .clickable-user-name { color: #1d4ed8; cursor: pointer; }
+    .clickable-user-name:hover { text-decoration: underline; }
     #dm-popup textarea {
       width:100%; min-height:80px; resize:vertical; padding:10px;
       border:1px solid #e5e7eb; border-radius:8px; outline:none; margin-top:10px;
@@ -70,6 +73,13 @@
       margin-bottom:8px; padding:8px 12px;
       background:#f8fafc; border-radius:6px;
     }
+    .task-msg-wrap { margin-left: 8px; vertical-align: middle; }
+    .task-msg-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; border-radius: 50%;
+      color: #64748b; text-decoration: none; cursor: pointer;
+    }
+    .task-msg-btn:hover { background: #eef2ff; color: #3b82f6; }
     @keyframes dmFadeIn { 
       from { opacity:0; transform:translateY(-6px) scale(.98); } 
       to { opacity:1; transform:none; } 
@@ -114,6 +124,90 @@
 
   // Current default channel (fetched from backend or cached)
   let cachedDefaultChannel = null;
+
+  // ADDED 2026-10-22: how the Message button reaches Teams, from /api/messaging/settings.
+  // link: open a Teams chat in the browser with the message prefilled. graph: send from the server.
+  let cachedSettings = null;
+
+  async function fetchSettings() {
+    if (cachedSettings) {
+      return cachedSettings;
+    }
+    try {
+      const contextPath = window.contextPath || '';
+      const response = await fetch(`${contextPath}/api/messaging/settings`, {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {'Accept': 'application/json'}
+      });
+      if (response.ok) {
+        cachedSettings = await response.json();
+        return cachedSettings;
+      }
+    } catch (e) {
+      console.warn('[DM] Could not fetch messaging settings:', e);
+    }
+    return {teamsMode: 'graph'};
+  }
+
+  /**
+   * ADDED 2026-10-22. On the task page, a first line "Re: Task #95 <address>" so the other person
+   * lands on the task. The address is the one in the browser, already encrypted. Empty elsewhere.
+   */
+  function taskContextLine() {
+    try {
+      if (!/\/collaborationTask(\.xhtml)?$/.test(window.location.pathname)) {
+        return '';
+      }
+      const el = document.getElementById('task-id');
+      const match = el && el.textContent.match(/\d+/);
+      const address = window.location.href.split('#')[0];
+      return 'Re: Task #' + (match ? match[0] : '') + ' ' + address;
+    } catch (e) {
+      return '';
+    }
+  }
+
+  /**
+   * ADDED 2026-10-22. Opens a Teams chat with the recipient (their sign-in e-mail) and the message
+   * prefilled. Nothing is sent from here: the person presses Enter in Teams.
+   */
+  function openTeamsChat(recipientLoginId, text, statusEl, linkBase, addresses) {
+    const mapped = addresses && recipientLoginId
+        ? addresses[String(recipientLoginId).toLowerCase()] : null;
+    const recipient = mapped || recipientLoginId;
+    if (!recipient || recipient.indexOf('@') < 0) {
+      if (statusEl) {
+        statusEl.style.color = '#ef4444';
+        statusEl.textContent = 'No e-mail address for this user';
+      }
+      return false;
+    }
+    const context = taskContextLine();
+    const full = context ? context + '\n' + text : text;
+    const url = (linkBase || 'https://teams.microsoft.com/l/chat/0/0') + '?users='
+        + encodeURIComponent(recipient)
+        + '&message=' + encodeURIComponent(full);
+    // Some Teams clients (personal accounts, the desktop app) open the chat but ignore the prefilled
+    // text, so the text is also copied to the clipboard as a fallback.
+    let copied = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(full);
+        copied = true;
+      }
+    } catch (e) {
+      copied = false;
+    }
+    window.open(url, '_blank', 'noopener');
+    if (statusEl) {
+      statusEl.style.color = '#16a34a';
+      statusEl.textContent = copied
+          ? 'Opened in Teams. If the text is not there, paste it (Ctrl+V) and press Enter.'
+          : 'Opened in Teams. Press Enter there to send.';
+    }
+    return true;
+  }
 
   /**
    * Fetch the default messaging channel from the backend
@@ -184,15 +278,23 @@
 
       // Handle login required
       if (args && args.needsLogin) {
+        // Open OAuth login in new window
+        const provider = args.loginProvider || channelInfo.loginProvider;
+        const contextPath = window.contextPath || '';
+        if (provider === 'entra') {
+          // REVISED 2026-10-23: Teams uses the Connect Microsoft account flow.
+          if (s) {
+            s.style.color = '#b45309';
+            s.textContent = 'Connect your Microsoft account in the new window, then press Send again.';
+          }
+          window.open(`${contextPath}/teams/connect`, 'teamsConnect', 'width=560,height=720');
+          return;
+        }
         if (s) {
           s.style.color = '#ef4444';
           s.textContent = `${channelInfo.name} sign-in required…`;
         }
-
-        // Open OAuth login in new window
-        const provider = args.loginProvider || channelInfo.loginProvider;
         if (provider) {
-          const contextPath = window.contextPath || '';
           window.open(`${contextPath}/oauth2/authorization/${provider}`, '_blank', 'noopener');
         }
         return;
@@ -289,6 +391,15 @@
 
     // Fetch default channel info
     const channelData = await fetchDefaultChannel();
+    // ADDED 2026-10-22: link mode for Teams. Also used when no channel is configured at all, since
+    // a Teams link needs no configuration.
+    const settings = await fetchSettings();
+    const linkMode = settings.teamsMode === 'link'
+        && (channelData.channelType === 'TEAMS' || channelData.configured === false);
+    if (linkMode) {
+      channelData.channelType = 'TEAMS';
+      channelData.displayName = 'Microsoft Teams';
+    }
     const channelInfo = getChannelInfo(channelData.channelType);
 
     const box = document.createElement('div');
@@ -317,7 +428,7 @@
       <div id="dm-composer" style="display:${openComposer ? 'block' : 'none'};">
         <div class="channel-indicator" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px 12px;background:#f8fafc;border-radius:6px;">
           <i class="pi ${channelInfo.icon}" style="color:${channelInfo.color};font-size:16px;"></i>
-          <span style="font-size:13px;color:#64748b;">Sending via <strong style="color:#1e293b;">${escapeHtml(channelDisplay)}</strong></span>
+          <span style="font-size:13px;color:#64748b;">${linkMode ? 'Opens in' : 'Sending via'} <strong style="color:#1e293b;">${escapeHtml(channelDisplay)}</strong></span>
         </div>
         <label class="sub">Message to <strong>${escapeHtml(loginId || '')}</strong></label>
         <textarea id="dm-text" placeholder="Type your message… (Ctrl/⌘+Enter to send)" maxlength="1000"></textarea>
@@ -326,7 +437,7 @@
           <div class="row" style="gap:8px;">
             <button class="btn sec" id="dm-cancel">Cancel</button>
             <button class="btn ok" id="dm-send" style="background:${channelInfo.color};">
-              <i class="pi ${channelInfo.icon}" style="margin-right:4px;"></i>Send
+              <i class="pi ${channelInfo.icon}" style="margin-right:4px;"></i>${linkMode ? 'Open in Teams' : 'Send'}
             </button>
           </div>
         </div>
@@ -360,7 +471,7 @@
     box.querySelector('#dm-close-2').onclick = close;
     box.querySelector('#dm-view').onclick = () => {
       if (typeof viewUserProfile === 'function') {
-        viewUserProfile(loginId);
+        viewUserProfile(loginId, displayName);
       }
     };
     box.querySelector('#dm-open').onclick = open;
@@ -386,6 +497,13 @@
         statusEl.style.color = '#ef4444';
         statusEl.textContent = 'Type a message first';
         textEl.focus();
+        return;
+      }
+      // ADDED 2026-10-22: Teams link mode opens the chat in Teams instead of sending from here
+      if (linkMode) {
+        if (openTeamsChat(loginId, msg, statusEl, settings.teamsLinkBase, settings.teamsAddresses)) {
+          setTimeout(close, 6000);
+        }
         return;
       }
       // Use the channel-aware submit
@@ -479,6 +597,24 @@
     pop.style.visibility = 'visible';
   }
 
+  /**
+   * ADDED 2026-10-22. The small message icon beside Requestor and Assigned To on the task page
+   * (collaborationTask.xhtml). Opens the message popup, with the composer open, for that person.
+   */
+  window.openTaskUserMessage = function(el) {
+    const loginId = el.getAttribute('data-login-id');
+    if (!loginId) {
+      return false;
+    }
+    window.openDmPopupWithChannel({
+      anchor: el,
+      loginId: loginId,
+      displayName: el.getAttribute('data-display-name') || loginId,
+      openComposer: true
+    });
+    return false;
+  };
+
   // Make the enhanced popup the default
   window.openDmPopupUnified = window.openDmPopupWithChannel;
 
@@ -565,6 +701,26 @@
       const result = originalAjaxSuccess.apply(this, arguments);
       // No need to re-setup since we use event delegation
       return result;
+    };
+  }
+
+  // ADDED 2026-10-24 (ELCM): ELCM does not load mention.js, which defines viewUserProfile in ECWS.
+  // View Profile in the small popup opens the Profile dialog of template.xhtml (userProfileViewBean).
+  if (typeof window.viewUserProfile !== 'function') {
+    window.viewUserProfile = function(loginId, displayName) {
+      try {
+        if (typeof window.closeDmPopup === 'function') {
+          window.closeDmPopup();
+        }
+      } catch (_) {}
+      if (typeof window.dodasoOpenUserProfile === 'function') {
+        window.dodasoOpenUserProfile([
+          {name: 'loginId', value: loginId || ''},
+          {name: 'displayName', value: displayName || ''}
+        ]);
+      } else {
+        console.warn('Profile dialog is not available on this page. Login:', loginId);
+      }
     };
   }
 

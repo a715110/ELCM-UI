@@ -1785,7 +1785,16 @@
                     </p:column>
 
                     <p:column headerText="Assignee">
-                        <h:outputText value="#{pkg.assignee}"/>
+                        <!-- REVISED 2026-10-24 - the name opens the small popup (View Profile,
+                             Message to Teams) handled by dm-multichannel.js. A package without an
+                             assignee keeps the plain text. -->
+                        <h:panelGroup rendered="#{not empty pkg.assigneeLoginId}">
+                            <a href="#" class="user-name-link" data-login-id="#{pkg.assigneeLoginId}">
+                                <h:outputText value="#{pkg.assignee}" styleClass="clickable-user-name"
+                                              title="Click to view profile or send message"/>
+                            </a>
+                        </h:panelGroup>
+                        <h:outputText value="#{pkg.assignee}" rendered="#{empty pkg.assigneeLoginId}"/>
                     </p:column>
 
                     <p:column headerText="Roles">

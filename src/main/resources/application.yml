@@ -40,7 +40,7 @@ dodaso:
     # mode names: only the params above. exclude-paths are never touched in query mode.
     mode: query
     query-param: q
-    exclude-paths: /oauth2,/login,/logout,/error,/api
+    exclude-paths: /oauth2,/login,/logout,/error,/api,/teams
     # ADDED 2026-10-22: links the page or a redirect writes are encrypted as they are written.
     encode-links: true
     # Links to ECWS (Task Rail) are encrypted only when true and ELCM and ECWS use the SAME secret.
@@ -50,6 +50,19 @@ dodaso:
 # set per environment again.
 ecws:
   base-url: ${dodaso.instance.ecws-base-url}
+
+# ADDED 2026-10-24 - Teams direct message from the small user popup (same flow as ECWS, own
+# secret). The Entra client secret is NEVER written in a file: set ELCM_ENTRA_CLIENT_SECRET.
+# The tenant and client ids are instance values: set ELCM_ENTRA_TENANT_ID and ELCM_ENTRA_CLIENT_ID
+# (the local profile has the demo values). The redirect address must be registered in the Entra app.
+messaging:
+  teams-mode: ${MESSAGING_TEAMS_MODE:graph}
+  teams-link-base: ${MESSAGING_TEAMS_LINK_BASE:https://teams.microsoft.com/l/chat/0/0}
+  teams:
+    tenant-id: ${ELCM_ENTRA_TENANT_ID:}
+    client-id: ${ELCM_ENTRA_CLIENT_ID:}
+    client-secret: ${ELCM_ENTRA_CLIENT_SECRET:}
+    redirect-uri: ${ELCM_ENTRA_REDIRECT_URI:${dodaso.instance.elcm-base-url}/teams/callback}
 
 # Demo Role switcher (top bar). Shown only to users holding one of admin-roles
 # unless visible-to-all is true, which is meant for client demos. Display only;

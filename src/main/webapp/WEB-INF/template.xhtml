@@ -16,6 +16,9 @@
         <meta name="apple-mobile-web-app-capable" content="yes"/>
         <link rel="icon" href="#{request.contextPath}/resources/elcm-custom/images/elcm-favicon-180.png"
               type="image/x-icon"/>
+        <script type="text/javascript">
+            window.contextPath = '#{request.contextPath}';
+        </script>
     </f:facet>
     <title><ui:insert name="title">Enterprise Contract Lease Management</ui:insert></title>
     <h:outputScript name="js/layout.js" library="rain-layout"/>
@@ -29,19 +32,75 @@
          "cyan-light" by default) - confirmed that folder exists in
          resources.zip as primefaces-rain-cyan-light/theme.css. -->
     <h:outputStylesheet name="theme.css" library="primefaces-rain-#{rainPreferences.theme}"/>
+    <!-- ADDED 2026-10-24: the small user popup (View Profile, Message to Teams), ported from ECWS -->
+    <h:outputScript name="js/dm-multichannel.js" library="ext"/>
     <ui:insert name="head"/>
 </h:head>
 
 <h:body styleClass="#{rainPreferences.inputStyleClass}">
-    <!--    <h:form id="dmForm">-->
-    <!--        <p:remoteCommand-->
-    <!--          name="sendDmRC"-->
-    <!--          actionListener="#{directMessage.sendDirectMessage}"-->
-    <!--          process="@this"-->
-    <!--          onstart="window.dmUi &amp;&amp; window.dmUi.onStart &amp;&amp; window.dmUi.onStart()"-->
-    <!--          oncomplete="window.dmUi &amp;&amp; window.dmUi.onComplete &amp;&amp; window.dmUi.onComplete(xhr, status, args)"-->
-    <!--          />-->
-    <!--    </h:form>-->
+    <!-- REVISED 2026-10-24: the direct message form is live again (it was commented out). The
+         small popup in dm-multichannel.js posts to it. -->
+    <h:form id="dmForm">
+        <p:remoteCommand
+          name="sendDmRC"
+          actionListener="#{directMessage.sendDirectMessage}"
+          process="@this"
+          onstart="window.dmUi &amp;&amp; window.dmUi.onStart &amp;&amp; window.dmUi.onStart()"
+          oncomplete="window.dmUi &amp;&amp; window.dmUi.onComplete &amp;&amp; window.dmUi.onComplete(xhr, status, args)"
+          />
+    </h:form>
+    <!-- ADDED 2026-10-24 - Profile of another user, opened by View Profile in the small popup (same
+         as ECWS). Read only: roles, team and workspaces from the IAMS user directory. -->
+    <h:form id="userProfileForm">
+        <p:remoteCommand name="dodasoOpenUserProfile"
+                         actionListener="#{userProfileViewBean.load}"
+                         process="@this"
+                         update=":userProfileDialogForm"
+                         oncomplete="PF('userProfileDialog').show();"/>
+    </h:form>
+    <p:dialog widgetVar="userProfileDialog"
+              header="Profile"
+              modal="true"
+              resizable="false"
+              draggable="false"
+              closeOnEscape="true"
+              appendTo="@(body)"
+              width="26rem">
+        <h:form id="userProfileDialogForm">
+            <div style="display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1rem;">
+                <span class="dp-avatar-btn dp-avatar-lg #{userProfileViewBean.colorClass}"><h:outputText value="#{userProfileViewBean.initials}"/></span>
+                <span style="display: flex; flex-direction: column; min-width: 0;">
+                    <span style="font-weight: 600; font-size: 1.1rem;"><h:outputText value="#{userProfileViewBean.displayName}"/></span>
+                    <span style="font-size: 0.85rem; opacity: 0.75;"><h:outputText value="#{userProfileViewBean.loginId}"/></span>
+                </span>
+            </div>
+            <h:panelGroup layout="block"
+                          rendered="#{userProfileViewBean.notFound}"
+                          style="background: #fffbeb; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;">
+                <h:outputText value="No further details were found for this person in the user directory."/>
+            </h:panelGroup>
+            <h:panelGroup layout="block" rendered="#{not userProfileViewBean.notFound}">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 0.3rem 0.5rem 0.3rem 0; opacity: 0.7; white-space: nowrap; vertical-align: top;">Roles</td>
+                        <td style="padding: 0.3rem 0;"><h:outputText value="#{userProfileViewBean.rolesText}"/></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.3rem 0.5rem 0.3rem 0; opacity: 0.7; white-space: nowrap; vertical-align: top;">Team</td>
+                        <td style="padding: 0.3rem 0;"><h:outputText value="#{userProfileViewBean.teamText}"/></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 0.3rem 0.5rem 0.3rem 0; opacity: 0.7; white-space: nowrap; vertical-align: top;">Workspaces</td>
+                        <td style="padding: 0.3rem 0;"><h:outputText value="#{userProfileViewBean.workspacesText}"/></td>
+                    </tr>
+                </table>
+            </h:panelGroup>
+            <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                <p:commandButton value="Close" type="button" styleClass="ui-button-flat"
+                                 onclick="PF('userProfileDialog').hide();"/>
+            </div>
+        </h:form>
+    </p:dialog>
     <div class="layout-wrapper layout-topbar-#{rainPreferences.topbarTheme} layout-menu-#{rainPreferences.menuTheme} #{rainPreferences.menuMode}">
         <ui:include src="./topbar.xhtml"/>
         <ui:include src="./menu.xhtml"/>

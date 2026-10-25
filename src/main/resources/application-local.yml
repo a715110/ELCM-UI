@@ -88,3 +88,11 @@ logging:
     org.springframework.security: DEBUG
     org.springframework.security.oauth2: DEBUG
     org.springframework.security.oauth2.client: DEBUG
+
+# ADDED 2026-10-24 - demo Entra app (dodaso.onmicrosoft.com). The secret comes from the environment variable
+# ELCM_ENTRA_CLIENT_SECRET and is never written here.
+messaging:
+  teams-mode: graph
+  teams:
+    tenant-id: ${ELCM_ENTRA_TENANT_ID:82a21838-9e06-4e21-a581-00b512aa8d94}
+    client-id: ${ELCM_ENTRA_CLIENT_ID:f16f24bb-b9df-467c-8699-2ea82cca9d5d}
