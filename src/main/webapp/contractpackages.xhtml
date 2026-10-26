@@ -1,0 +1,107 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                template="/WEB-INF/template.xhtml">
+  <!--
+    ADDED 2026-10-25 - Contract Packages: the packages the signed-in user may see, Open and
+    Closed, newest change first. Each line opens Package Details. Mine is the packages the user is
+    assigned to, created, submitted or reviewed; All is for administrators, reviewers and approvers.
+    The same read and the same rule as the Package Rail in ECWS. Read only.
+  -->
+  <ui:define name="title">Contract Packages</ui:define>
+
+  <ui:define name="head">
+    <style>
+      .cp-card { background: #FFFFFF; border: 1px solid #E5E2D9; border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0; }
+      .cp-sub { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+      .cp-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 1rem 0; }
+      .cp-tools { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+      .cp-warn { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+      .cp-note { color: #6B6A63; font-size: 0.85rem; margin-top: 0.5rem; }
+      .cp-more { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; }
+    </style>
+  </ui:define>
+
+  <ui:define name="content">
+    <h1>Contract Packages</h1>
+    <p class="cp-sub">The contract packages you can see. Open a package to see its documents, submissions and activity.</p>
+
+    <div class="cp-card">
+      <h:form id="cpForm">
+        <div class="cp-bar">
+          <p:selectOneButton id="tabButtons" value="#{packageListBean.tab}" unselectable="false">
+            <f:selectItem itemValue="OPEN" itemLabel="#{packageListBean.openTitle}"/>
+            <f:selectItem itemValue="CLOSED" itemLabel="#{packageListBean.closedTitle}"/>
+            <p:ajax process="@this" listener="#{packageListBean.tabChanged}"
+                    update="tabButtons listPanel"/>
+          </p:selectOneButton>
+          <div class="cp-tools">
+            <p:selectOneButton id="scopeButtons" value="#{packageListBean.scope}" unselectable="false"
+                               rendered="#{packageListBean.canSeeAll}">
+              <f:selectItem itemValue="MINE" itemLabel="Mine"/>
+              <f:selectItem itemValue="ALL" itemLabel="All"/>
+              <p:ajax process="@this" listener="#{packageListBean.scopeChanged}"
+                      update="tabButtons listPanel"/>
+            </p:selectOneButton>
+            <p:inputText id="filterText" value="#{packageListBean.filter}"
+                         placeholder="Filter the list below" style="width: 15rem;">
+              <p:ajax event="keyup" delay="300" process="@this" update="listPanel"/>
+            </p:inputText>
+            <p:commandButton value="Refresh" icon="pi pi-refresh" styleClass="ui-button-flat"
+                             process="@this" update="tabButtons listPanel"
+                             actionListener="#{packageListBean.refresh}"/>
+          </div>
+        </div>
+
+        <h:panelGroup id="listPanel" layout="block">
+          <h:panelGroup layout="block" styleClass="cp-warn" rendered="#{packageListBean.failedShown}">
+            <i class="pi pi-exclamation-triangle" style="margin-right: 0.4rem;"></i>
+            <h:outputText value="The packages could not be loaded. You may not have access to ELCM packages, or the service is busy. Try Refresh in a moment."/>
+          </h:panelGroup>
+          <p:dataTable id="packagesTable" var="r" value="#{packageListBean.rows}"
+                       rowKey="#{r.packageId}"
+                       emptyMessage="No packages here.">
+            <p:column headerText="Package" style="width: 11rem;">
+              <h:outputText value="#{r.packageCode}" style="font-weight: 600;"/>
+            </p:column>
+            <p:column headerText="Status" style="width: 9rem;">
+              <p:tag value="#{r.statusLabel}" severity="#{r.severity}"/>
+            </p:column>
+            <p:column headerText="Workspace">
+              <h:outputText value="#{r.workspace}"/>
+            </p:column>
+            <p:column headerText="Assignee">
+              <h:outputText value="#{r.assignee}"/>
+            </p:column>
+            <p:column headerText="Docs" style="width: 4.5rem;">
+              <h:outputText value="#{r.docCount}"/>
+            </p:column>
+            <p:column headerText="You">
+              <h:outputText value="#{r.relationText}"/>
+            </p:column>
+            <p:column headerText="Last change (UTC)" style="width: 11rem;">
+              <h:outputText value="#{r.updatedAtText}"/>
+            </p:column>
+            <p:column headerText="" style="width: 8rem;" exportable="false">
+              <p:button value="Details" outcome="/packagedetails" icon="pi pi-arrow-right"
+                        styleClass="ui-button-outlined">
+                <f:param name="package" value="#{r.packageId}"/>
+                <f:param name="Source" value="ContractPackages"/>
+              </p:button>
+            </p:column>
+          </p:dataTable>
+          <div class="cp-more">
+            <h:outputText value="#{packageListBean.countText}" style="color: #6B6A63;"/>
+            <p:commandButton value="Load more" icon="pi pi-angle-down" styleClass="ui-button-outlined"
+                             rendered="#{packageListBean.hasMore}"
+                             process="@this" update="listPanel tabButtons"
+                             actionListener="#{packageListBean.loadMore}"/>
+          </div>
+        </h:panelGroup>
+        <div class="cp-note">Creating and submitting packages stays on the Dashboard. The filter works on the lines already loaded.</div>
+      </h:form>
+    </div>
+  </ui:define>
+</ui:composition>
