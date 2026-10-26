@@ -425,9 +425,16 @@
                             </div>
                             <div>
                                 <div class="ufd-field-label" style="margin-top:1rem;">STATE</div>
-                                <p:inputText styleClass="ufd-input" id="ufdNewState"
-                                             value="#{uploadFilesBean.newRecordState}"
-                                             placeholder="e.g. NY"/>
+                                <!-- REVISED 2026-10-25: a drop down of state codes (was free text). -->
+                                <p:selectOneMenu id="ufdNewState" styleClass="ufd-workspace-select"
+                                                 style="width:100%"
+                                                 filter="true" filterMatchMode="startsWith"
+                                                 value="#{uploadFilesBean.newRecordState}">
+                                    <f:selectItem itemLabel="Select" itemValue=""
+                                                  noSelectionOption="true"/>
+                                    <f:selectItems value="#{uploadFilesBean.usStates}" var="s"
+                                                   itemValue="#{s.code}" itemLabel="#{s.label}"/>
+                                </p:selectOneMenu>
                             </div>
                             <div>
                                 <div class="ufd-field-label" style="margin-top:1rem;">ZIP</div>

@@ -23,6 +23,7 @@ import com.dodaso.ecosystem.common.dto.FileUploadDTO;
 import com.dodaso.ecosystem.common.dto.FileUploadRequestDTO;
 import com.dodaso.ecosystem.elcm.dto.ContractRecordDTO;
 import com.dodaso.ecosystem.elcm.ui.constant.DestinationChoiceEnum;
+import com.dodaso.ecosystem.elcm.ui.constant.UsStates;
 import com.dodaso.ecosystem.elcm.ui.constant.FileStorageControllerAPIEnum;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.AddressVerifyRequestRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.AddressVerifyRow;
@@ -314,6 +315,11 @@ public class UploadFilesBean extends BaseBean {
    */
   public void reset() {
     resetState();
+  }
+
+  /** ADDED 2026-10-25: the choices of the State drop down of the New Record address. */
+  public List<UsStates.UsState> getUsStates() {
+    return UsStates.ALL;
   }
 
   /**
