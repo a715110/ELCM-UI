@@ -130,8 +130,8 @@
                         <ul class="task-rail-tasks">
                             <ui:repeat var="t" value="#{taskRailBean.items}">
                                 <li class="task-rail-task task-rail-task-row">
-                                    <h:link outcome="/dashboard" styleClass="task-rail-task-link">
-                                        <f:param name="review" value="#{t.packageId}"/>
+                                    <h:link outcome="/packagereview" styleClass="task-rail-task-link">
+                                        <f:param name="package" value="#{t.packageId}"/>
                                         <f:param name="Source" value="TaskRail"/>
                                         <span class="task-rail-task-top">
                                             <span class="task-rail-chip task-rail-chip-#{t.chipStyle}">#{t.eventLabel}</span>

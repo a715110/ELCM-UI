@@ -94,9 +94,9 @@
             <h:outputText value="#{r.sinceText}"/>
           </p:column>
           <p:column headerText="" style="width:8rem" exportable="false">
-            <p:button value="#{workQueueBean.actionLabel(r)}" outcome="/dashboard"
+            <p:button value="#{workQueueBean.actionLabel(r)}" outcome="/packagereview"
                       icon="pi pi-arrow-right" styleClass="ui-button-outlined">
-              <f:param name="review" value="#{r.packageId}"/>
+              <f:param name="package" value="#{r.packageId}"/>
               <f:param name="Source" value="WorkQueue"/>
             </p:button>
           </p:column>

@@ -69,9 +69,9 @@
                 <h:outputText value="#{s.details}"/>
               </p:column>
               <p:column headerText="" style="width:7rem" exportable="false">
-                <p:button value="Open" outcome="/dashboard" icon="pi pi-arrow-right"
+                <p:button value="Open" outcome="/packagereview" icon="pi pi-arrow-right"
                           styleClass="ui-button-outlined" rendered="#{s.openable}">
-                  <f:param name="review" value="#{s.packageId}"/>
+                  <f:param name="package" value="#{s.packageId}"/>
                   <f:param name="Source" value="MySubmissions"/>
                 </p:button>
               </p:column>

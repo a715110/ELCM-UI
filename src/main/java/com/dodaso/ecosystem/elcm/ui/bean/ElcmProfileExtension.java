@@ -194,10 +194,13 @@ public class ElcmProfileExtension implements ProfileExtension {
     return due == null || due.isBlank() ? "open" : due;
   }
 
-  /** Same page the task panel opens: the dashboard on this package, under the context path. */
+  /**
+   * Same page the task panel opens: the Package Review page of this package, under the context
+   * path (REVISED 2026-10-25, it was the dashboard with the review dialog).
+   */
   static String packageUrl(final Long packageId) {
-    return UriComponentsBuilder.fromPath(contextPath() + "/dashboard")
-        .queryParam("review", packageId)
+    return UriComponentsBuilder.fromPath(contextPath() + "/packagereview")
+        .queryParam("package", packageId)
         .queryParam("Source", "Profile")
         .build()
         .toUriString();

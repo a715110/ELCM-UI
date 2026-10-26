@@ -16,6 +16,7 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.SendBackRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.TargetCandidateRow;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
+import jakarta.faces.event.ComponentSystemEvent;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Named;
 import java.io.Serializable;
@@ -175,6 +176,63 @@ public class ExtractionBean implements Serializable {
       }
     }
     add(FacesMessage.SEVERITY_WARN, "Package not found", "The package may have been returned to draft.");
+  }
+
+  /**
+   * ADDED 2026-10-25 -- opens the package of the Package Review page (packagereview.xhtml). Runs
+   * once, while the page is built for the first time, and reads the "package" request parameter
+   * (the old "review" name is accepted too). A missing or unknown package shows the message
+   * "The package could not be loaded" on the page instead of waiting for ever.
+   */
+  public void openForPage(final ComponentSystemEvent event) {
+    if (extractionPackage != null) {
+      return;
+    }
+    final Map<String, String> params =
+        FacesContext.getCurrentInstance().getExternalContext().getRequestParameterMap();
+    String raw = params.get("package");
+    if (raw == null || raw.isBlank()) {
+      raw = params.get("review");
+    }
+    Long id = null;
+    try {
+      id = raw == null || raw.isBlank() ? null : Long.valueOf(raw.trim());
+    } catch (final NumberFormatException e) {
+      id = null;
+    }
+    if (id != null) {
+      for (final ContractPackageRow row : contractPackageService.findPackages()) {
+        if (id.equals(row.getId())) {
+          open(row);
+          return;
+        }
+      }
+    }
+    loadFailed = true;
+    add(FacesMessage.SEVERITY_WARN, "Package not found", "The package may have been returned to draft.");
+  }
+
+  /**
+   * ADDED 2026-10-25 -- the Dashboard no longer holds the Extraction dialog. An old link
+   * /dashboard?review=ID is sent on to the Package Review page of that package. Does nothing
+   * when the request has no review parameter.
+   */
+  public void redirectOldReviewLink(final ComponentSystemEvent event) {
+    final FacesContext context = FacesContext.getCurrentInstance();
+    final String raw = context.getExternalContext().getRequestParameterMap().get("review");
+    if (raw == null || raw.isBlank()) {
+      return;
+    }
+    try {
+      final long id = Long.parseLong(raw.trim());
+      context.getExternalContext().redirect(context.getExternalContext().getRequestContextPath()
+          + "/packagereview?package=" + id + "&Source=Dashboard");
+      context.responseComplete();
+    } catch (final NumberFormatException e) {
+      // not a package id: stay on the Dashboard
+    } catch (final java.io.IOException e) {
+      add(FacesMessage.SEVERITY_WARN, "Package review", "The package could not be opened.");
+    }
   }
 
   /**
