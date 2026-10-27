@@ -39,6 +39,11 @@ public class UserHelper {
 
   List<UserProfileDTO> userProfiles;
 
+  /** ADDED 2026-10-27. When the directory list was last tried, and the wait after a failure. */
+  private long profilesTriedAt;
+
+  private static final long PROFILE_RETRY_MILLIS = 60_000L;
+
   // ObjectMapper for JSON conversion
   final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -243,5 +248,73 @@ public class UserHelper {
     }
 
     return loginId; // Fallback to login ID
+  }
+
+  /**
+   * ADDED 2026-10-27. True for the name System (the application itself, shown for work done by a
+   * job). Such a name is not a person, so it is not made clickable.
+   */
+  public boolean isSystemUser(final String value) {
+    return value != null && "system".equalsIgnoreCase(value.trim());
+  }
+
+  /**
+   * ADDED 2026-10-27. The login id of the person a screen shows, given either their login id or
+   * their name as First Last (some screens only have the name). Null when nobody matches, for
+   * example for Unassigned. Reads the directory list once and keeps it; if the directory cannot be
+   * read, the next try is after one minute, so a down IAMS does not slow every page.
+   */
+  public String resolveLoginId(final String value) {
+    final UserProfileDTO profile = findProfile(value);
+    return profile == null ? null : profile.getUserExtDTO().getLoginId();
+  }
+
+  /** ADDED 2026-10-27. The name First Last of the person, or the value itself when not found. */
+  public String displayNameFor(final String value) {
+    final UserProfileDTO profile = findProfile(value);
+    if (profile != null && profile.getFirstName() != null && profile.getLastName() != null) {
+      return profile.getFirstName() + " " + profile.getLastName();
+    }
+    return value;
+  }
+
+  private UserProfileDTO findProfile(final String value) {
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    final String wanted = value.trim();
+    final List<UserProfileDTO> list = profilesForLookup();
+    for (final UserProfileDTO dto : list) {
+      if (dto.getUserExtDTO() != null && dto.getUserExtDTO().getLoginId() != null
+          && wanted.equalsIgnoreCase(dto.getUserExtDTO().getLoginId())) {
+        return dto;
+      }
+    }
+    for (final UserProfileDTO dto : list) {
+      if (dto.getUserExtDTO() != null && dto.getUserExtDTO().getLoginId() != null
+          && dto.getFirstName() != null && dto.getLastName() != null
+          && wanted.equalsIgnoreCase(dto.getFirstName() + " " + dto.getLastName())) {
+        return dto;
+      }
+    }
+    return null;
+  }
+
+  private synchronized List<UserProfileDTO> profilesForLookup() {
+    if (userProfiles != null && !userProfiles.isEmpty()) {
+      return userProfiles;
+    }
+    final long now = System.currentTimeMillis();
+    if (profilesTriedAt != 0 && now - profilesTriedAt < PROFILE_RETRY_MILLIS) {
+      return Collections.emptyList();
+    }
+    profilesTriedAt = now;
+    try {
+      final List<UserProfileDTO> list = getUserProfileDTOList();
+      return list == null ? Collections.emptyList() : list;
+    } catch (final Exception e) {
+      log.warn("Could not read the user directory for clickable names", e);
+      return Collections.emptyList();
+    }
   }
 }

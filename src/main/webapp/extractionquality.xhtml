@@ -91,7 +91,11 @@
             <tr>
               <td><h:outputText value="#{e.atText}"/></td>
               <td><h:outputText value="#{e.actionText}"/></td>
-              <td><h:outputText value="#{e.actor}"/></td>
+              <td>
+                <ui:include src="/WEB-INF/popup/userName.xhtml">
+                  <ui:param name="popupName" value="#{e.actor}"/>
+                </ui:include>
+              </td>
               <td><h:outputText value="#{e.reason}"/></td>
             </tr>
           </ui:repeat>

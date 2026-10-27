@@ -158,14 +158,22 @@
                                 <strong>Submitted again after a decline.</strong>
                                 <div style="margin-top: 0.4rem;">
                                     <span style="color: #6b7280;">
-                                        <h:outputText value="Correction note by #{extractionBean.resubmission.submittedBy}, #{extractionBean.resubmission.submittedAtText}: "/>
+                                        <h:outputText value="Correction note by "/>
+                                        <ui:include src="/WEB-INF/popup/userName.xhtml">
+                                          <ui:param name="popupName" value="#{extractionBean.resubmission.submittedBy}"/>
+                                        </ui:include>
+                                        <h:outputText value=", #{extractionBean.resubmission.submittedAtText}: "/>
                                     </span>
                                     <h:outputText value="#{extractionBean.resubmission.correctionNote}"/>
                                 </div>
                                 <h:panelGroup layout="block" style="margin-top: 0.25rem;"
                                               rendered="#{not empty extractionBean.resubmission.previousDeclineReason}">
                                     <span style="color: #6b7280;">
-                                        <h:outputText value="Declined by #{extractionBean.resubmission.previousDeclinedBy}, #{extractionBean.resubmission.previousDeclinedAtText}: "/>
+                                        <h:outputText value="Declined by "/>
+                                        <ui:include src="/WEB-INF/popup/userName.xhtml">
+                                          <ui:param name="popupName" value="#{extractionBean.resubmission.previousDeclinedBy}"/>
+                                        </ui:include>
+                                        <h:outputText value=", #{extractionBean.resubmission.previousDeclinedAtText}: "/>
                                     </span>
                                     <h:outputText value="#{extractionBean.resubmission.previousDeclineReason}"/>
                                 </h:panelGroup>
@@ -184,7 +192,11 @@
                                     <div style="margin-top: 0.4rem;">
                                         <span style="color: #6b7280;">
                                             <h:outputText value="#{sb.sentAtText}"/>
-                                            <h:outputText value=" by #{sb.sentBy}: "/>
+                                            <h:outputText value=" by "/>
+                                            <ui:include src="/WEB-INF/popup/userName.xhtml">
+                                              <ui:param name="popupName" value="#{sb.sentBy}"/>
+                                            </ui:include>
+                                            <h:outputText value=": "/>
                                         </span>
                                         <h:outputText value="#{sb.reason}"/>
                                     </div>
@@ -605,7 +617,9 @@
                             <h:outputText value="#{rv.reason}"/>
                         </p:column>
                         <p:column headerText="By" style="min-width: 14rem;">
-                            <h:outputText value="#{rv.changedBy}"/>
+                            <ui:include src="/WEB-INF/popup/userName.xhtml">
+                              <ui:param name="popupName" value="#{rv.changedBy}"/>
+                            </ui:include>
                         </p:column>
                         <p:column headerText="When" style="min-width: 11rem; white-space: nowrap;">
                             <h:outputText value="#{rv.changedAtText}"/>

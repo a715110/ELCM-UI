@@ -95,11 +95,20 @@
             </div>
             <div>
               <div class="pd-label">Assignee</div>
-              <div class="pd-value"><h:outputText value="#{packageDetailBean.detail.assignee}"/></div>
+              <div class="pd-value">
+                <ui:include src="/WEB-INF/popup/userName.xhtml">
+                  <ui:param name="popupLoginId" value="#{packageDetailBean.detail.assigneeLoginId}"/>
+                  <ui:param name="popupName" value="#{packageDetailBean.detail.assignee}"/>
+                </ui:include>
+              </div>
             </div>
             <div>
               <div class="pd-label">Created by</div>
-              <div class="pd-value"><h:outputText value="#{packageDetailBean.detail.createdBy}"/></div>
+              <div class="pd-value">
+                <ui:include src="/WEB-INF/popup/userName.xhtml">
+                  <ui:param name="popupName" value="#{packageDetailBean.detail.createdBy}"/>
+                </ui:include>
+              </div>
             </div>
             <div>
               <div class="pd-label">Created (UTC)</div>
@@ -109,9 +118,13 @@
               <div class="pd-label">Last change (UTC)</div>
               <div class="pd-value">
                 <h:outputText value="#{packageDetailBean.detail.updatedAtText}"/>
-                <h:outputText value=" by #{packageDetailBean.detail.updatedBy}"
-                              rendered="#{not empty packageDetailBean.detail.updatedBy}"
-                              style="font-weight: 400; color: #6B6A63;"/>
+                <h:panelGroup rendered="#{not empty packageDetailBean.detail.updatedBy}"
+                              style="font-weight: 400; color: #6B6A63;">
+                  <h:outputText value=" by "/>
+                  <ui:include src="/WEB-INF/popup/userName.xhtml">
+                    <ui:param name="popupName" value="#{packageDetailBean.detail.updatedBy}"/>
+                  </ui:include>
+                </h:panelGroup>
               </div>
             </div>
           </div>
@@ -153,13 +166,17 @@
                   <h:outputText value="#{s.statusText}"/>
                 </p:column>
                 <p:column headerText="Submitted by">
-                  <h:outputText value="#{s.submittedBy}"/>
+                  <ui:include src="/WEB-INF/popup/userName.xhtml">
+                    <ui:param name="popupName" value="#{s.submittedBy}"/>
+                  </ui:include>
                 </p:column>
                 <p:column headerText="Submitted (UTC)">
                   <h:outputText value="#{s.submittedAtText}"/>
                 </p:column>
                 <p:column headerText="Reviewed by">
-                  <h:outputText value="#{s.reviewedBy}"/>
+                  <ui:include src="/WEB-INF/popup/userName.xhtml">
+                    <ui:param name="popupName" value="#{s.reviewedBy}"/>
+                  </ui:include>
                 </p:column>
                 <p:column headerText="Reviewed (UTC)">
                   <h:outputText value="#{s.reviewedAtText}"/>
@@ -168,8 +185,13 @@
                   <h:outputText value="Correction note: #{s.correctionNote}"
                                 rendered="#{s.hasCorrectionNote}"/>
                   <br/>
-                  <h:outputText value="Declined by #{s.declinedBy} (#{s.declinedAtText}): #{s.declineReason}"
-                                rendered="#{s.declined}"/>
+                  <h:panelGroup rendered="#{s.declined}">
+                    <h:outputText value="Declined by "/>
+                    <ui:include src="/WEB-INF/popup/userName.xhtml">
+                      <ui:param name="popupName" value="#{s.declinedBy}"/>
+                    </ui:include>
+                    <h:outputText value=" (#{s.declinedAtText}): #{s.declineReason}"/>
+                  </h:panelGroup>
                 </p:column>
               </p:dataTable>
               <div class="pd-note">Actions on a submission, such as review, approve and decline, stay in the review dialog on the Dashboard.</div>
@@ -188,7 +210,9 @@
                   <h:outputText value="#{a.occurredAtText}"/>
                 </p:column>
                 <p:column headerText="Who" style="width: 11rem;">
-                  <h:outputText value="#{a.who}"/>
+                  <ui:include src="/WEB-INF/popup/userName.xhtml">
+                    <ui:param name="popupName" value="#{a.who}"/>
+                  </ui:include>
                 </p:column>
                 <p:column headerText="Event" style="width: 12rem;">
                   <h:outputText value="#{a.event}"/>

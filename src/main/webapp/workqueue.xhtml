@@ -82,13 +82,21 @@
                    severity="#{r.stageCode == 'FAILED' ? 'danger' : (r.stageCode == 'APPLIED' ? 'success' : (r.stageCode == 'EXTRACTING' ? 'secondary' : 'warning'))}"/>
           </p:column>
           <p:column headerText="Assignee" sortBy="#{r.assignee}">
-            <h:outputText value="#{r.assignee}"/>
+            <ui:include src="/WEB-INF/popup/userName.xhtml">
+              <ui:param name="popupLoginId" value="#{r.assigneeLoginId}"/>
+              <ui:param name="popupName" value="#{r.assignee}"/>
+            </ui:include>
           </p:column>
           <p:column headerText="Submitted by" sortBy="#{r.submittedBy}">
-            <h:outputText value="#{r.submittedBy}"/>
+            <ui:include src="/WEB-INF/popup/userName.xhtml">
+              <ui:param name="popupLoginId" value="#{r.submittedByLoginId}"/>
+              <ui:param name="popupName" value="#{r.submittedBy}"/>
+            </ui:include>
           </p:column>
           <p:column headerText="Reviewed by" sortBy="#{r.reviewedBy}">
-            <h:outputText value="#{r.reviewedBy}"/>
+            <ui:include src="/WEB-INF/popup/userName.xhtml">
+              <ui:param name="popupName" value="#{r.reviewedBy}"/>
+            </ui:include>
           </p:column>
           <p:column headerText="In this stage since (UTC)" sortBy="#{r.since}">
             <h:outputText value="#{r.sinceText}"/>

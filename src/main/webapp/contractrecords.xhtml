@@ -138,7 +138,9 @@
               <h:outputText value=" (corrected by reviewer)" rendered="#{t.corrected}" style="color:#6B6A63; font-size:0.8rem;"/>
             </p:column>
             <p:column headerText="Applied by">
-              <h:outputText value="#{t.appliedBy}"/>
+              <ui:include src="/WEB-INF/popup/userName.xhtml">
+                <ui:param name="popupName" value="#{t.appliedBy}"/>
+              </ui:include>
             </p:column>
             <p:column headerText="Applied at">
               <h:outputText value="#{t.appliedAtText}"/>

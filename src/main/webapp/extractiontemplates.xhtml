@@ -280,7 +280,9 @@
                 <h:outputText value="#{e.eventText}"/>
               </p:column>
               <p:column headerText="By" style="width:9rem">
-                <h:outputText value="#{e.createdBy}"/>
+                <ui:include src="/WEB-INF/popup/userName.xhtml">
+                  <ui:param name="popupName" value="#{e.createdBy}"/>
+                </ui:include>
               </p:column>
               <p:column headerText="Reason">
                 <h:outputText value="#{e.reason == null ? '-' : e.reason}"/>

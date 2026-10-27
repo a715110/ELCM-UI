@@ -646,6 +646,11 @@
 
       if (!link) return;
 
+      // ADDED 2026-10-27. The name System is the application, not a person: no popup.
+      const systemId = (link.getAttribute('data-login-id') ||
+          link.closest('[data-login-id]')?.getAttribute('data-login-id') || '').trim();
+      if (systemId.toLowerCase() === 'system') return;
+
       // Prevent default link behavior
       event.preventDefault();
       event.stopPropagation();

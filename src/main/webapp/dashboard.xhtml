@@ -689,7 +689,9 @@
                         <h:outputText value="#{a.occurredAtText}"/>
                     </p:column>
                     <p:column headerText="Who" style="width: 11rem;">
-                        <h:outputText value="#{a.who}"/>
+                        <ui:include src="/WEB-INF/popup/userName.xhtml">
+                          <ui:param name="popupName" value="#{a.who}"/>
+                        </ui:include>
                     </p:column>
                     <p:column headerText="Event" style="width: 12rem;">
                         <h:outputText value="#{a.event}"/>
@@ -979,7 +981,13 @@
                          lookup, not the same JOIN FETCH as the Record fields). -->
                     <p:column headerText="Assignee"
                               rendered="#{demoRoleBean.canSeeField('Stage Documents', 'Assignee')}">
-                        <h:outputText id="assigneeCell" value="#{doc.assignee}"/>
+                        <!-- REVISED 2026-10-27 - the name opens the small popup when the assignee was
+                             found in the directory (assigneeLoginId) and is not System. The
+                             component always exists, because the tooltips below point at its id. -->
+                        <span class="user-name-link" data-login-id="#{doc.assigneeLoginId}">
+                            <h:outputText id="assigneeCell" value="#{doc.assignee}"
+                                          styleClass="#{(not empty doc.assigneeLoginId and not userHelper.isSystemUser(doc.assigneeLoginId)) ? 'clickable-user-name' : ''}"/>
+                        </span>
                         <!-- REVISED 2026-10-04 (assigneeId -> loginId): the variant is now
                              chosen by assigneeLoginId (non-null exactly when the assignee
                              resolved to a directory entry), not assigneeRoles - a
