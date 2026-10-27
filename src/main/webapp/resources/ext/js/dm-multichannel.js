@@ -52,8 +52,9 @@
     #dm-popup .btn.ok  { background:#10b981; color:#fff; }
     #dm-popup .btn.ok:hover { background:#059669; }
     /* ADDED 2026-10-24 (ELCM): the clickable user name, as in the ECWS tables. */
-    .clickable-user-name { color: #1d4ed8; cursor: pointer; }
-    .clickable-user-name:hover { text-decoration: underline; }
+    /* REVISED 2026-10-27: green accent of the ELCM theme (theme-override.css), no underline. */
+    .clickable-user-name { color: #166534; cursor: pointer; text-decoration: none; }
+    .clickable-user-name:hover { color: #14532D; text-decoration: none; }
     #dm-popup textarea {
       width:100%; min-height:80px; resize:vertical; padding:10px;
       border:1px solid #e5e7eb; border-radius:8px; outline:none; margin-top:10px;
