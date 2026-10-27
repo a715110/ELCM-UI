@@ -1,0 +1,23 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:h="http://java.sun.com/jsf/html">
+    <!-- ADDED 2026-10-27. One clickable person name. Click opens the small popup with Close, View
+         Profile and Message (dm-multichannel.js reacts to the style class clickable-user-name and
+         the data-login-id attribute). Parameters:
+           popupName     the name or login id as the screen has it (required)
+           popupLoginId  the login id when the screen already has it (optional, used as is)
+         Without popupLoginId the name is looked up in the directory (UserHelper.resolveLoginId).
+         Text that cannot be matched to a person, for example Unassigned, and the name System,
+         are shown as plain text and are not clickable. -->
+    <ui:param name="popupId"
+              value="#{not empty popupLoginId ? popupLoginId : userHelper.resolveLoginId(popupName)}"/>
+    <ui:fragment rendered="#{not empty popupId and not userHelper.isSystemUser(popupId) and not userHelper.isSystemUser(popupName)}">
+        <span class="user-name-link" data-login-id="#{popupId}">
+            <h:outputText value="#{not empty popupName ? userHelper.displayNameFor(popupName) : userHelper.getDisplayNameForUser(popupLoginId)}"
+                          styleClass="clickable-user-name"
+                          title="Click to view profile or send message"/>
+        </span>
+    </ui:fragment>
+    <h:outputText value="#{popupName}"
+                  rendered="#{empty popupId or userHelper.isSystemUser(popupId) or userHelper.isSystemUser(popupName)}"/>
+</ui:composition>
