@@ -108,6 +108,12 @@
                                     outcome="/extractionquality" icon="pi pi-chart-line">
                             <f:param name="Source" value="Menu"/>
                         </p:menuitem>
+                        <!-- ADDED 2026-10-26 - Configure Messaging, System Admin and Super Admin only (settings are shared with ECWS) -->
+                        <p:menuitem id="configureMessaging" value="Configure Messaging"
+                                    rendered="#{messagingAccessBean.admin}"
+                                    outcome="/configure-messaging" icon="pi pi-comments">
+                            <f:param name="Source" value="Menu"/>
+                        </p:menuitem>
                     </p:submenu>
 <!--                    <p:submenu id="quickActions" label="Quick Actions">-->
 <!--                        <p:menuitem id="allTasks" value="All Tasks"-->

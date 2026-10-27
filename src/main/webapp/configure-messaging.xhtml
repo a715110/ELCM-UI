@@ -1,0 +1,388 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                template="/WEB-INF/template.xhtml">
+  <!--
+      ADDED 2026-10-26 - Configure Messaging for ELCM, for System Admin and Super Admin only.
+      Same screen as the ECWS one; the channel settings are stored once in common-service, so a
+      change made here also applies to ECWS. The role check hides the page; it is not a security
+      control (common-service does not check the role yet).
+  -->
+  <ui:define name="title">Configure Messaging</ui:define>
+
+  <ui:define name="head">
+    <style>
+      .mc-card { background: #FFFFFF; border: 1px solid #E5E2D9; border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0; }
+      .mc-header h2 { font-size: 1.15rem; margin: 0 0 0.25rem 0; }
+      .mc-header p { color: #6B6A63; font-size: 0.9rem; margin: 0; }
+      .mc-table .mc-disabled-row { opacity: 0.6; }
+      .mc-table .mc-disabled-row td { background-color: #F4F2EC !important; }
+      #configDetailForm .field { margin-bottom: 1rem; }
+      #configDetailForm .p-password, #configDetailForm .p-password input, #configDetailForm .p-spinner { width: 100%; }
+      .mc-note { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; padding: 0.75rem 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    </style>
+  </ui:define>
+
+  <ui:define name="content">
+    <ui:fragment rendered="#{messagingAccessBean.admin}">
+      <div class="mc-card">
+        <h:form id="messagingConfigForm">
+
+          <!-- Header -->
+          <div class="mc-header flex justify-content-between align-items-center mb-4">
+            <div>
+              <h2 class="m-0">
+                <i class="pi pi-comments mr-2"/>Configure Messaging
+              </h2>
+              <p class="text-color-secondary mt-2 mb-0">
+                Configure messaging channels available for all users in the system. These settings are shared by ECWS and ELCM.
+              </p>
+            </div>
+          </div>
+
+          <p:messages id="messages" showDetail="true" closable="true" />
+
+          <!-- Messaging Channels Table -->
+          <p:dataTable id="channelTable"
+                       var="config"
+                       value="#{systemMessagingConfigHelper.configurations}"
+                       styleClass="mc-table"
+                       rowStyleClass="#{config.activeInd ? '' : 'mc-disabled-row'}">
+
+            <!-- Channel Column -->
+            <p:column headerText="Channel" style="width: 220px">
+              <div class="flex align-items-center">
+                <i class="#{systemMessagingConfigHelper.getIcon(config.channelType)} mr-3"
+                   style="font-size: 1.5rem; color: #{systemMessagingConfigHelper.getBrandColor(config.channelType)}"/>
+                <div>
+                  <div class="font-bold">#{systemMessagingConfigHelper.getDisplayName(config.channelType)}</div>
+                  <div class="text-color-secondary text-sm">#{config.channelType}</div>
+                </div>
+              </div>
+            </p:column>
+
+            <!-- Enabled Column -->
+            <p:column headerText="Enabled" style="width: 100px">
+              <p:toggleSwitch value="#{config.activeInd}">
+                <p:ajax update="@this :messagingConfigForm:channelTable"
+                        listener="#{systemMessagingConfigHelper.onToggleActive(config)}" />
+              </p:toggleSwitch>
+            </p:column>
+
+            <!-- Display Name Column -->
+            <p:column headerText="Display Name" style="width: 200px">
+              <p:inputText value="#{config.displayName}"
+                           placeholder="#{systemMessagingConfigHelper.getDisplayName(config.channelType)}"
+                           disabled="#{!config.activeInd}"
+                           styleClass="w-full" />
+            </p:column>
+
+            <!-- Priority Column -->
+            <p:column headerText="Priority" style="width: 100px">
+              <p:spinner value="#{config.priority}"
+                         min="1" max="10"
+                         disabled="#{!config.activeInd}"
+                         style="width: 70px" />
+            </p:column>
+
+            <!-- Status Column -->
+            <p:column headerText="Status" style="width: 140px">
+              <p:tag value="#{systemMessagingConfigHelper.getStatusLabel(config)}"
+                     severity="#{systemMessagingConfigHelper.getStatusSeverity(config)}" />
+            </p:column>
+
+            <!-- Actions Column -->
+            <p:column headerText="Actions" style="width: 150px">
+              <p:commandButton icon="pi pi-cog"
+                               title="Configure"
+                               styleClass="p-button-rounded p-button-text"
+                               action="#{systemMessagingConfigHelper.openConfigDialog(config)}"
+                               update=":configDialog"
+                               oncomplete="PF('configDialogWidget').show()"
+                               disabled="#{!config.activeInd}" />
+              <p:commandButton icon="pi pi-check-circle"
+                               title="Test Connection"
+                               styleClass="p-button-rounded p-button-text p-button-success"
+                               action="#{systemMessagingConfigHelper.testConnection(config)}"
+                               update=":messagingConfigForm:messages"
+                               disabled="#{!config.activeInd or !systemMessagingConfigHelper.isConfigured(config)}" />
+            </p:column>
+          </p:dataTable>
+
+          <!-- Button Bar -->
+          <div class="flex justify-content-between mt-4">
+            <div>
+              <p:commandButton value="Reset to Defaults"
+                               icon="pi pi-refresh"
+                               styleClass="p-button-secondary"
+                               action="#{systemMessagingConfigHelper.resetToDefaults}"
+                               update="messages channelTable">
+                <p:confirm header="Confirm Reset"
+                           message="Are you sure you want to reset all messaging configurations? This will delete all current settings."
+                           icon="pi pi-exclamation-triangle" />
+              </p:commandButton>
+            </div>
+            <div>
+              <p:commandButton value="Save All"
+                               icon="pi pi-save"
+                               styleClass="p-button-primary"
+                               action="#{systemMessagingConfigHelper.saveAll}"
+                               update="messages channelTable" />
+            </div>
+          </div>
+
+        </h:form>
+      </div>
+
+      <!-- Configuration Dialog -->
+      <p:dialog id="configDialog"
+                header="Configure #{systemMessagingConfigHelper.selectedConfig.displayName}"
+                widgetVar="configDialogWidget"
+                modal="true"
+                width="600"
+                responsive="true"
+                closeOnEscape="true"
+                resizable="false">
+
+        <h:form id="configDetailForm">
+          <p:outputPanel id="configContent" rendered="#{systemMessagingConfigHelper.selectedConfig != null}">
+
+            <!-- Microsoft Teams Configuration -->
+            <p:outputPanel rendered="#{systemMessagingConfigHelper.isTeams(systemMessagingConfigHelper.selectedConfig)}">
+              <div class="formgrid grid">
+                <div class="field col-12">
+                  <label for="teamsTenant" class="block font-medium mb-2">Tenant ID <span class="text-red-500">*</span></label>
+                  <p:inputText id="teamsTenant"
+                               value="#{systemMessagingConfigHelper.selectedConfig.tenantId}"
+                               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                               styleClass="w-full" />
+                  <small class="block mt-2 text-color-secondary">Azure AD Tenant ID from your Microsoft 365 admin portal</small>
+                </div>
+                <div class="field col-12">
+                  <label for="teamsClientId" class="block font-medium mb-2">Client ID <span class="text-red-500">*</span></label>
+                  <p:inputText id="teamsClientId"
+                               value="#{systemMessagingConfigHelper.selectedConfig.clientId}"
+                               placeholder="Application (client) ID"
+                               styleClass="w-full" />
+                  <small class="block mt-2 text-color-secondary">Application ID from Azure App Registration</small>
+                </div>
+                <div class="field col-12">
+                  <label for="teamsClientSecret" class="block font-medium mb-2">Client Secret</label>
+                  <p:password id="teamsClientSecret"
+                              value="#{systemMessagingConfigHelper.selectedConfig.clientSecret}"
+                              toggleMask="true"
+                              feedback="false"
+                              styleClass="w-full" />
+                </div>
+                <div class="field col-12">
+                  <label for="teamsWebhook" class="block font-medium mb-2">Webhook URL (Optional)</label>
+                  <p:inputText id="teamsWebhook"
+                               value="#{systemMessagingConfigHelper.selectedConfig.webhookUrl}"
+                               placeholder="https://outlook.office.com/webhook/..."
+                               styleClass="w-full" />
+                  <small class="block mt-2 text-color-secondary">For sending notifications to a Teams channel</small>
+                </div>
+              </div>
+            </p:outputPanel>
+
+            <!-- Skype Configuration -->
+            <p:outputPanel rendered="#{systemMessagingConfigHelper.isSkype(systemMessagingConfigHelper.selectedConfig)}">
+              <div class="formgrid grid">
+                <div class="field col-12">
+                  <label for="skypeApiEndpoint" class="block font-medium mb-2">API Endpoint</label>
+                  <p:inputText id="skypeApiEndpoint"
+                               value="#{systemMessagingConfigHelper.selectedConfig.apiEndpoint}"
+                               placeholder="https://api.skype.com"
+                               styleClass="w-full" />
+                </div>
+                <div class="field col-12">
+                  <label for="skypeClientId" class="block font-medium mb-2">App ID <span class="text-red-500">*</span></label>
+                  <p:inputText id="skypeClientId"
+                               value="#{systemMessagingConfigHelper.selectedConfig.clientId}"
+                               styleClass="w-full" />
+                </div>
+                <div class="field col-12">
+                  <label for="skypeClientSecret" class="block font-medium mb-2">App Secret</label>
+                  <p:password id="skypeClientSecret"
+                              value="#{systemMessagingConfigHelper.selectedConfig.clientSecret}"
+                              toggleMask="true"
+                              feedback="false"
+                              styleClass="w-full" />
+                </div>
+                <div class="field col-12">
+                  <p:messages severity="info" showDetail="true" closable="false">
+                    <p:autoUpdate />
+                  </p:messages>
+                  <div class="mc-note">
+                    <span class="pi pi-info-circle"></span>
+                    <span>Note: Skype for Business is being retired by Microsoft. Consider using Microsoft Teams instead.</span>
+                  </div>
+                </div>
+              </div>
+            </p:outputPanel>
+
+            <!-- Slack Configuration -->
+            <p:outputPanel rendered="#{systemMessagingConfigHelper.isSlack(systemMessagingConfigHelper.selectedConfig)}">
+              <div class="formgrid grid">
+                <div class="field col-12">
+                  <label for="slackWorkspace" class="block font-medium mb-2">Workspace ID <span class="text-red-500">*</span></label>
+                  <p:inputText id="slackWorkspace"
+                               value="#{systemMessagingConfigHelper.selectedConfig.tenantId}"
+                               placeholder="T0XXXXXXX"
+                               styleClass="w-full" />
+                  <small class="block mt-2 text-color-secondary">Found in Slack workspace settings</small>
+                </div>
+                <div class="field col-12">
+                  <label for="slackClientId" class="block font-medium mb-2">Client ID <span class="text-red-500">*</span></label>
+                  <p:inputText id="slackClientId"
+                               value="#{systemMessagingConfigHelper.selectedConfig.clientId}"
+                               styleClass="w-full" />
+                </div>
+                <div class="field col-12">
+                  <label for="slackClientSecret" class="block font-medium mb-2">Client Secret <span class="text-red-500">*</span></label>
+                  <p:password id="slackClientSecret"
+                              value="#{systemMessagingConfigHelper.selectedConfig.clientSecret}"
+                              toggleMask="true"
+                              feedback="false"
+                              styleClass="w-full" />
+                </div>
+                <div class="field col-12">
+                  <label for="slackBotToken" class="block font-medium mb-2">Bot Token <span class="text-red-500">*</span></label>
+                  <p:password id="slackBotToken"
+                              value="#{systemMessagingConfigHelper.selectedConfig.webhookUrl}"
+                              toggleMask="true"
+                              feedback="false"
+                              placeholder="xoxb-..."
+                              styleClass="w-full" />
+                  <small class="block mt-2 text-color-secondary">Bot User OAuth Token from Slack App settings</small>
+                </div>
+              </div>
+            </p:outputPanel>
+
+            <!-- Zoom Configuration -->
+            <p:outputPanel rendered="#{systemMessagingConfigHelper.isZoom(systemMessagingConfigHelper.selectedConfig)}">
+              <div class="formgrid grid">
+                <div class="field col-12">
+                  <label for="zoomClientId" class="block font-medium mb-2">Client ID <span class="text-red-500">*</span></label>
+                  <p:inputText id="zoomClientId"
+                               value="#{systemMessagingConfigHelper.selectedConfig.clientId}"
+                               styleClass="w-full" />
+                </div>
+                <div class="field col-12">
+                  <label for="zoomClientSecret" class="block font-medium mb-2">Client Secret <span class="text-red-500">*</span></label>
+                  <p:password id="zoomClientSecret"
+                              value="#{systemMessagingConfigHelper.selectedConfig.clientSecret}"
+                              toggleMask="true"
+                              feedback="false"
+                              styleClass="w-full" />
+                </div>
+                <div class="field col-12">
+                  <label for="zoomAccountId" class="block font-medium mb-2">Account ID <span class="text-red-500">*</span></label>
+                  <p:inputText id="zoomAccountId"
+                               value="#{systemMessagingConfigHelper.selectedConfig.tenantId}"
+                               styleClass="w-full" />
+                  <small class="block mt-2 text-color-secondary">Found in Zoom App Marketplace credentials</small>
+                </div>
+              </div>
+            </p:outputPanel>
+
+            <!-- Email Configuration -->
+            <p:outputPanel rendered="#{systemMessagingConfigHelper.isEmail(systemMessagingConfigHelper.selectedConfig)}">
+              <p:fieldset legend="SMTP Server Settings" styleClass="mb-4">
+                <div class="formgrid grid">
+                  <div class="field col-12 md:col-8">
+                    <label for="smtpHost" class="block font-medium mb-2">SMTP Host <span class="text-red-500">*</span></label>
+                    <p:inputText id="smtpHost"
+                                 value="#{systemMessagingConfigHelper.selectedConfig.smtpHost}"
+                                 placeholder="smtp.company.com"
+                                 styleClass="w-full" />
+                  </div>
+                  <div class="field col-12 md:col-4">
+                    <label for="smtpPort" class="block font-medium mb-2">Port <span class="text-red-500">*</span></label>
+                    <p:spinner id="smtpPort"
+                               value="#{systemMessagingConfigHelper.selectedConfig.smtpPort}"
+                               min="1" max="65535"
+                               styleClass="w-full" />
+                  </div>
+                  <div class="field col-12">
+                    <label for="smtpUsername" class="block font-medium mb-2">Username</label>
+                    <p:inputText id="smtpUsername"
+                                 value="#{systemMessagingConfigHelper.selectedConfig.smtpUsername}"
+                                 placeholder="noreply@company.com"
+                                 styleClass="w-full" />
+                  </div>
+                  <div class="field col-12">
+                    <label for="smtpPassword" class="block font-medium mb-2">Password</label>
+                    <p:password id="smtpPassword"
+                                value="#{systemMessagingConfigHelper.selectedConfig.smtpPassword}"
+                                toggleMask="true"
+                                feedback="false"
+                                styleClass="w-full" />
+                  </div>
+                  <div class="field col-12">
+                    <div class="flex align-items-center">
+                      <p:selectBooleanCheckbox id="smtpTls"
+                                               value="#{systemMessagingConfigHelper.selectedConfig.smtpUseTls}" />
+                      <label for="smtpTls" class="ml-2">Use TLS/SSL</label>
+                    </div>
+                  </div>
+                </div>
+              </p:fieldset>
+
+              <p:fieldset legend="Sender Information">
+                <div class="formgrid grid">
+                  <div class="field col-12">
+                    <label for="fromAddress" class="block font-medium mb-2">From Address <span class="text-red-500">*</span></label>
+                    <p:inputText id="fromAddress"
+                                 value="#{systemMessagingConfigHelper.selectedConfig.emailFromAddress}"
+                                 placeholder="noreply@company.com"
+                                 styleClass="w-full" />
+                  </div>
+                  <div class="field col-12">
+                    <label for="fromName" class="block font-medium mb-2">From Name <span class="text-red-500">*</span></label>
+                    <p:inputText id="fromName"
+                                 value="#{systemMessagingConfigHelper.selectedConfig.emailFromName}"
+                                 placeholder="ELCM System"
+                                 styleClass="w-full" />
+                  </div>
+                </div>
+              </p:fieldset>
+            </p:outputPanel>
+
+          </p:outputPanel>
+
+          <!-- Dialog Footer -->
+          <div class="flex justify-content-end gap-2 mt-4 pt-3 border-top-1 surface-border">
+            <p:commandButton value="Cancel"
+                             icon="pi pi-times"
+                             styleClass="p-button-text"
+                             onclick="PF('configDialogWidget').hide()"
+                             type="button" />
+            <p:commandButton value="Test Connection"
+                             icon="pi pi-check-circle"
+                             styleClass="p-button-secondary"
+                             action="#{systemMessagingConfigHelper.testConnection(systemMessagingConfigHelper.selectedConfig)}"
+                             update=":messagingConfigForm:messages" />
+            <p:commandButton value="Save"
+                             icon="pi pi-save"
+                             styleClass="p-button-primary"
+                             action="#{systemMessagingConfigHelper.saveSelectedConfig}"
+                             update=":messagingConfigForm:messages :messagingConfigForm:channelTable"
+                             oncomplete="if(!args.validationFailed) PF('configDialogWidget').hide()" />
+          </div>
+        </h:form>
+      </p:dialog>
+
+      <!-- Confirm Dialog: the yes and no style classes are what tie the buttons to the question -->
+      <p:confirmDialog global="true" showEffect="fade" hideEffect="fade" responsive="true">
+        <p:commandButton value="No" type="button" styleClass="ui-confirmdialog-no p-button-text"/>
+        <p:commandButton value="Yes" type="button" styleClass="ui-confirmdialog-yes p-button-danger"/>
+      </p:confirmDialog>
+    </ui:fragment>
+    <ui:fragment rendered="#{not messagingAccessBean.admin}">
+      <div class="mc-card">You do not have access to Configure Messaging. It is available to System Admin and Super Admin.</div>
+    </ui:fragment>
+  </ui:define>
+</ui:composition>
