@@ -5,6 +5,8 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractPackageService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.DocumentRoleOptionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.PackageDocumentRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ApplyResultRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.ApproverPreviewRow;
+import com.dodaso.ecosystem.elcm.ui.service.pipeline.AssignableUserOptionRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionResultsRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionStatusRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ExtractionUiService;
@@ -101,6 +103,18 @@ public class ExtractionBean implements Serializable {
    */
   @Setter
   private String sendBackReason;
+
+  /**
+   * ADDED 2026-11-07: people who may take over the approval, and the login id picked in the Change
+   * approver dialog.
+   */
+  private List<AssignableUserOptionRow> approverCandidates = new ArrayList<>();
+
+  @Setter
+  private AssignableUserOptionRow selectedApprover;
+
+  /** The approver ELCM would pick, shown in the Complete review dialog; null when nobody qualifies. */
+  private AssignableUserOptionRow suggestedApprover;
 
   /**
    * Reason typed in the Decline dialog.
@@ -758,14 +772,19 @@ public class ExtractionBean implements Serializable {
     if (extractionPackage == null) {
       return;
     }
-    final PackageOutcome outcome = extractionUiService.completeReview(extractionPackage.getId());
+    final PackageOutcome outcome = extractionUiService.completeReview(
+        extractionPackage.getId(), approverLogin());
     switch (outcome) {
-      case OK ->
-          add(FacesMessage.SEVERITY_INFO, "Review completed", extractionPackage.getPackageCode());
+      case OK -> {
+        add(FacesMessage.SEVERITY_INFO, "Review completed", extractionPackage.getPackageCode());
+        selectedApprover = null;
+      }
       case WORKSPACE_MISMATCH -> add(FacesMessage.SEVERITY_WARN, "Not ready",
           "Confirm every critical field and every field marked Review first.");
       case INVALID -> add(FacesMessage.SEVERITY_WARN, "Not ready",
           "Every document needs a role. Set it under the file name.");
+      case ROLE_RULE -> add(FacesMessage.SEVERITY_WARN, "Approver not accepted",
+          "The approver must hold the Approver role and must not be the submitter or you. If nobody qualifies, ask an administrator.");
       case CONFLICT -> add(FacesMessage.SEVERITY_WARN, "Cannot complete",
           "The review was already completed or the extraction is not finished.");
       case NOT_FOUND ->
@@ -782,6 +801,102 @@ public class ExtractionBean implements Serializable {
    */
   public void prepareSendBack() {
     sendBackReason = null;
+  }
+
+  /** The login id of the approver picked in a dialog; null when nobody is picked. */
+  private String approverLogin() {
+    return selectedApprover == null || selectedApprover.getLoginId() == null
+        || selectedApprover.getLoginId().isBlank() ? null : selectedApprover.getLoginId();
+  }
+
+  /**
+   * ADDED 2026-11-07: Complete review clicked: load the approver ELCM would pick and the people the
+   * reviewer may choose instead, and preselect the suggestion. The page shows the dialog.
+   */
+  public void prepareCompleteReview() {
+    suggestedApprover = null;
+    selectedApprover = null;
+    approverCandidates = new ArrayList<>();
+    if (extractionPackage == null) {
+      return;
+    }
+    final ApproverPreviewRow preview = extractionUiService.approverPreview(extractionPackage.getId());
+    if (preview == null) {
+      return;
+    }
+    approverCandidates = ContractPackageService.toOptionRows(preview.getCandidates());
+    suggestedApprover = approverCandidates.stream()
+        .filter(u -> u.getLoginId() != null && u.getLoginId().equalsIgnoreCase(preview.getSuggested()))
+        .findFirst().orElse(null);
+    // the same object as in the list, so the picker shows its label and the converter finds it
+    selectedApprover = suggestedApprover;
+  }
+
+  /**
+   * ADDED 2026-11-07: Change approver clicked: load the people who may take over. The page shows
+   * the dialog.
+   */
+  public void prepareChangeApprover() {
+    selectedApprover = null;
+    approverCandidates = extractionPackage == null ? new ArrayList<>()
+        : extractionUiService.approverCandidates(extractionPackage.getId());
+  }
+
+  /**
+   * Same in-memory filter as the other people pickers: name or login id; blank returns everyone.
+   */
+  public List<AssignableUserOptionRow> completeApproverCandidates(final String query) {
+    if (approverCandidates == null || approverCandidates.isEmpty()) {
+      return List.of();
+    }
+    if (query == null || query.isBlank()) {
+      return approverCandidates;
+    }
+    final String needle = query.trim().toLowerCase();
+    return approverCandidates.stream()
+        .filter(u -> (u.getDisplayName() != null && u.getDisplayName().toLowerCase().contains(needle))
+            || (u.getLoginId() != null && u.getLoginId().toLowerCase().contains(needle)))
+        .collect(java.util.stream.Collectors.toList());
+  }
+
+  /**
+   * ADDED 2026-11-07: hand the approval to the picked approver. Callback parameter "done" is true
+   * when the dialog can close.
+   */
+  public void confirmChangeApprover() {
+    if (extractionPackage == null) {
+      return;
+    }
+    if (approverLogin() == null) {
+      add(FacesMessage.SEVERITY_WARN, "Pick a person", "Choose who should approve this package.");
+      PrimeFaces.current().ajax().addCallbackParam("done", false);
+      return;
+    }
+    final PackageOutcome outcome =
+        extractionUiService.changeApprover(extractionPackage.getId(), approverLogin());
+    boolean done = false;
+    switch (outcome) {
+      case OK -> {
+        done = true;
+        add(FacesMessage.SEVERITY_INFO, "Approver changed",
+            "The approval task moved to the person you picked.");
+      }
+      case ROLE_RULE -> add(FacesMessage.SEVERITY_WARN, "Cannot choose that person",
+          "The approver must hold the Approver role and must not be the submitter or the reviewer.");
+      case CONFLICT -> {
+        add(FacesMessage.SEVERITY_WARN, "Cannot change",
+            "The review is not waiting for approval, or the values were already applied.");
+        done = true;
+      }
+      case NOT_FOUND ->
+          add(FacesMessage.SEVERITY_WARN, "Not available", "The package has no submission.");
+      case FORBIDDEN -> add(FacesMessage.SEVERITY_WARN, "No permission", NO_APPROVE_PERMISSION);
+      default -> add(FacesMessage.SEVERITY_ERROR, "Change failed", "Please try again.");
+    }
+    if (done) {
+      selectedApprover = null;
+    }
+    PrimeFaces.current().ajax().addCallbackParam("done", done);
   }
 
   /**

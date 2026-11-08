@@ -15,5 +15,10 @@ public enum PackageOutcome {
   WORKSPACE_MISMATCH,
   INVALID,
   FORBIDDEN,
+  /**
+   * ADDED 2026-11-07: 412, a reviewer or approver rule refused the action (nobody eligible, or the
+   * chosen person cannot take the role).
+   */
+  ROLE_RULE,
   FAILED
 }

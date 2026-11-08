@@ -329,6 +329,8 @@ public class ContractPackagesBean implements Serializable {
               : "Only a draft package can be submitted.");
       case INVALID -> addMessage(FacesMessage.SEVERITY_WARN, "Not ready",
           "A package needs at least one document and an assignee, and a resubmission needs a correction note of at most 1000 characters.");
+      case ROLE_RULE -> addMessage(FacesMessage.SEVERITY_WARN, "Cannot submit",
+          "The assignee must hold the Reviewer role and must not be the person who submits, and at least one Approver other than the submitter and the assignee must exist. Reassign the package or ask an administrator.");
       default -> addMessage(FacesMessage.SEVERITY_ERROR,
           unsubmitMode ? "Unsubmit failed" : "Submit failed", "Please try again.");
     }
@@ -347,7 +349,8 @@ public class ContractPackagesBean implements Serializable {
     reassignPackage = row;
     reassignLoginId = null;
     try {
-      assignableUsers = uploadFilesService.findAssignableUsers();
+      // CHANGED 2026-11-07: only people who hold the Reviewer role (not the signed in person)
+      assignableUsers = contractPackageService.findReviewerCandidates();
     } catch (final Exception e) {
       log.error("Failed to load assignable users for the Reassign dialog", e);
       assignableUsers = new ArrayList<>();

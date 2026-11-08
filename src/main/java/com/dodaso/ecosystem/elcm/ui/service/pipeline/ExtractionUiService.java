@@ -206,6 +206,51 @@ public class ExtractionUiService {
   }
 
   /**
+   * ADDED 2026-11-07: the approver ELCM would pick and the people the reviewer may choose instead,
+   * for the Complete review dialog. Null when it could not be read (the dialog then shows nothing
+   * to choose and the review is completed with ELCM's own pick).
+   */
+  public ApproverPreviewRow approverPreview(final Long packageId) {
+    try {
+      return restServiceClient.get(SERVICE,
+          BASE + "/" + packageId + "/extraction/approver-preview",
+          new ParameterizedTypeReference<ApproverPreviewRow>() {
+          });
+    } catch (final Exception e) {
+      log.error("Failed to load the approver preview of package {}", packageId, e);
+      return null;
+    }
+  }
+
+  /**
+   * ADDED 2026-11-07: people who may take over the approval of the package; empty when none or the
+   * list could not be read.
+   */
+  public List<AssignableUserOptionRow> approverCandidates(final Long packageId) {
+    try {
+      final List<com.dodaso.ecosystem.auth.dto.UserDirectoryDTO> rows = restServiceClient.get(
+          SERVICE, BASE + "/" + packageId + "/extraction/approver-candidates",
+          new ParameterizedTypeReference<List<com.dodaso.ecosystem.auth.dto.UserDirectoryDTO>>() {
+          });
+      return ContractPackageService.toOptions(rows);
+    } catch (final Exception e) {
+      log.error("Failed to load the approver candidates of package {}", packageId, e);
+      return List.of();
+    }
+  }
+
+  /**
+   * ADDED 2026-11-07: hand the approval to another approver. ROLE_RULE means the person is not an
+   * eligible approver (412), CONFLICT that the package is not waiting for approval (409).
+   */
+  public PackageOutcome changeApprover(final Long packageId, final String loginId) {
+    final Map<String, Object> body = new HashMap<>();
+    body.put("assigneeId", loginId);
+    return post(BASE + "/" + packageId + "/extraction/approver", body,
+        "change the approver of package " + packageId);
+  }
+
+  /**
    * The correction note of a resubmission and the decline it answers; null when it could not be
    * read (the reviewer can still work).
    */
@@ -241,7 +286,19 @@ public class ExtractionUiService {
    * Reviewer: complete the review. WORKSPACE_MISMATCH here means 422: fields still to confirm.
    */
   public PackageOutcome completeReview(final Long packageId) {
-    return post(BASE + "/" + packageId + "/extraction/complete", new HashMap<String, Object>(),
+    return completeReview(packageId, null);
+  }
+
+  /**
+   * ADDED 2026-11-07: complete the review with the approver the reviewer picked (null lets ELCM
+   * pick). ROLE_RULE means the picked person is not an eligible approver or none is available.
+   */
+  public PackageOutcome completeReview(final Long packageId, final String approverLoginId) {
+    final Map<String, Object> body = new HashMap<>();
+    if (approverLoginId != null && !approverLoginId.isBlank()) {
+      body.put("assigneeId", approverLoginId.trim());
+    }
+    return post(BASE + "/" + packageId + "/extraction/complete", body,
         "complete the review of package " + packageId);
   }
 
@@ -314,6 +371,7 @@ public class ExtractionUiService {
         case 422 -> PackageOutcome.WORKSPACE_MISMATCH;
         case 400 -> PackageOutcome.INVALID;
         case 403 -> PackageOutcome.FORBIDDEN;
+        case 412 -> PackageOutcome.ROLE_RULE;
         default -> PackageOutcome.FAILED;
       };
     } catch (final Exception e) {

@@ -87,6 +87,45 @@ public class ContractPackageService {
     }
 
     /**
+     * ADDED 2026-11-07: the people a package can be assigned to as reviewer (Reviewer role, not the
+     * signed in person). Empty when the list could not be read, so the field offers nothing rather
+     * than breaking the dialog.
+     */
+    public List<AssignableUserOptionRow> findReviewerCandidates() {
+        try {
+            final List<com.dodaso.ecosystem.auth.dto.UserDirectoryDTO> rows = restServiceClient.get(
+                SERVICE, BASE + "/reviewer-candidates",
+                new ParameterizedTypeReference<List<com.dodaso.ecosystem.auth.dto.UserDirectoryDTO>>() {
+                });
+            return toOptions(rows);
+        } catch (final Exception e) {
+            log.error("Failed to load the reviewer candidates from elcm-service", e);
+            return List.of();
+        }
+    }
+
+    /** Public form of toOptions, for the beans. */
+    public static List<AssignableUserOptionRow> toOptionRows(
+        final List<com.dodaso.ecosystem.auth.dto.UserDirectoryDTO> rows) {
+        return toOptions(rows);
+    }
+
+    static List<AssignableUserOptionRow> toOptions(
+        final List<com.dodaso.ecosystem.auth.dto.UserDirectoryDTO> rows) {
+        final List<AssignableUserOptionRow> options = new ArrayList<>();
+        if (rows != null) {
+            for (final com.dodaso.ecosystem.auth.dto.UserDirectoryDTO dto : rows) {
+                if (dto.getLoginId() != null && !dto.getLoginId().isBlank()
+                    && dto.getDisplayName() != null && !dto.getDisplayName().isBlank()) {
+                    options.add(new AssignableUserOptionRow(
+                        dto.getLoginId(), dto.getDisplayName(), dto.getTeamName()));
+                }
+            }
+        }
+        return options;
+    }
+
+    /**
      * Creates a package from the given documents. roleByDocument maps a staged document id to a
      * role code; a missing or blank role means "not defined yet". assigneeLoginId is optional.
      */
@@ -177,6 +216,7 @@ public class ContractPackageService {
         log.warn("elcm-service refused to {}: HTTP {}", what, status);
         return switch (status) {
             case 403 -> PackageOutcome.FORBIDDEN;
+            case 412 -> PackageOutcome.ROLE_RULE;
             case 404 -> PackageOutcome.NOT_FOUND;
             case 409 -> PackageOutcome.CONFLICT;
             case 422 -> PackageOutcome.WORKSPACE_MISMATCH;

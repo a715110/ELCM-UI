@@ -89,7 +89,8 @@ public class CreateDocumentSetBean implements Serializable {
         assigneeLoginId = null;
         roleOptions = contractPackageService.findDocumentRoles();
         try {
-            assignableUsers = uploadFilesService.findAssignableUsers();
+            // CHANGED 2026-11-07: only people who hold the Reviewer role (not the signed in person)
+            assignableUsers = contractPackageService.findReviewerCandidates();
         } catch (final Exception e) {
             log.error("Failed to load assignable users for the Create Document Set dialog", e);
             assignableUsers = new ArrayList<>();
