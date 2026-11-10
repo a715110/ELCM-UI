@@ -217,12 +217,30 @@
                                                      process="@this"
                                                      update=":extractionForm:extractionPanel :stageDocumentsGrowl"
                                                      actionListener="#{extractionBean.confirmAll}"/>
+                                    <!-- ADDED 2026-11-08 - The approver is chosen here on the review screen.
+                                         It starts as the person ELCM would pick; the reviewer may
+                                         type a name or open the list to choose someone else. -->
+                                    <h:outputLabel for="reviewApprover" value="Approver"
+                                                   style="margin: 0 0.4rem 0 0.5rem; font-weight: 600;"/>
+                                    <p:autoComplete id="reviewApprover"
+                                                    value="#{extractionBean.selectedApprover}"
+                                                    completeMethod="#{extractionBean.completeApproverCandidates}"
+                                                    converter="#{approverOptionConverter}"
+                                                    var="au" itemValue="#{au}" itemLabel="#{au.label}"
+                                                    forceSelection="true" dropdown="true" scrollHeight="200"
+                                                    minQueryLength="1" size="34"
+                                                    disabled="#{demoRoleBean.readOnly('Contract Packages')}"
+                                                    emptyMessage="No other approver is available"
+                                                    style="margin-right: 0.5rem;"/>
+                                    <h:outputText rendered="#{extractionBean.suggestedApprover == null}"
+                                                  value="No approver could be suggested. Pick one, or ask an administrator. "
+                                                  style="color: #b45309; margin-right: 0.5rem;"/>
                                     <p:commandButton value="Complete review" icon="pi pi-check"
                                                      disabled="#{demoRoleBean.readOnly('Contract Packages') or extractionBean.openCount gt 0 or extractionBean.undefinedRoleCount gt 0}"
-                                                     process="@this"
-                                                     update=":extractionCompleteForm"
-                                                     actionListener="#{extractionBean.prepareCompleteReview}"
-                                                     oncomplete="PF('extractionCompleteDialog').show();"/>
+                                                     process="@this reviewApprover"
+                                                     update=":extractionForm:extractionPanel :stageDocumentsGrowl"
+                                                     actionListener="#{extractionBean.completeReview}"
+                                                     oncomplete="refreshContractPackages();"/>
                                     <p:commandButton value="Decline" icon="pi pi-undo"
                                                      styleClass="ui-button-danger ui-button-outlined"
                                                      style="margin-left: 0.5rem;"
@@ -581,52 +599,6 @@
                                      update="@form :extractionForm:extractionPanel :stageDocumentsGrowl"
                                      actionListener="#{extractionBean.confirmSendBack}"
                                      oncomplete="if (args &amp;&amp; args.done) { PF('extractionSendBackDialog').hide(); refreshContractPackages(); }"/>
-                </div>
-            </h:form>
-        </p:dialog>
-
-        <!-- ADDED 2026-11-07 - Complete review asks who approves. The approver ELCM would pick is
-             preselected; the reviewer may choose another person from the Approver role holders who
-             are neither the submitter nor the reviewer. -->
-        <p:dialog widgetVar="extractionCompleteDialog"
-                  header="Complete review"
-                  modal="true"
-                  resizable="false"
-                  draggable="false"
-                  closeOnEscape="true"
-                  width="34rem">
-            <h:form id="extractionCompleteForm">
-                <p style="margin-top: 0;">
-                    <strong><h:outputText value="#{extractionBean.extractionPackage.packageCode}"/></strong>
-                    goes to an approver once you complete the review.
-                </p>
-                <h:panelGroup layout="block" rendered="#{extractionBean.suggestedApprover != null}"
-                              style="margin-bottom: 0.75rem;">
-                    <h:outputText value="Assigned approver: "/>
-                    <strong><h:outputText value="#{extractionBean.suggestedApprover.label}"/></strong>
-                </h:panelGroup>
-                <h:panelGroup layout="block" rendered="#{extractionBean.suggestedApprover == null}"
-                              style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 6px; padding: 0.4rem 0.75rem; margin-bottom: 0.75rem;">
-                    <h:outputText value="No approver could be suggested. Pick one below, or ask an administrator."/>
-                </h:panelGroup>
-                <p:outputLabel for="completeApprover" value="Approver (change it if you want someone else)"/>
-                <br/>
-                <p:autoComplete id="completeApprover"
-                                value="#{extractionBean.selectedApprover}"
-                                completeMethod="#{extractionBean.completeApproverCandidates}"
-                                converter="#{approverOptionConverter}"
-                                var="au" itemValue="#{au}" itemLabel="#{au.label}"
-                                forceSelection="true" dropdown="true" scrollHeight="200"
-                                minQueryLength="1" inputStyle="width: 100%;"
-                                emptyMessage="No other approver is available" style="width: 100%;"/>
-                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-                    <p:commandButton value="Cancel" type="button" styleClass="ui-button-flat"
-                                     onclick="PF('extractionCompleteDialog').hide();"/>
-                    <p:commandButton value="Complete review" icon="pi pi-check"
-                                     process="@form"
-                                     update=":extractionForm:extractionPanel :stageDocumentsGrowl"
-                                     actionListener="#{extractionBean.completeReview}"
-                                     oncomplete="PF('extractionCompleteDialog').hide(); refreshContractPackages();"/>
                 </div>
             </h:form>
         </p:dialog>

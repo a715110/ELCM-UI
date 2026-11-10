@@ -29,6 +29,12 @@ public class ContractPackageRow implements Serializable {
     private String workspace;
     private String assignee;
     private String assigneeLoginId;
+
+    /** ADDED 2026-11-09 -- display name of the approver; null until the review is completed. */
+    private String approver;
+
+    /** ADDED 2026-11-09 -- login id of the approver; null until the review is completed. */
+    private String approverLoginId;
     private String roles;
     private String status;
     private String statusCode;

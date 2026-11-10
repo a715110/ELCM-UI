@@ -48,7 +48,7 @@
             <p:ajax process="@this" update="queueTable stageTabs"/>
           </p:selectOneMenu>
           <p:inputText id="queueQuery" value="#{workQueueBean.query}"
-                       placeholder="Search package, record, assignee or submitter"
+                       placeholder="Search package, record, reviewer or submitter"
                        onkeypress="if (event.keyCode === 13) { event.preventDefault(); PF('queueSearchBtn').jq.click(); }"/>
           <p:commandButton widgetVar="queueSearchBtn" value="Search" icon="pi pi-search"
                            process="@form" update="queueTable stageTabs"/>
@@ -81,7 +81,7 @@
             <p:tag value="#{r.stageLabel}"
                    severity="#{r.stageCode == 'FAILED' ? 'danger' : (r.stageCode == 'APPLIED' ? 'success' : (r.stageCode == 'EXTRACTING' ? 'secondary' : 'warning'))}"/>
           </p:column>
-          <p:column headerText="Assignee" sortBy="#{r.assignee}">
+          <p:column headerText="Reviewer" sortBy="#{r.assignee}">
             <ui:include src="/WEB-INF/popup/userName.xhtml">
               <ui:param name="popupLoginId" value="#{r.assigneeLoginId}"/>
               <ui:param name="popupName" value="#{r.assignee}"/>

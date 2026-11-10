@@ -541,7 +541,7 @@
 
                 <h:panelGroup id="setNewPanel" layout="block" style="margin: 0.75rem 0;">
                     <h:panelGroup rendered="#{not createDocumentSetBean.existingMode}">
-                        <p:outputLabel for="setAssignee" value="Assignee"/>
+                        <p:outputLabel for="setAssignee" value="Reviewer"/>
                         <br/>
                         <p:autoComplete id="setAssignee"
                                         value="#{createDocumentSetBean.assigneeLoginId}"
@@ -745,9 +745,9 @@
                     <strong><h:outputText
                             value="#{contractPackagesBean.reassignPackage.packageCode}"/></strong>
                     <h:outputText
-                            value=" - currently assigned to #{contractPackagesBean.reassignPackage.assignee}"/>
+                            value=" - current reviewer: #{contractPackagesBean.reassignPackage.assignee}"/>
                 </p>
-                <p:outputLabel for="reassignAssignee" value="New assignee"/>
+                <p:outputLabel for="reassignAssignee" value="New reviewer"/>
                 <br/>
                 <p:autoComplete id="reassignAssignee"
                                 value="#{contractPackagesBean.reassignLoginId}"
@@ -1144,14 +1144,15 @@
                     </p:column>
 
                     <p:column headerText="Docs">
-                        <h:outputText value="#{pkg.docCount}"/>
+                        <!-- CHANGED 2026-11-09 - the Roles column is gone; the roles count is the tooltip here. -->
+                        <h:outputText value="#{pkg.docCount}" title="#{pkg.roles}"/>
                     </p:column>
 
                     <p:column headerText="Workspace">
                         <p:tag value="#{pkg.workspace}"/>
                     </p:column>
 
-                    <p:column headerText="Assignee">
+                    <p:column headerText="Reviewer">
                         <!-- REVISED 2026-10-24 - the name opens the small popup (View Profile,
                              Message to Teams) handled by dm-multichannel.js. A package without an
                              assignee keeps the plain text. -->
@@ -1164,8 +1165,18 @@
                         <h:outputText value="#{pkg.assignee}" rendered="#{empty pkg.assigneeLoginId}"/>
                     </p:column>
 
-                    <p:column headerText="Roles">
-                        <h:outputText value="#{pkg.roles}"/>
+                    <!-- ADDED 2026-11-09 - the approver, in the place of the Roles column. Empty until
+                         the review is completed, and again after it is reopened or sent back. The name
+                         opens the same popup as the assignee. -->
+                    <p:column headerText="Approver">
+                        <h:panelGroup rendered="#{not empty pkg.approverLoginId}">
+                            <a href="#" class="user-name-link" data-login-id="#{pkg.approverLoginId}">
+                                <h:outputText value="#{pkg.approver}" styleClass="clickable-user-name"
+                                              title="Click to view profile or send message"/>
+                            </a>
+                        </h:panelGroup>
+                        <h:outputText value="-" rendered="#{empty pkg.approverLoginId}"
+                                      title="Set when the review is completed"/>
                     </p:column>
 
                     <p:column headerText="Status">
@@ -1188,8 +1199,13 @@
                                 <f:param name="package" value="#{pkg.id}"/>
                                 <f:param name="Source" value="Dashboard"/>
                             </p:button>
+                            <!-- CHANGED 2026-11-09 - only a draft package keeps this button. Package details
+                                 shows the documents of every other package, and the roles of a package under
+                                 review are set on the review screen. Here a draft package gets its documents
+                                 removed and its roles set before it is submitted. -->
                             <p:commandButton icon="pi pi-folder-open"
-                                             styleClass="rounded-button ui-button-text" title="Open"
+                                             rendered="#{pkg.statusCode == 'ASSEMBLY'}"
+                                             styleClass="rounded-button ui-button-text" title="Edit documents"
                                              process="@this" update=":packageDocumentsForm"
                                              actionListener="#{contractPackagesBean.open(pkg)}"
                                              oncomplete="PF('packageDocumentsDialog').show();"/>

@@ -833,6 +833,24 @@ public class ExtractionBean implements Serializable {
   }
 
   /**
+   * ADDED 2026-11-08: fills the Approver picker on the review screen. The suggestion is
+   * preselected; a person the reviewer already picked stays picked when the screen reloads (for
+   * example after Confirm all), as long as that person is still in the list.
+   */
+  private void loadApproverChoices() {
+    final String picked = approverLogin();
+    if (status == null || !status.isDone() || !isCanReview()) {
+      return;
+    }
+    prepareCompleteReview();
+    if (picked != null) {
+      approverCandidates.stream()
+          .filter(u -> picked.equalsIgnoreCase(u.getLoginId()))
+          .findFirst().ifPresent(u -> selectedApprover = u);
+    }
+  }
+
+  /**
    * ADDED 2026-11-07: Change approver clicked: load the people who may take over. The page shows
    * the dialog.
    */
@@ -1017,6 +1035,7 @@ public class ExtractionBean implements Serializable {
         results = extractionUiService.results(extractionPackage.getId());
         rememberSaved();
         loadRoles();
+        loadApproverChoices();
       }
     }
   }

@@ -275,7 +275,7 @@ public class ContractPackagesBean implements Serializable {
       return "Add at least one document before submitting";
     }
     if (row.getAssigneeLoginId() == null || row.getAssigneeLoginId().isBlank()) {
-      return "Assign the package to someone before submitting";
+      return "Choose a reviewer for the package before submitting";
     }
     return "Submit for Extraction";
   }
@@ -328,9 +328,9 @@ public class ContractPackagesBean implements Serializable {
           unsubmitMode ? "The submission was already picked up or the package is not submitted."
               : "Only a draft package can be submitted.");
       case INVALID -> addMessage(FacesMessage.SEVERITY_WARN, "Not ready",
-          "A package needs at least one document and an assignee, and a resubmission needs a correction note of at most 1000 characters.");
+          "A package needs at least one document and a reviewer, and a resubmission needs a correction note of at most 1000 characters.");
       case ROLE_RULE -> addMessage(FacesMessage.SEVERITY_WARN, "Cannot submit",
-          "The assignee must hold the Reviewer role and must not be the person who submits, and at least one Approver other than the submitter and the assignee must exist. Reassign the package or ask an administrator.");
+          "The reviewer must hold the Reviewer role and must not be the person who submits, and at least one Approver other than the submitter and the reviewer must exist. Reassign the package or ask an administrator.");
       default -> addMessage(FacesMessage.SEVERITY_ERROR,
           unsubmitMode ? "Unsubmit failed" : "Submit failed", "Please try again.");
     }
@@ -398,7 +398,7 @@ public class ContractPackagesBean implements Serializable {
       case CONFLICT -> addMessage(FacesMessage.SEVERITY_WARN, "Cannot reassign",
           "Only a draft package can be reassigned.");
       case INVALID -> {
-        addMessage(FacesMessage.SEVERITY_WARN, "Choose a person", "The assignee was not accepted.");
+        addMessage(FacesMessage.SEVERITY_WARN, "Choose a person", "The reviewer was not accepted.");
         done = false;
       }
       default -> {
