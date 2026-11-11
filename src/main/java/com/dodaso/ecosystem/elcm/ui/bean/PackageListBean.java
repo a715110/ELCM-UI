@@ -18,7 +18,8 @@ import lombok.Setter;
  * ADDED 2026-10-25. Backing bean of the Contract Packages list (contractpackages.xhtml): the
  * packages the signed-in user may see, in two tabs, Open (every status except completed) and
  * Closed (completed), 20 at a time with a "Load more" button, newest change first. "Mine" is the
- * packages the user is assigned to, created, submitted or reviewed; "All" is for administrators,
+ * packages the user is assigned to, is the approver of, created, submitted or reviewed; "All" is
+ * for administrators,
  * reviewers and approvers, and the switch is hidden for everyone else. The rule is applied by
  * elcm-service (the same read as the Package Rail in ECWS). The text filter works on the lines
  * already loaded. Each line opens the Package Details screen.
@@ -63,21 +64,23 @@ public class PackageListBean implements Serializable {
     mineOnly = !"ALL".equals(scope);
   }
 
+  /**
+   * Both tabs are read when the page opens (CHANGED 2026-11-09), so the Closed tab shows its count
+   * before it is clicked. Open goes first: it settles whether the user may use All.
+   */
   @PostConstruct
   void init() {
     loadOpen();
+    loadClosed();
   }
 
-  /** Reads the shown tab again from the start. */
+  /** Reads both tabs again from the start, so both counts stay current. */
   public void refresh() {
-    if (isClosedTab()) {
-      loadClosed();
-    } else {
-      loadOpen();
-    }
+    loadOpen();
+    loadClosed();
   }
 
-  /** The tab changed: the Closed list is read the first time its tab is shown, and not before. */
+  /** The tab changed: the Closed list is read again only when its first read failed. */
   public void tabChanged() {
     if (isClosedTab()) {
       if (!closedLoaded) {
@@ -86,15 +89,13 @@ public class PackageListBean implements Serializable {
     }
   }
 
-  /** The Mine and All switch changed: both lists are read again, the shown one now. */
+  /** The Mine and All switch changed: both lists are read again. */
   public void scopeChanged() {
     closedLoaded = false;
     closedItems = new ArrayList<>();
     closedNext = null;
     loadOpen();
-    if (isClosedTab()) {
-      loadClosed();
-    }
+    loadClosed();
   }
 
   public void loadMore() {

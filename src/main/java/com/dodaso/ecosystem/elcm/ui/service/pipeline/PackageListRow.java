@@ -46,6 +46,7 @@ public class PackageListRow implements Serializable {
     }
     return switch (relation) {
       case "ASSIGNED" -> "Assigned to you";
+      case "APPROVER" -> "You are the approver";
       case "CREATED" -> "You created it";
       case "SUBMITTER" -> "You submitted it";
       case "REVIEWER" -> "You reviewed it";

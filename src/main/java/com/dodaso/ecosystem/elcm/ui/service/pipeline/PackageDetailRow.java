@@ -11,7 +11,7 @@ import lombok.Setter;
 /**
  * ADDED 2026-10-25. Everything the Package Details screen shows about one package. Mirrors
  * elcm-service's PackageDetail. statusCode is ASSEMBLY (draft), VALIDATED (submitted) or COMPLETED
- * (closed); relation is ASSIGNED, CREATED, SUBMITTER, REVIEWER or OTHER. Times are UTC.
+ * (closed); relation is ASSIGNED, APPROVER, CREATED, SUBMITTER, REVIEWER or OTHER. Times are UTC.
  */
 @Getter
 @Setter
@@ -79,6 +79,7 @@ public class PackageDetailRow implements Serializable {
     }
     return switch (relation) {
       case "ASSIGNED" -> "Assigned to you";
+      case "APPROVER" -> "You are the approver";
       case "CREATED" -> "You created it";
       case "SUBMITTER" -> "You submitted it";
       case "REVIEWER" -> "You reviewed it";
