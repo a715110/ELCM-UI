@@ -9,8 +9,6 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 
-import com.dodaso.ecosystem.auth.constant.UserControllerAPIEnum;
-import com.dodaso.ecosystem.auth.container.UserDirectoryDTOContainer;
 import com.dodaso.ecosystem.baseline.common.constant.ServiceDiscoveryEnum;
 import com.dodaso.ecosystem.baseline.common.container.RESTReqContainer;
 import com.dodaso.ecosystem.baseline.common.proxy.RESTServiceClient;
@@ -21,6 +19,7 @@ import com.dodaso.ecosystem.elcm.dto.LkpContractTypeDTO;
 import com.dodaso.ecosystem.elcm.dto.LkpRoutingIntentDTO;
 import com.dodaso.ecosystem.elcm.dto.StagedDocumentDTO;
 import com.dodaso.ecosystem.elcm.dto.WorkspaceDTO;
+import com.dodaso.ecosystem.elcm.ui.constant.ContractPackageControllerAPIEnum;
 import com.dodaso.ecosystem.elcm.ui.constant.ContractRecordControllerAPIEnum;
 import com.dodaso.ecosystem.elcm.ui.constant.DestinationChoiceEnum;
 import lombok.extern.slf4j.Slf4j;
@@ -105,27 +104,18 @@ public class UploadFilesService {
    * than breaking the whole Upload Files dialog.
    */
   public List<AssignableUserOptionRow> findAssignableUsers() {
+    // CHANGED 2026-11-10: the person picked here becomes the reviewer of the package these
+    // documents join, so only people who hold the Reviewer role are offered (never the signed in
+    // person). elcm-service builds that list, the same one the Create Document Set dialog uses.
     try {
-      UserDirectoryDTOContainer container = restServiceClient.get(
-          ServiceDiscoveryEnum.iams_service.getServiceDiscoveryName(),
-          UserControllerAPIEnum.userControllerAPIEnum_getUserDirectories.getEndPoint(),
-          new ParameterizedTypeReference<UserDirectoryDTOContainer>() {
+      final List<com.dodaso.ecosystem.auth.dto.UserDirectoryDTO> rows = restServiceClient.get(
+          ServiceDiscoveryEnum.elcm_service.getServiceDiscoveryName(),
+          ContractPackageControllerAPIEnum.getContractPackages.getEndPoint() + "/reviewer-candidates",
+          new ParameterizedTypeReference<List<com.dodaso.ecosystem.auth.dto.UserDirectoryDTO>>() {
           });
-
-      if (container == null || container.getUserDirectoryDTOList() == null) {
-        return List.of();
-      }
-
-      // loginId is what actually gets stored as the assignment now (see
-      // AssignableUserOptionRow), so an entry without one can't be assigned
-      // to -- drop it rather than offer an option that would submit null.
-      return container.getUserDirectoryDTOList().stream()
-          .filter(dto -> dto.getLoginId() != null && !dto.getLoginId().isBlank())
-          .filter(dto -> dto.getDisplayName() != null && !dto.getDisplayName().isBlank())
-          .map(dto -> new AssignableUserOptionRow(dto.getLoginId(), dto.getDisplayName(), dto.getTeamName()))
-          .collect(Collectors.toList());
+      return ContractPackageService.toOptionRows(rows);
     } catch (Exception e) {
-      log.error("Failed to load assignable users from IAMS directory", e);
+      log.error("Failed to load the reviewer candidates from elcm-service", e);
       return List.of();
     }
   }

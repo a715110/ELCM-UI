@@ -652,7 +652,7 @@
                          styled directly the way a plain select could be. -->
                     <ui:fragment
                             rendered="#{demoRoleBean.canSeeField('Upload Files', 'Assign To')}">
-                        <div class="ufd-field-label">ASSIGN TO <span
+                        <div class="ufd-field-label">REVIEWER <span
                                 class="ufd-optional">(OPTIONAL)</span></div>
                         <div class="ufd-search-input-wrap">
                             <!-- pi-search, not pi-user, deliberately - the
@@ -678,7 +678,7 @@
                                             forceSelection="true" dropdown="true" scrollHeight="200"
                                             disabled="#{demoRoleBean.fieldReadOnly('Upload Files', 'Assign To')}"
                                             emptyMessage="No matching people"
-                                            placeholder="Search by name or ID, or leave blank for Unassigned"/>
+                                            placeholder="Search by name or ID, or leave blank"/>
                         </div>
                     </ui:fragment>
                 </div>

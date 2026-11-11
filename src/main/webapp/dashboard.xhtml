@@ -546,10 +546,13 @@
                         <p:autoComplete id="setAssignee"
                                         value="#{createDocumentSetBean.assigneeLoginId}"
                                         completeMethod="#{createDocumentSetBean.completeAssignableUsers}"
-                                        var="au" itemValue="#{au.loginId}" itemLabel="#{au.label}"
+                                        var="au" itemValue="#{createDocumentSetBean.assignValue(au)}"
+                                        itemLabel="#{createDocumentSetBean.assignLabel(au)}"
                                         forceSelection="true" dropdown="true" scrollHeight="200"
                                         emptyMessage="No matching people" placeholder="Optional"
                                         style="width: 100%;"/>
+                        <br/>
+                        <small>Pre-filled from the reviewer chosen at upload when the selected documents agree.</small>
                     </h:panelGroup>
                 </h:panelGroup>
 
@@ -979,7 +982,7 @@
                          StageDocumentService.toDraft()'s and StagedDocumentRow's
                          Javadoc for where these fields come from (a separate IAMS
                          lookup, not the same JOIN FETCH as the Record fields). -->
-                    <p:column headerText="Assignee"
+                    <p:column headerText="Reviewer"
                               rendered="#{demoRoleBean.canSeeField('Stage Documents', 'Assignee')}">
                         <!-- REVISED 2026-10-27 - the name opens the small popup when the assignee was
                              found in the directory (assigneeLoginId) and is not System. The
@@ -998,7 +1001,7 @@
                         <p:tooltip for="assigneeCell" position="right" trackMouse="true"
                                    rendered="#{doc.assigneeLoginId != null}">
                             <div class="stage-doc-tooltip">
-                                <div class="stage-doc-tooltip-title">Assignee Details</div>
+                                <div class="stage-doc-tooltip-title">Reviewer Details</div>
                                 <div class="stage-doc-tooltip-row">
                                     <span class="stage-doc-tooltip-label">User ID</span>
                                     <span class="stage-doc-tooltip-value">#{doc.assigneeLoginId}</span>

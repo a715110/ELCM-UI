@@ -95,11 +95,59 @@ public class CreateDocumentSetBean implements Serializable {
             log.error("Failed to load assignable users for the Create Document Set dialog", e);
             assignableUsers = new ArrayList<>();
         }
+        // ADDED 2026-11-10: a reviewer chosen at upload is carried into the new package.
+        assigneeLoginId = initialReviewer(selected);
         eligiblePackages = contractPackageService.findPackages().stream()
             .filter(p -> "ASSEMBLY".equals(p.getStatusCode()))
             .filter(p -> workspace != null && workspace.equals(p.getWorkspace()))
             .collect(Collectors.toList());
         PrimeFaces.current().ajax().addCallbackParam("open", true);
+    }
+
+    /**
+     * The reviewer to pre-fill: the one person chosen at upload for the selected documents. Null
+     * when none was chosen, when they disagree (a note asks the user to pick), or when the person
+     * is no longer in the list of people who may review.
+     */
+    private String initialReviewer(final List<StagedDocumentRow> selected) {
+        final Set<String> logins = new LinkedHashSet<>();
+        for (final StagedDocumentRow row : selected) {
+            final String login = row.getAssigneeLoginId();
+            if (login != null && !login.isBlank()) {
+                logins.add(login.trim());
+            }
+        }
+        if (logins.isEmpty()) {
+            return null;
+        }
+        if (logins.size() > 1) {
+            addMessage(FacesMessage.SEVERITY_INFO, "Choose a reviewer",
+                "The selected documents name different reviewers. Pick one for the package.");
+            return null;
+        }
+        final String login = logins.iterator().next();
+        final boolean canReview = assignableUsers != null && assignableUsers.stream()
+            .anyMatch(u -> u.getLoginId() != null && u.getLoginId().equalsIgnoreCase(login));
+        if (!canReview) {
+            addMessage(FacesMessage.SEVERITY_INFO, "Choose a reviewer",
+                "The reviewer chosen at upload cannot review this package. Pick another person.");
+            return null;
+        }
+        return assignableUsers.stream()
+            .filter(u -> u.getLoginId() != null && u.getLoginId().equalsIgnoreCase(login))
+            .map(AssignableUserOptionRow::getLoginId).findFirst().orElse(login);
+    }
+
+    /** Item value for the reviewer field. Accepts a String too, which JSF sends back on redisplay. */
+    public String assignValue(final Object item) {
+        return item instanceof AssignableUserOptionRow row ? row.getLoginId()
+            : (item == null ? null : item.toString());
+    }
+
+    /** Item label for the reviewer field, see {@link #assignValue}. */
+    public String assignLabel(final Object item) {
+        return item instanceof AssignableUserOptionRow row ? row.getLabel()
+            : (item == null ? "" : item.toString());
     }
 
     public boolean isExistingMode() {
