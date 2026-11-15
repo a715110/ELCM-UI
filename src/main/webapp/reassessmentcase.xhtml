@@ -1,0 +1,276 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                template="/WEB-INF/template.xhtml">
+  <!--
+      ADDED 2026-11-11 - One reassessment. Each card shows only when elcm-service says the signed-in
+      person may use it (the can flags of the case). Open with reassessmentcase.xhtml?id=N.
+  -->
+  <ui:define name="title">Reassessment</ui:define>
+
+  <ui:define name="head">
+    <style>
+      .rc-card { background: #FFFFFF; border: 1px solid #E5E2D9; border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0; }
+      .rc-card h2 { font-size: 1.15rem; margin: 0 0 0.25rem 0; }
+      .rc-sub { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+      .rc-facts { display: flex; flex-wrap: wrap; gap: 0.4rem 2rem; margin: 0.5rem 0 0.5rem 0; font-size: 0.9rem; }
+      .rc-facts span.k { color: #6B6A63; margin-right: 0.35rem; }
+      .rc-warn { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+      .rc-field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.9rem; max-width: 40rem; }
+      .rc-field label { font-size: 0.85rem; color: #6B6A63; }
+      .rc-q { margin-bottom: 1rem; max-width: 40rem; }
+      .rc-q .t { font-weight: 600; margin-bottom: 0.25rem; }
+      .rc-q .a { background: #FAF9F6; border-radius: 6px; padding: 0.4rem 0.6rem; }
+      .rc-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    </style>
+  </ui:define>
+
+  <ui:define name="content">
+    <p:growl id="rcGrowl" globalOnly="true" showDetail="true" life="7000"/>
+    <div style="margin-bottom: 0.5rem;">
+      <p:button value="All reassessments" outcome="/reassessments" icon="pi pi-arrow-left"
+                styleClass="ui-button-flat">
+        <f:param name="Source" value="Reassessment"/>
+      </p:button>
+    </div>
+
+    <h:panelGroup layout="block" styleClass="rc-card" rendered="#{!reassessmentAccessBean.enabled}">
+      <h:outputText value="Lease reassessment is not switched on yet."/>
+    </h:panelGroup>
+
+    <h:panelGroup layout="block" styleClass="rc-warn"
+                  rendered="#{reassessmentAccessBean.enabled and reassessmentCaseBean.loadFailed}">
+      <h:outputText value="This reassessment could not be loaded. It may not exist, or try again in a moment."/>
+    </h:panelGroup>
+
+    <h:panelGroup id="caseArea" layout="block"
+                  rendered="#{reassessmentAccessBean.enabled and not reassessmentCaseBean.loadFailed}">
+      <h1><h:outputText value="#{reassessmentCaseBean.detail.summary.caseCode}"/></h1>
+
+      <div class="rc-card">
+        <div class="rc-facts">
+          <span><span class="k">Status</span><p:tag value="#{reassessmentCaseBean.detail.summary.statusLabel}" severity="info"/></span>
+          <span><span class="k">Record</span><h:outputText value="#{reassessmentCaseBean.detail.summary.recordCode}"/></span>
+          <span><span class="k">Counterparty</span><h:outputText value="#{reassessmentCaseBean.detail.summary.counterparty}"/></span>
+          <span><span class="k">Reason</span><h:outputText value="#{reassessmentCaseBean.detail.summary.triggerLabel}"/></span>
+          <span><span class="k">Event date</span><h:outputText value="#{reassessmentCaseBean.detail.triggerDate}"/></span>
+          <span><span class="k">Finish by</span><h:outputText value="#{reassessmentCaseBean.detail.summary.dueDate}"/></span>
+          <span><span class="k">Opened by</span><h:outputText value="#{reassessmentCaseBean.detail.summary.openedBy}"/></span>
+        </div>
+        <h:panelGroup layout="block" rendered="#{not empty reassessmentCaseBean.detail.triggerDescription}">
+          <span class="rc-sub"><h:outputText value="#{reassessmentCaseBean.detail.triggerDescription}"/></span>
+        </h:panelGroup>
+        <h:panelGroup layout="block" rendered="#{not empty reassessmentCaseBean.detail.replacementRecordCode}">
+          <span class="rc-facts"><span><span class="k">Replaced by</span><h:outputText value="#{reassessmentCaseBean.detail.replacementRecordCode}"/></span></span>
+        </h:panelGroup>
+      </div>
+
+      <!-- Survey: send -->
+      <h:panelGroup layout="block" styleClass="rc-card" rendered="#{reassessmentCaseBean.detail.canSendSurvey}">
+        <h:form id="sendForm">
+          <h2>Send a survey</h2>
+          <div class="rc-sub">The questions are copied when the survey is sent, so later edits to the survey never change it.</div>
+          <div class="rc-field">
+            <label for="sendForm:tpl_input">Survey</label>
+            <p:selectOneMenu id="tpl" value="#{reassessmentCaseBean.templateCode}">
+              <f:selectItem itemLabel="Choose a survey" itemValue="#{null}" noSelectionOption="true"/>
+              <f:selectItems value="#{reassessmentCaseBean.templates}" var="t" itemValue="#{t.code}" itemLabel="#{t.label}"/>
+            </p:selectOneMenu>
+          </div>
+          <div class="rc-field">
+            <label for="sendForm:who_input">Respondent</label>
+            <p:selectOneMenu id="who" value="#{reassessmentCaseBean.respondent}" filter="true" filterMatchMode="contains">
+              <f:selectItem itemLabel="Choose a person" itemValue="#{null}" noSelectionOption="true"/>
+              <f:selectItems value="#{reassessmentCaseBean.people}" var="u" itemValue="#{u.loginId}" itemLabel="#{u.label}"/>
+            </p:selectOneMenu>
+          </div>
+          <div class="rc-field">
+            <label for="sendForm:bu">Business unit (optional)</label>
+            <p:inputText id="bu" value="#{reassessmentCaseBean.businessUnit}" maxlength="200"/>
+          </div>
+          <div class="rc-field">
+            <label for="sendForm:due_input">Answer by (optional)</label>
+            <p:datePicker id="due" value="#{reassessmentCaseBean.surveyDue}" pattern="yyyy-MM-dd"/>
+          </div>
+          <p:commandButton value="#{reassessmentCaseBean.detail.surveySent ? 'Send again' : 'Send survey'}"
+                           icon="pi pi-send" process="@form" update=":caseArea :rcGrowl"
+                           actionListener="#{reassessmentCaseBean.sendSurvey}"/>
+        </h:form>
+      </h:panelGroup>
+
+      <!-- Survey: answer or read -->
+      <h:panelGroup layout="block" styleClass="rc-card" rendered="#{reassessmentCaseBean.detail.surveySent}">
+        <h:form id="surveyForm">
+          <h2>Survey</h2>
+          <div class="rc-facts">
+            <span><span class="k">Survey</span><h:outputText value="#{reassessmentCaseBean.detail.surveyTemplate}"/></span>
+            <span><span class="k">Sent to</span><h:outputText value="#{reassessmentCaseBean.detail.summary.respondent}"/></span>
+            <span><span class="k">Sent by</span><h:outputText value="#{reassessmentCaseBean.detail.surveySentBy}"/></span>
+            <span><span class="k">Sent</span><h:outputText value="#{reassessmentCaseBean.detail.surveySentAtText}"/></span>
+            <span><span class="k">Answer by</span><h:outputText value="#{reassessmentCaseBean.detail.surveyDueDate}"/></span>
+            <span><span class="k">Answered</span><h:outputText value="#{reassessmentCaseBean.detail.surveySubmittedAtText}"/></span>
+          </div>
+          <ui:repeat value="#{reassessmentCaseBean.detail.survey}" var="q">
+            <div class="rc-q">
+              <div class="t"><h:outputText value="#{q.number}. #{q.text}"/><h:outputText value=" *" rendered="#{q.required}"/></div>
+              <h:panelGroup rendered="#{not reassessmentCaseBean.detail.canAnswerSurvey}">
+                <div class="a"><h:outputText value="#{empty q.answer ? 'No answer yet' : q.answer}"/></div>
+              </h:panelGroup>
+              <h:panelGroup rendered="#{reassessmentCaseBean.detail.canAnswerSurvey}">
+                <h:panelGroup rendered="#{q.type == 'YES_NO'}">
+                  <p:selectOneRadio value="#{reassessmentCaseBean.answers[q.key]}">
+                    <f:selectItem itemLabel="Yes" itemValue="YES"/>
+                    <f:selectItem itemLabel="No" itemValue="NO"/>
+                  </p:selectOneRadio>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{q.type == 'CHOICE'}">
+                  <p:selectOneMenu value="#{reassessmentCaseBean.answers[q.key]}">
+                    <f:selectItem itemLabel="Choose" itemValue="#{null}" noSelectionOption="true"/>
+                    <f:selectItems value="#{q.choices}"/>
+                  </p:selectOneMenu>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{q.type == 'DATE'}">
+                  <p:inputText value="#{reassessmentCaseBean.answers[q.key]}" placeholder="yyyy-mm-dd" maxlength="10"/>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{q.type == 'NUMBER'}">
+                  <p:inputText value="#{reassessmentCaseBean.answers[q.key]}" maxlength="30"/>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{q.type != 'YES_NO' and q.type != 'CHOICE' and q.type != 'DATE' and q.type != 'NUMBER'}">
+                  <p:inputTextarea value="#{reassessmentCaseBean.answers[q.key]}" rows="3" maxlength="4000" style="width:100%"/>
+                </h:panelGroup>
+              </h:panelGroup>
+            </div>
+          </ui:repeat>
+          <h:panelGroup layout="block" styleClass="rc-actions" rendered="#{reassessmentCaseBean.detail.canAnswerSurvey}">
+            <p:commandButton value="Save draft" icon="pi pi-save" styleClass="ui-button-outlined"
+                             process="@form" update=":caseArea :rcGrowl"
+                             actionListener="#{reassessmentCaseBean.saveAnswers}"/>
+            <p:commandButton value="Submit answers" icon="pi pi-check"
+                             process="@form" update=":caseArea :rcGrowl"
+                             actionListener="#{reassessmentCaseBean.submitAnswers}"/>
+          </h:panelGroup>
+        </h:form>
+      </h:panelGroup>
+
+      <!-- Conclusion: write -->
+      <h:panelGroup layout="block" styleClass="rc-card" rendered="#{reassessmentCaseBean.detail.canConclude}">
+        <h:form id="concludeForm">
+          <h2>Conclusion</h2>
+          <div class="rc-sub">Choose the outcome and explain it. Submitting sends it to an approver.</div>
+          <div class="rc-field">
+            <label for="concludeForm:out_input">Outcome</label>
+            <p:selectOneMenu id="out" value="#{reassessmentCaseBean.outcomeCode}">
+              <f:selectItem itemLabel="Choose an outcome" itemValue="#{null}" noSelectionOption="true"/>
+              <f:selectItems value="#{reassessmentCaseBean.outcomes}" var="o" itemValue="#{o.code}" itemLabel="#{o.label}"/>
+            </p:selectOneMenu>
+          </div>
+          <div class="rc-field">
+            <label for="concludeForm:sum">Summary</label>
+            <p:inputTextarea id="sum" value="#{reassessmentCaseBean.summary}" rows="5" maxlength="4000"/>
+          </div>
+          <div class="rc-actions">
+            <p:commandButton value="Save draft" icon="pi pi-save" styleClass="ui-button-outlined"
+                             process="@form" update=":caseArea :rcGrowl"
+                             actionListener="#{reassessmentCaseBean.saveConclusion}"/>
+            <p:commandButton value="Submit for approval" icon="pi pi-check"
+                             process="@form" update=":caseArea :rcGrowl"
+                             actionListener="#{reassessmentCaseBean.submitConclusion}"/>
+          </div>
+        </h:form>
+      </h:panelGroup>
+
+      <!-- Conclusion: read -->
+      <h:panelGroup layout="block" styleClass="rc-card"
+                    rendered="#{not reassessmentCaseBean.detail.canConclude and not empty reassessmentCaseBean.detail.outcomeCode}">
+        <h2>Conclusion</h2>
+        <div class="rc-facts">
+          <span><span class="k">Outcome</span><h:outputText value="#{reassessmentCaseBean.detail.outcomeLabel}"/></span>
+          <span><span class="k">Written by</span><h:outputText value="#{reassessmentCaseBean.detail.concludedBy}"/></span>
+          <span><span class="k">Written</span><h:outputText value="#{reassessmentCaseBean.detail.concludedAtText}"/></span>
+        </div>
+        <p><h:outputText value="#{reassessmentCaseBean.detail.conclusionSummary}"/></p>
+        <h:panelGroup layout="block" rendered="#{not empty reassessmentCaseBean.detail.decisionCode}">
+          <div class="rc-facts">
+            <span><span class="k">Decision</span><h:outputText value="#{reassessmentCaseBean.detail.decisionCode}"/></span>
+            <span><span class="k">By</span><h:outputText value="#{reassessmentCaseBean.detail.approvedBy}"/></span>
+            <span><span class="k">On</span><h:outputText value="#{reassessmentCaseBean.detail.approvedAtText}"/></span>
+          </div>
+          <p><h:outputText value="#{reassessmentCaseBean.detail.approvalComment}"/></p>
+        </h:panelGroup>
+      </h:panelGroup>
+
+      <!-- Approval -->
+      <h:panelGroup layout="block" styleClass="rc-card" rendered="#{reassessmentCaseBean.detail.canDecide}">
+        <h:form id="decideForm">
+          <h2>Approval</h2>
+          <div class="rc-sub">Approve the conclusion above, or send it back with a reason.</div>
+          <div class="rc-field">
+            <label for="decideForm:dc">Comment (needed to send it back)</label>
+            <p:inputTextarea id="dc" value="#{reassessmentCaseBean.decisionComment}" rows="3" maxlength="1000"/>
+          </div>
+          <div class="rc-actions">
+            <p:commandButton value="Approve" icon="pi pi-check"
+                             process="@form" update=":caseArea :rcGrowl"
+                             actionListener="#{reassessmentCaseBean.approve}"/>
+            <p:commandButton value="Send back" icon="pi pi-undo" styleClass="ui-button-outlined"
+                             process="@form" update=":caseArea :rcGrowl"
+                             actionListener="#{reassessmentCaseBean.reject}"/>
+          </div>
+        </h:form>
+      </h:panelGroup>
+
+      <!-- Replacement -->
+      <h:panelGroup layout="block" styleClass="rc-card" rendered="#{reassessmentCaseBean.detail.canLinkReplacement}">
+        <h:form id="replaceForm">
+          <h2>Link the replacement record</h2>
+          <div class="rc-sub">An amendment is needed. When the new record exists, link it here. The old record is marked superseded and this reassessment closes.</div>
+          <div class="rc-field">
+            <label for="replaceForm:rep_input">Replacement record</label>
+            <p:selectOneMenu id="rep" value="#{reassessmentCaseBean.replacementId}" filter="true" filterMatchMode="contains">
+              <f:selectItem itemLabel="Choose a record" itemValue="#{null}" noSelectionOption="true"/>
+              <f:selectItems value="#{reassessmentCaseBean.records}" var="r" itemValue="#{r.id}" itemLabel="#{reassessmentCaseBean.recordLabel(r)}"/>
+            </p:selectOneMenu>
+          </div>
+          <div class="rc-field">
+            <label for="replaceForm:eff_input">Effective date (optional)</label>
+            <p:datePicker id="eff" value="#{reassessmentCaseBean.effectiveDate}" pattern="yyyy-MM-dd"/>
+          </div>
+          <div class="rc-field">
+            <label for="replaceForm:rn">Notes (optional)</label>
+            <p:inputTextarea id="rn" value="#{reassessmentCaseBean.replacementNotes}" rows="2" maxlength="1000"/>
+          </div>
+          <p:commandButton value="Link replacement" icon="pi pi-link"
+                           process="@form" update=":caseArea :rcGrowl"
+                           actionListener="#{reassessmentCaseBean.linkReplacement}"/>
+        </h:form>
+      </h:panelGroup>
+
+      <!-- Close without a result -->
+      <h:panelGroup layout="block" styleClass="rc-card" rendered="#{reassessmentCaseBean.detail.canClose}">
+        <h:form id="closeForm">
+          <h2>Close without a result</h2>
+          <div class="rc-sub">Use this when the reassessment was opened by mistake or is no longer needed.</div>
+          <div class="rc-field">
+            <label for="closeForm:cc">Reason</label>
+            <p:inputText id="cc" value="#{reassessmentCaseBean.closeComment}" maxlength="500"/>
+          </div>
+          <p:commandButton value="Close reassessment" icon="pi pi-times" styleClass="ui-button-danger ui-button-outlined"
+                           process="@form" update=":caseArea :rcGrowl"
+                           actionListener="#{reassessmentCaseBean.closeCase}"/>
+        </h:form>
+      </h:panelGroup>
+
+      <!-- History -->
+      <div class="rc-card">
+        <h2>History</h2>
+        <p:dataTable var="e" value="#{reassessmentCaseBean.detail.events}" emptyMessage="No history yet.">
+          <p:column headerText="When (UTC)" style="width:11rem"><h:outputText value="#{e.occurredAtText}"/></p:column>
+          <p:column headerText="Who" style="width:14rem"><h:outputText value="#{e.actor}"/></p:column>
+          <p:column headerText="What"><h:outputText value="#{e.message}"/></p:column>
+        </p:dataTable>
+      </div>
+    </h:panelGroup>
+  </ui:define>
+</ui:composition>

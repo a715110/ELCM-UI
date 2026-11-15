@@ -1,0 +1,262 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                template="/WEB-INF/template.xhtml">
+  <!--
+      ADDED 2026-11-13 - Survey Builder: create, copy, edit and publish the surveys that can be
+      sent from a lease reassessment. System Admin and Super Admin only.
+  -->
+  <ui:define name="title">Survey Builder</ui:define>
+
+  <ui:define name="head">
+    <style>
+      .sb-card { background: #FFFFFF; border: 1px solid #E5E2D9; border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0; }
+      .sb-sub { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+      .sb-bar { display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 1rem; }
+      .sb-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+      .sb-warn { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+      .sb-field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.9rem; }
+      .sb-field label { font-size: 0.85rem; color: #6B6A63; }
+      .sb-off { color: #9A978C; text-decoration: line-through; }
+      .sb-q { margin-bottom: 1.1rem; }
+      .sb-q .sb-qtext { font-weight: 600; margin-bottom: 0.3rem; }
+    </style>
+  </ui:define>
+
+  <ui:define name="content">
+    <h1>Survey Builder</h1>
+    <p class="sb-sub">Build the surveys that are sent to the business when a lease is reassessed. Changes never affect surveys that were already sent.</p>
+
+    <h:panelGroup layout="block" styleClass="sb-card" rendered="#{!messagingAccessBean.admin}">
+      <h:outputText value="Only a System Admin or Super Admin can open this page."/>
+    </h:panelGroup>
+
+    <h:panelGroup rendered="#{messagingAccessBean.admin}">
+      <p:growl id="sbGrowl" globalOnly="true" showDetail="true" life="6000"/>
+      <p:confirmDialog global="true" showEffect="fade" hideEffect="fade">
+        <p:commandButton value="Yes" type="button" styleClass="ui-confirmdialog-yes"/>
+        <p:commandButton value="No" type="button" styleClass="ui-button-flat ui-confirmdialog-no"/>
+      </p:confirmDialog>
+
+      <h:panelGroup id="builderPanel" layout="block">
+
+        <h:panelGroup layout="block" styleClass="sb-card" rendered="#{surveyBuilderBean.selected == null}">
+          <h:form id="listForm">
+            <div class="sb-bar">
+              <span class="sb-sub">Start from a copy when a similar survey exists; it is quicker.</span>
+              <p:commandButton value="New survey" icon="pi pi-plus" process="@this"
+                               update=":newSurveyForm" resetValues="true"
+                               actionListener="#{surveyBuilderBean.prepareNew(null)}"
+                               oncomplete="PF('newSurveyDlg').show()"/>
+            </div>
+            <h:panelGroup layout="block" styleClass="sb-warn" rendered="#{surveyBuilderBean.loadFailed}">
+              <h:outputText value="The surveys could not be loaded. Try again in a moment."/>
+            </h:panelGroup>
+            <p:dataTable id="surveyTable" var="t" value="#{surveyBuilderBean.templates}"
+                         rowKey="#{t.id}" emptyMessage="No surveys yet.">
+              <p:column headerText="Survey">
+                <h:outputText value="#{t.name}" style="font-weight:600"/>
+                <br/>
+                <h:outputText value="#{t.description}" styleClass="sb-sub"/>
+              </p:column>
+              <p:column headerText="Status">
+                <p:tag value="#{t.stateLabel}" severity="#{t.published ? 'success' : 'warning'}"/>
+              </p:column>
+              <p:column headerText="Questions"><h:outputText value="#{t.questionCount}"/></p:column>
+              <p:column headerText="Times sent"><h:outputText value="#{t.sentCount}"/></p:column>
+              <p:column headerText="">
+                <div class="sb-actions">
+                  <p:commandButton value="Edit" icon="pi pi-pencil" process="@this"
+                                   update=":builderPanel :sbGrowl"
+                                   actionListener="#{surveyBuilderBean.open(t.id)}"/>
+                  <p:commandButton value="Copy" icon="pi pi-copy" styleClass="ui-button-flat"
+                                   process="@this" update=":newSurveyForm" resetValues="true"
+                                   actionListener="#{surveyBuilderBean.prepareNew(t.id)}"
+                                   oncomplete="PF('newSurveyDlg').show()"/>
+                </div>
+              </p:column>
+            </p:dataTable>
+          </h:form>
+        </h:panelGroup>
+
+        <h:panelGroup layout="block" rendered="#{surveyBuilderBean.selected != null}">
+          <div class="sb-card">
+            <h:form id="detailForm">
+              <div class="sb-bar">
+                <p:commandButton value="Back to surveys" icon="pi pi-arrow-left"
+                                 styleClass="ui-button-flat" process="@this"
+                                 update=":builderPanel" actionListener="#{surveyBuilderBean.back}"/>
+                <div class="sb-actions">
+                  <p:tag value="#{surveyBuilderBean.selected.summary.stateLabel}"
+                         severity="#{surveyBuilderBean.selected.summary.published ? 'success' : 'warning'}"/>
+                  <p:commandButton value="Preview" icon="pi pi-eye" styleClass="ui-button-flat"
+                                   type="button" onclick="PF('previewDlg').show()"/>
+                  <p:commandButton value="#{surveyBuilderBean.selected.summary.published ? 'Unpublish' : 'Publish'}"
+                                   icon="pi pi-send" process="@this" update=":builderPanel :sbGrowl"
+                                   actionListener="#{surveyBuilderBean.togglePublished}"/>
+                  <p:commandButton value="Delete survey" icon="pi pi-trash"
+                                   styleClass="ui-button-danger ui-button-flat" process="@this"
+                                   update=":builderPanel :sbGrowl"
+                                   disabled="#{surveyBuilderBean.selected.summary.sentCount gt 0}"
+                                   actionListener="#{surveyBuilderBean.deleteSurvey(surveyBuilderBean.selected.summary.id)}">
+                    <p:confirm header="Delete survey" message="Delete this survey and all its questions?"
+                               icon="pi pi-exclamation-triangle"/>
+                  </p:commandButton>
+                </div>
+              </div>
+              <h:panelGroup layout="block" styleClass="sb-sub"
+                            rendered="#{surveyBuilderBean.selected.summary.sentCount gt 0}">
+                <h:outputText value="This survey was sent #{surveyBuilderBean.selected.summary.sentCount} time(s), so it can be unpublished but not deleted."/>
+              </h:panelGroup>
+              <div class="sb-field">
+                <label for="detailForm:sname">Name</label>
+                <p:inputText id="sname" value="#{surveyBuilderBean.editName}" maxlength="150"/>
+              </div>
+              <div class="sb-field">
+                <label for="detailForm:sdesc">What it is for (optional)</label>
+                <p:inputTextarea id="sdesc" value="#{surveyBuilderBean.editDescription}" rows="2" maxlength="500"/>
+              </div>
+              <p:commandButton value="Save name and description" icon="pi pi-check" process="@form"
+                               update=":builderPanel :sbGrowl"
+                               actionListener="#{surveyBuilderBean.saveDetails}"/>
+            </h:form>
+          </div>
+
+          <div class="sb-card">
+            <h:form id="questionsForm">
+              <div class="sb-bar">
+                <h3 style="margin:0">Questions</h3>
+                <p:commandButton value="Add question" icon="pi pi-plus" process="@this"
+                                 update=":questionForm" resetValues="true"
+                                 actionListener="#{surveyBuilderBean.prepareQuestion(null)}"
+                                 oncomplete="PF('questionDlg').show()"/>
+              </div>
+              <p:dataTable id="questionTable" var="q" value="#{surveyBuilderBean.selected.questions}"
+                           rowIndexVar="ri" emptyMessage="No questions yet. Add the first one.">
+                <p:column headerText="#" width="40"><h:outputText value="#{ri + 1}"/></p:column>
+                <p:column headerText="Question">
+                  <h:outputText value="#{q.text}" styleClass="#{q.active ? '' : 'sb-off'}"/>
+                  <h:outputText value=" (not sent)" styleClass="sb-sub" rendered="#{!q.active}"/>
+                </p:column>
+                <p:column headerText="Answer"><h:outputText value="#{q.typeLabel}"/></p:column>
+                <p:column headerText="Required" width="80">
+                  <h:outputText value="#{q.required ? 'Yes' : 'No'}"/>
+                </p:column>
+                <p:column headerText="" width="260">
+                  <div class="sb-actions">
+                    <p:commandButton icon="pi pi-arrow-up" styleClass="ui-button-flat" title="Move up"
+                                     process="@this" update=":builderPanel :sbGrowl" disabled="#{ri == 0}"
+                                     actionListener="#{surveyBuilderBean.move(q.id, 'UP')}"/>
+                    <p:commandButton icon="pi pi-arrow-down" styleClass="ui-button-flat" title="Move down"
+                                     process="@this" update=":builderPanel :sbGrowl"
+                                     disabled="#{ri + 1 == surveyBuilderBean.selected.questions.size()}"
+                                     actionListener="#{surveyBuilderBean.move(q.id, 'DOWN')}"/>
+                    <p:commandButton value="Edit" icon="pi pi-pencil" styleClass="ui-button-flat"
+                                     process="@this" update=":questionForm" resetValues="true"
+                                     actionListener="#{surveyBuilderBean.prepareQuestion(q.id)}"
+                                     oncomplete="PF('questionDlg').show()"/>
+                    <p:commandButton icon="pi pi-trash" styleClass="ui-button-danger ui-button-flat"
+                                     title="Delete question" process="@this"
+                                     update=":builderPanel :sbGrowl"
+                                     actionListener="#{surveyBuilderBean.deleteQuestion(q.id)}">
+                      <p:confirm header="Delete question" message="Delete this question?"
+                                 icon="pi pi-exclamation-triangle"/>
+                    </p:commandButton>
+                  </div>
+                </p:column>
+              </p:dataTable>
+              <div class="sb-sub" style="margin-top:0.5rem;">
+                Questions marked not sent stay in the survey but are left out when it is sent.
+              </div>
+            </h:form>
+          </div>
+
+      <p:dialog widgetVar="previewDlg" header="Preview: what the respondent sees" modal="true"
+                width="620" resizable="false" draggable="false">
+        <h:panelGroup layout="block">
+          <ui:repeat var="q" value="#{surveyBuilderBean.selected.questions}">
+            <h:panelGroup layout="block" styleClass="sb-q" rendered="#{q.active}">
+              <div class="sb-qtext">
+                <h:outputText value="#{q.text}"/>
+                <h:outputText value=" *" rendered="#{q.required}"/>
+              </div>
+              <p:inputText disabled="true" style="width:100%" rendered="#{q.type == 'TEXT'}"/>
+              <p:inputText disabled="true" placeholder="0" rendered="#{q.type == 'NUMBER'}"/>
+              <p:datePicker disabled="true" rendered="#{q.type == 'DATE'}"/>
+              <h:selectOneRadio disabled="true" rendered="#{q.type == 'YES_NO'}">
+                <f:selectItem itemLabel="Yes" itemValue="Y"/>
+                <f:selectItem itemLabel="No" itemValue="N"/>
+              </h:selectOneRadio>
+              <h:selectOneRadio disabled="true" layout="pageDirection" rendered="#{q.type == 'CHOICE'}">
+                <f:selectItems value="#{q.choiceList}"/>
+              </h:selectOneRadio>
+            </h:panelGroup>
+          </ui:repeat>
+        </h:panelGroup>
+        <div class="sb-sub">An asterisk means the question is required. Nothing here can be answered.</div>
+      </p:dialog>
+        </h:panelGroup>
+      </h:panelGroup>
+
+      <p:dialog widgetVar="newSurveyDlg" header="Survey"
+                modal="true" width="480" resizable="false" draggable="false">
+        <h:form id="newSurveyForm">
+          <div class="sb-field">
+            <label for="newSurveyForm:nname">Name</label>
+            <p:inputText id="nname" value="#{surveyBuilderBean.newName}" maxlength="150"/>
+          </div>
+          <h:panelGroup layout="block" styleClass="sb-field" rendered="#{surveyBuilderBean.copySourceId == null}">
+            <label for="newSurveyForm:ndesc">What it is for (optional)</label>
+            <p:inputTextarea id="ndesc" value="#{surveyBuilderBean.newDescription}" rows="2" maxlength="500"/>
+          </h:panelGroup>
+          <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+            <p:commandButton value="Cancel" styleClass="ui-button-flat" type="button"
+                             onclick="PF('newSurveyDlg').hide()"/>
+            <p:commandButton value="Create" icon="pi pi-check" process="@form"
+                             update=":builderPanel :sbGrowl"
+                             actionListener="#{surveyBuilderBean.createOrCopy}"/>
+          </div>
+        </h:form>
+      </p:dialog>
+
+      <p:dialog widgetVar="questionDlg" header="Question" modal="true" width="560"
+                resizable="false" draggable="false">
+        <h:form id="questionForm">
+          <div class="sb-field">
+            <label for="questionForm:qtext">Question</label>
+            <p:inputTextarea id="qtext" value="#{surveyBuilderBean.questionText}" rows="3" maxlength="1000"/>
+          </div>
+          <div class="sb-field">
+            <label for="questionForm:qtype_input">Kind of answer</label>
+            <p:selectOneMenu id="qtype" value="#{surveyBuilderBean.questionType}" style="width:100%">
+              <f:selectItems value="#{surveyBuilderBean.types}" var="t" itemValue="#{t.code}" itemLabel="#{t.label}"/>
+              <p:ajax process="@this" update="choicesBox"/>
+            </p:selectOneMenu>
+          </div>
+          <h:panelGroup id="choicesBox" layout="block">
+            <h:panelGroup layout="block" styleClass="sb-field" rendered="#{surveyBuilderBean.choiceType}">
+              <label for="questionForm:qchoices">Choices, one per line</label>
+              <p:inputTextarea id="qchoices" value="#{surveyBuilderBean.questionChoices}" rows="5"/>
+            </h:panelGroup>
+          </h:panelGroup>
+          <div class="sb-field">
+            <p:selectBooleanCheckbox value="#{surveyBuilderBean.questionRequired}" itemLabel="The respondent must answer this"/>
+          </div>
+          <div class="sb-field">
+            <p:selectBooleanCheckbox value="#{surveyBuilderBean.questionActive}" itemLabel="Include it when the survey is sent"/>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+            <p:commandButton value="Cancel" styleClass="ui-button-flat" type="button"
+                             onclick="PF('questionDlg').hide()"/>
+            <p:commandButton value="Save question" icon="pi pi-check" process="@form"
+                             update=":builderPanel :sbGrowl"
+                             actionListener="#{surveyBuilderBean.saveQuestion}"/>
+          </div>
+        </h:form>
+      </p:dialog>
+
+    </h:panelGroup>
+  </ui:define>
+</ui:composition>

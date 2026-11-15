@@ -1,0 +1,164 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                template="/WEB-INF/template.xhtml">
+  <!--
+      ADDED 2026-11-12 - Performance Incidents: slow or CPU heavy calls reported by ELCM, ECWS and
+      EARS (services and screens). System Admin and Super Admin only.
+  -->
+  <ui:define name="title">Performance Incidents</ui:define>
+
+  <ui:define name="head">
+    <style>
+      .pf-card { background: #FFFFFF; border: 1px solid #E5E2D9; border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0; }
+      .pf-sub { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+      .pf-filters { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1rem; }
+      .pf-field { display: flex; flex-direction: column; gap: 0.25rem; }
+      .pf-field label { font-size: 0.85rem; color: #6B6A63; }
+      .pf-warn { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+      .pf-pager { display: flex; gap: 0.75rem; align-items: center; justify-content: flex-end; margin-top: 0.75rem; }
+      .pf-stack { background: #1F2937; color: #F9FAFB; padding: 0.75rem; border-radius: 6px; max-height: 320px; overflow: auto; font-size: 0.8rem; white-space: pre-wrap; }
+      .pf-grid { display: grid; grid-template-columns: 9rem 1fr; gap: 0.35rem 0.75rem; margin-bottom: 1rem; }
+      .pf-grid span.k { color: #6B6A63; }
+    </style>
+  </ui:define>
+
+  <ui:define name="content">
+    <h1>Performance Incidents</h1>
+    <p class="pf-sub">Calls that ran slowly, used a lot of CPU, or were still running when checked. Times are UTC.</p>
+
+    <h:panelGroup layout="block" styleClass="pf-card" rendered="#{!messagingAccessBean.admin}">
+      <h:outputText value="Only a System Admin or Super Admin can open this page."/>
+    </h:panelGroup>
+
+    <h:panelGroup rendered="#{messagingAccessBean.admin}">
+      <div class="pf-card">
+        <h3>Most CPU used, last 24 hours</h3>
+        <p:dataTable id="topTable" var="t" value="#{perfIncidentsBean.topCalls}"
+                     emptyMessage="Nothing reported in the last 24 hours.">
+          <p:column headerText="Call"><h:outputText value="#{t.callName}"/></p:column>
+          <p:column headerText="Incidents"><h:outputText value="#{t.incidents}"/></p:column>
+          <p:column headerText="Own CPU (ms)"><h:outputText value="#{t.totalOwnCpuMs}"/></p:column>
+          <p:column headerText="Slowest own time (ms)"><h:outputText value="#{t.maxOwnWallMs}"/></p:column>
+        </p:dataTable>
+      </div>
+
+      <div class="pf-card">
+        <h:form id="filterForm">
+          <div class="pf-filters">
+            <div class="pf-field">
+              <label for="filterForm:svc">App</label>
+              <p:selectOneMenu id="svc" value="#{perfIncidentsBean.serviceFilter}">
+                <f:selectItem itemLabel="All apps" itemValue="#{null}" noSelectionOption="true"/>
+                <f:selectItem itemLabel="elcm-service" itemValue="elcm-service"/>
+                <f:selectItem itemLabel="elcm-ui" itemValue="elcm-ui"/>
+                <f:selectItem itemLabel="ecws-service" itemValue="ecws-service"/>
+                <f:selectItem itemLabel="ecws-ui" itemValue="ecws-ui"/>
+                <f:selectItem itemLabel="ears" itemValue="ears"/>
+                <f:selectItem itemLabel="common-service" itemValue="common-service"/>
+              </p:selectOneMenu>
+            </div>
+            <div class="pf-field">
+              <label for="filterForm:rsn">Reason</label>
+              <p:selectOneMenu id="rsn" value="#{perfIncidentsBean.reasonFilter}">
+                <f:selectItem itemLabel="Any reason" itemValue="#{null}" noSelectionOption="true"/>
+                <f:selectItem itemLabel="Slow own time" itemValue="SLOW_SELF"/>
+                <f:selectItem itemLabel="CPU heavy" itemValue="CPU_HEAVY"/>
+                <f:selectItem itemLabel="Slow request or screen" itemValue="SLOW_ENTRY"/>
+                <f:selectItem itemLabel="Still running" itemValue="STILL_RUNNING"/>
+                <f:selectItem itemLabel="High CPU on the server" itemValue="HIGH_CPU"/>
+              </p:selectOneMenu>
+            </div>
+            <div class="pf-field">
+              <label for="filterForm:call">Class or method</label>
+              <p:inputText id="call" value="#{perfIncidentsBean.callFilter}" maxlength="100"/>
+            </div>
+            <div class="pf-field">
+              <label for="filterForm:from_input">From</label>
+              <p:datePicker id="from" value="#{perfIncidentsBean.fromDate}" pattern="yyyy-MM-dd"/>
+            </div>
+            <div class="pf-field">
+              <label for="filterForm:to_input">To</label>
+              <p:datePicker id="to" value="#{perfIncidentsBean.toDate}" pattern="yyyy-MM-dd"/>
+            </div>
+            <div class="pf-field">
+              <label for="filterForm:min">At least (ms)</label>
+              <p:inputNumber id="min" value="#{perfIncidentsBean.minMs}" decimalPlaces="0"
+                             minValue="0" thousandSeparator=""/>
+            </div>
+            <p:commandButton value="Search" icon="pi pi-search" process="@form"
+                             update=":listPanel" actionListener="#{perfIncidentsBean.search}"/>
+          </div>
+        </h:form>
+
+        <h:panelGroup id="listPanel" layout="block">
+          <h:panelGroup layout="block" styleClass="pf-warn" rendered="#{perfIncidentsBean.loadFailed}">
+            <h:outputText value="The incidents could not be loaded. Check that the incident store is switched on in common-service."/>
+          </h:panelGroup>
+          <h:form id="listForm">
+            <p:dataTable id="incidentTable" var="i" value="#{perfIncidentsBean.items}"
+                         emptyMessage="No incidents match.">
+              <p:column headerText="Time (UTC)"><h:outputText value="#{i.occurredAtText}"/></p:column>
+              <p:column headerText="App"><h:outputText value="#{i.service}"/></p:column>
+              <p:column headerText="Reason"><h:outputText value="#{i.reason}"/></p:column>
+              <p:column headerText="Call"><h:outputText value="#{i.callName}"/></p:column>
+              <p:column headerText="Type"><h:outputText value="#{i.kind}"/></p:column>
+              <p:column headerText="Own (ms)"><h:outputText value="#{i.ownWallMs}"/></p:column>
+              <p:column headerText="Total (ms)"><h:outputText value="#{i.wallMs}"/></p:column>
+              <p:column headerText="CPU (ms)"><h:outputText value="#{i.ownCpuMs}"/></p:column>
+              <p:column headerText="User"><h:outputText value="#{i.userLogin}"/></p:column>
+              <p:column headerText="">
+                <p:commandButton value="Details" styleClass="ui-button-flat" process="@this"
+                                 update=":detailPanel" oncomplete="PF('perfDetailDlg').show()"
+                                 actionListener="#{perfIncidentsBean.select(i.id)}"/>
+              </p:column>
+            </p:dataTable>
+            <div class="pf-pager">
+              <h:outputText value="#{perfIncidentsBean.rangeText}"/>
+              <p:commandButton value="Previous" styleClass="ui-button-flat" process="@this"
+                               update=":listPanel" disabled="#{!perfIncidentsBean.hasPrevious()}"
+                               actionListener="#{perfIncidentsBean.previous}"/>
+              <p:commandButton value="Next" styleClass="ui-button-flat" process="@this"
+                               update=":listPanel" disabled="#{!perfIncidentsBean.hasNext()}"
+                               actionListener="#{perfIncidentsBean.next}"/>
+            </div>
+          </h:form>
+        </h:panelGroup>
+      </div>
+
+      <p:dialog widgetVar="perfDetailDlg" header="Incident details" modal="true" width="760"
+                resizable="false" draggable="false">
+        <h:panelGroup id="detailPanel" layout="block">
+          <h:panelGroup rendered="#{perfIncidentsBean.selected == null}">
+            <h:outputText value="The incident could not be loaded."/>
+          </h:panelGroup>
+          <h:panelGroup rendered="#{perfIncidentsBean.selected != null}">
+            <div class="pf-grid">
+              <span class="k">Time (UTC)</span><span>#{perfIncidentsBean.selected.occurredAtText}</span>
+              <span class="k">App</span><span>#{perfIncidentsBean.selected.service}</span>
+              <span class="k">Reason</span><span>#{perfIncidentsBean.selected.reason}</span>
+              <span class="k">Layer</span><span>#{perfIncidentsBean.selected.layer}</span>
+              <span class="k">Call</span><span>#{perfIncidentsBean.selected.className}.#{perfIncidentsBean.selected.methodName}</span>
+              <span class="k">Type</span><span>#{perfIncidentsBean.selected.kind}</span>
+              <span class="k">Own time (ms)</span><span>#{perfIncidentsBean.selected.ownWallMs}</span>
+              <span class="k">Own CPU (ms)</span><span>#{perfIncidentsBean.selected.ownCpuMs}</span>
+              <span class="k">Total time (ms)</span><span>#{perfIncidentsBean.selected.wallMs}</span>
+              <span class="k">Total CPU (ms)</span><span>#{perfIncidentsBean.selected.cpuMs}</span>
+              <span class="k">Outcome</span><span>#{perfIncidentsBean.selected.outcome}</span>
+              <span class="k">User</span><span>#{perfIncidentsBean.selected.userLogin}</span>
+              <span class="k">Request</span><span>#{perfIncidentsBean.selected.requestId}</span>
+              <span class="k">Thread</span><span>#{perfIncidentsBean.selected.threadName}</span>
+              <span class="k">Call chain</span><span>#{perfIncidentsBean.selected.callChain}</span>
+            </div>
+            <h:panelGroup rendered="#{not empty perfIncidentsBean.selected.stackText}">
+              <h4>Where it was</h4>
+              <pre class="pf-stack"><h:outputText value="#{perfIncidentsBean.selected.stackText}"/></pre>
+            </h:panelGroup>
+          </h:panelGroup>
+        </h:panelGroup>
+      </p:dialog>
+    </h:panelGroup>
+  </ui:define>
+</ui:composition>

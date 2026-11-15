@@ -68,6 +68,10 @@ messaging:
 # unless visible-to-all is true, which is meant for client demos. Display only;
 # it never filters data.
 elcm:
+  # ADDED 2026-11-11 - lease reassessment screens. Off until switched on; elcm-service has the
+  # same switch (elcm.reassessment.enabled) and refuses calls while it is off.
+  reassessment:
+    enabled: ${ELCM_REASSESSMENT_ENABLED:false}
   demo-role:
     visible-to-all: ${ELCM_DEMO_ROLE_VISIBLE_TO_ALL:false}
     admin-roles: System Admin,Super Admin

@@ -5,6 +5,8 @@ import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractRecordRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractRecordTermsRow;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.ContractRecordUiService;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.TermRow;
+import com.dodaso.ecosystem.elcm.ui.service.reassessment.ReassessmentRows;
+import com.dodaso.ecosystem.elcm.ui.service.reassessment.ReassessmentUiService;
 import jakarta.annotation.PostConstruct;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Named;
@@ -19,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.primefaces.model.DefaultStreamedContent;
 import org.primefaces.model.StreamedContent;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 
 /**
  * Backing bean of the Contract Records screen (ADDED 2026-10-12): search the records, open one to
@@ -43,6 +47,15 @@ public class ContractRecordsBean implements Serializable {
     private boolean termsFailed;
     @Setter
     private boolean showHistory;
+
+    /** ADDED 2026-11-11: reassessments of the open record; empty while the feature is off. */
+    private List<ReassessmentRows.CaseRow> reassessments = new ArrayList<>();
+
+    @Autowired
+    private transient ReassessmentUiService reassessmentUiService;
+
+    @Value("${elcm.reassessment.enabled:false}")
+    private boolean reassessmentEnabled;
 
     @PostConstruct
     void init() {
@@ -76,7 +89,18 @@ public class ContractRecordsBean implements Serializable {
         }
     }
 
+    private void loadReassessments() {
+        reassessments = new ArrayList<>();
+        if (reassessmentEnabled && selected != null) {
+            final List<ReassessmentRows.CaseRow> rows = reassessmentUiService.list("all", selected.getId());
+            if (rows != null) {
+                reassessments = rows;
+            }
+        }
+    }
+
     private void loadTerms() {
+        loadReassessments();
         final ContractRecordTermsRow answer = contractRecordUiService.terms(selected.getId(), showHistory);
         termsFailed = answer == null;
         terms = answer == null || answer.getTerms() == null ? new ArrayList<>() : answer.getTerms();

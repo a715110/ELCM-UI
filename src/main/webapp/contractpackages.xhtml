@@ -62,6 +62,7 @@
           </h:panelGroup>
           <p:dataTable id="packagesTable" var="r" value="#{packageListBean.rows}"
                        rowKey="#{r.packageId}"
+                       selectionMode="single"
                        emptyMessage="No packages here.">
             <p:column headerText="Package" style="width: 11rem;">
               <h:outputText value="#{r.packageCode}" style="font-weight: 600;"/>

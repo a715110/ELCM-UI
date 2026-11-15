@@ -97,6 +97,13 @@
                                ajax="false" title="Download these terms as a CSV file">
                 <p:fileDownload value="#{contractRecordsBean.termsCsv}"/>
               </p:commandButton>
+              <!-- ADDED 2026-11-11: start a reassessment of this record (feature switch) -->
+              <p:button value="Reassess this record" icon="pi pi-refresh" outcome="/reassessments"
+                        styleClass="ui-button-outlined"
+                        rendered="#{contractRecordsBean.reassessmentEnabled}">
+                <f:param name="record" value="#{contractRecordsBean.selected.id}"/>
+                <f:param name="Source" value="ContractRecords"/>
+              </p:button>
               <p:commandButton value="Close" icon="pi pi-times" styleClass="ui-button-flat"
                                process="@this" update=":detailCard"
                                actionListener="#{contractRecordsBean.close}"/>
@@ -150,6 +157,23 @@
             </p:column>
           </p:dataTable>
           <div class="cr-note">Times are UTC. Edits made during review are in the field history of the source package.</div>
+
+          <!-- ADDED 2026-11-11: reassessments of this record -->
+          <h:panelGroup layout="block" style="margin-top: 1.5rem;"
+                        rendered="#{contractRecordsBean.reassessmentEnabled and not empty contractRecordsBean.reassessments}">
+            <h2>Reassessments</h2>
+            <p:dataTable var="rc" value="#{contractRecordsBean.reassessments}">
+              <p:column headerText="Case">
+                <p:button value="#{rc.caseCode}" outcome="/reassessmentcase" styleClass="ui-button-flat">
+                  <f:param name="id" value="#{rc.id}"/>
+                  <f:param name="Source" value="Reassessment"/>
+                </p:button>
+              </p:column>
+              <p:column headerText="Reason"><h:outputText value="#{rc.triggerLabel}"/></p:column>
+              <p:column headerText="Status"><p:tag value="#{rc.statusLabel}" severity="info"/></p:column>
+              <p:column headerText="Opened"><h:outputText value="#{rc.openedAtText}"/></p:column>
+            </p:dataTable>
+          </h:panelGroup>
         </h:form>
       </h:panelGroup>
     </h:panelGroup>

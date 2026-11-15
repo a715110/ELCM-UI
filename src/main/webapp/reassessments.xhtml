@@ -1,0 +1,136 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                template="/WEB-INF/template.xhtml">
+  <!--
+      ADDED 2026-11-11 - Reassessments: the lease reassessment cases, and the dialog that opens a
+      new one. Shown only when elcm.reassessment.enabled is true.
+  -->
+  <ui:define name="title">Reassessments</ui:define>
+
+  <ui:define name="head">
+    <style>
+      .rc-card { background: #FFFFFF; border: 1px solid #E5E2D9; border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0; }
+      .rc-sub { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+      .rc-bar { display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 1rem; }
+      .rc-warn { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+      .rc-late { color: #B91C1C; font-weight: 600; }
+      .rc-field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.9rem; }
+      .rc-field label { font-size: 0.85rem; color: #6B6A63; }
+    </style>
+  </ui:define>
+
+  <ui:define name="content">
+    <h1>Reassessments</h1>
+    <p class="rc-sub">Review a contract record when something changes, ask the business a few questions, and record the result.</p>
+
+    <h:panelGroup layout="block" styleClass="rc-card" rendered="#{!reassessmentAccessBean.enabled}">
+      <h:outputText value="Lease reassessment is not switched on yet."/>
+    </h:panelGroup>
+
+    <h:panelGroup rendered="#{reassessmentAccessBean.enabled}">
+      <p:growl id="rcGrowl" globalOnly="true" showDetail="true" life="6000"/>
+      <div class="rc-card">
+        <h:form id="listForm">
+          <div class="rc-bar">
+            <p:selectOneButton value="#{reassessmentsBean.scope}">
+              <f:selectItem itemLabel="Mine" itemValue="mine"/>
+              <f:selectItem itemLabel="All" itemValue="all"/>
+              <p:ajax process="@this" listener="#{reassessmentsBean.reload}" update="casesTable"/>
+            </p:selectOneButton>
+            <p:commandButton value="New reassessment" icon="pi pi-plus"
+                             process="@this" update=":newCaseForm" resetValues="true"
+                             actionListener="#{reassessmentsBean.prepareNew}"
+                             oncomplete="PF('newCaseDlg').show()"/>
+          </div>
+          <h:panelGroup layout="block" styleClass="rc-warn" rendered="#{reassessmentsBean.loadFailed}">
+            <h:outputText value="The reassessments could not be loaded. Try again in a moment."/>
+          </h:panelGroup>
+          <p:dataTable id="casesTable" var="c" value="#{reassessmentsBean.cases}" rowKey="#{c.id}"
+                       paginator="true" rows="15" paginatorPosition="bottom"
+                       emptyMessage="No reassessments.">
+            <p:column headerText="Case" sortBy="#{c.caseCode}">
+              <p:button value="#{c.caseCode}" outcome="/reassessmentcase" styleClass="ui-button-flat">
+                <f:param name="id" value="#{c.id}"/>
+                <f:param name="Source" value="Reassessment"/>
+              </p:button>
+            </p:column>
+            <p:column headerText="Record" sortBy="#{c.recordCode}">
+              <h:outputText value="#{c.recordCode}"/>
+            </p:column>
+            <p:column headerText="Counterparty" sortBy="#{c.counterparty}">
+              <h:outputText value="#{c.counterparty}"/>
+            </p:column>
+            <p:column headerText="Reason" sortBy="#{c.triggerLabel}">
+              <h:outputText value="#{c.triggerLabel}"/>
+            </p:column>
+            <p:column headerText="Status" sortBy="#{c.statusLabel}">
+              <p:tag value="#{c.statusLabel}" severity="info"/>
+            </p:column>
+            <p:column headerText="Due" sortBy="#{c.dueDate}">
+              <h:outputText value="#{c.dueDate}" styleClass="#{c.overdue ? 'rc-late' : ''}"/>
+            </p:column>
+            <p:column headerText="Opened by" sortBy="#{c.openedBy}">
+              <h:outputText value="#{c.openedBy}"/>
+            </p:column>
+            <p:column headerText="Opened" sortBy="#{c.openedAt}">
+              <h:outputText value="#{c.openedAtText}"/>
+            </p:column>
+          </p:dataTable>
+          <div class="rc-sub" style="margin-top: 0.5rem;">Times are UTC.</div>
+        </h:form>
+      </div>
+
+      <p:dialog id="newCaseDialog" widgetVar="newCaseDlg" header="New reassessment" modal="true"
+                width="520" resizable="false" draggable="false">
+        <h:form id="newCaseForm">
+          <p:messages id="newCaseMsgs" globalOnly="true" showDetail="true" closable="true"/>
+          <div class="rc-field">
+            <label for="newCaseForm:rec_input">Contract record</label>
+            <p:selectOneMenu id="rec" value="#{reassessmentsBean.newRecordId}" filter="true"
+                             filterMatchMode="contains" style="width:100%">
+              <f:selectItem itemLabel="Choose a record" itemValue="#{null}" noSelectionOption="true"/>
+              <f:selectItems value="#{reassessmentsBean.activeRecords}" var="r"
+                             itemValue="#{r.id}" itemLabel="#{reassessmentsBean.recordLabel(r)}"/>
+            </p:selectOneMenu>
+          </div>
+          <div class="rc-field">
+            <label for="newCaseForm:trg_input">Reason</label>
+            <p:selectOneMenu id="trg" value="#{reassessmentsBean.newTrigger}" style="width:100%">
+              <f:selectItem itemLabel="Choose a reason" itemValue="#{null}" noSelectionOption="true"/>
+              <f:selectItems value="#{reassessmentsBean.triggerTypes}" var="t"
+                             itemValue="#{t.code}" itemLabel="#{t.label}"/>
+            </p:selectOneMenu>
+          </div>
+          <div class="rc-field">
+            <label for="newCaseForm:desc">What happened (optional)</label>
+            <p:inputTextarea id="desc" value="#{reassessmentsBean.newDescription}" rows="3" maxlength="1000"/>
+          </div>
+          <div class="rc-field">
+            <label for="newCaseForm:evd_input">Date of the event (optional)</label>
+            <p:datePicker id="evd" value="#{reassessmentsBean.newEventDate}" pattern="yyyy-MM-dd"/>
+          </div>
+          <div class="rc-field">
+            <label for="newCaseForm:due_input">Finish by (optional)</label>
+            <p:datePicker id="due" value="#{reassessmentsBean.newDueDate}" pattern="yyyy-MM-dd"/>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+            <p:commandButton value="Cancel" styleClass="ui-button-flat" type="button"
+                             onclick="PF('newCaseDlg').hide()"/>
+            <p:commandButton value="Open reassessment" icon="pi pi-check"
+                             process="@form" update="newCaseMsgs :listForm :rcGrowl"
+                             actionListener="#{reassessmentsBean.create}"/>
+          </div>
+        </h:form>
+      </p:dialog>
+
+      <h:panelGroup rendered="#{reassessmentsBean.openDialogOnLoad}">
+        <script type="text/javascript">
+          window.addEventListener('load', function () { PF('newCaseDlg').show(); });
+        </script>
+      </h:panelGroup>
+    </h:panelGroup>
+  </ui:define>
+</ui:composition>

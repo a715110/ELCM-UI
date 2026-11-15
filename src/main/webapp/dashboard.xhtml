@@ -1140,6 +1140,7 @@
                              var="pkg"
                              value="#{pipelineMetricsBean.visiblePackages(contractPackagesBean.contractPackages)}"
                              rowKey="#{pkg.id}"
+                             selectionMode="single"
                              emptyMessage="No contract packages.">
 
                     <p:column headerText="Package ID">

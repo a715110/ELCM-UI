@@ -96,6 +96,12 @@
                                     outcome="/contractrecords" icon="pi pi-folder">
                             <f:param name="Source" value="Menu"/>
                         </p:menuitem>
+                        <!-- ADDED 2026-11-11 - lease reassessment, shown only when switched on -->
+                        <p:menuitem id="reassessments" value="Reassessments"
+                                    outcome="/reassessments" icon="pi pi-refresh"
+                                    rendered="#{reassessmentAccessBean.enabled}">
+                            <f:param name="Source" value="Menu"/>
+                        </p:menuitem>
                     </p:submenu>
                     <p:submenu id="om_administration" label="Administration"
                                rendered="#{menuAccessBean.canSee('templates')}">
@@ -112,6 +118,18 @@
                         <p:menuitem id="configureMessaging" value="Configure Messaging"
                                     rendered="#{messagingAccessBean.admin}"
                                     outcome="/configure-messaging" icon="pi pi-comments">
+                            <f:param name="Source" value="Menu"/>
+                        </p:menuitem>
+                        <!-- ADDED 2026-11-13 - Survey Builder, System Admin and Super Admin only -->
+                        <p:menuitem id="surveyBuilder" value="Survey Builder"
+                                    rendered="#{messagingAccessBean.admin}"
+                                    outcome="/surveybuilder" icon="pi pi-list-check">
+                            <f:param name="Source" value="Menu"/>
+                        </p:menuitem>
+                        <!-- ADDED 2026-11-12 - Performance Incidents, System Admin and Super Admin only -->
+                        <p:menuitem id="perfIncidents" value="Performance Incidents"
+                                    rendered="#{messagingAccessBean.admin}"
+                                    outcome="/perfincidents" icon="pi pi-gauge">
                             <f:param name="Source" value="Menu"/>
                         </p:menuitem>
                     </p:submenu>
