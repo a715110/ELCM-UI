@@ -18,69 +18,79 @@
     const css = document.createElement('style');
     css.id = 'dm-popup-styles';
     css.textContent = `
+    /* REVISED 2026-11-15 (ELCM): the popup follows the ELCM look (theme-override.css): warm neutral
+       surface, forest green accent used for the main action only, soft pill buttons. The ECWS copy
+       of this file keeps its own blue and green look. */
     #dm-popup {
       position: absolute;
-      background: #fff;
-      border: 1px solid #e5e7eb;
+      background: #FDFCFA;
+      border: 1px solid #D6D2C7;
       border-radius: 12px;
-      box-shadow: 0 10px 25px rgba(0,0,0,.15);
+      box-shadow: 0 10px 25px rgba(43,42,38,.14);
       padding: 20px;
       width: 380px;
       z-index: 999999;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      color: #2B2A26;
+      font-family: inherit;
       animation: dmFadeIn .18s ease-out;
     }
     #dm-popup .row { display:flex; align-items:center; gap:12px; }
     #dm-popup .avatar {
       width:48px; height:48px; border-radius:50%;
-      background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-      color:#fff; display:flex; align-items:center; justify-content:center;
+      background: var(--elcm-accent-bg, #EAF6EC);
+      border: 1px solid var(--elcm-accent-border, #86EFAC);
+      color: var(--elcm-accent-text, #166534);
+      display:flex; align-items:center; justify-content:center;
       font-weight:700; font-size:18px;
     }
-    #dm-popup .title { font-weight:600; color:#1e293b; font-size:16px; }
-    #dm-popup .sub   { color:#64748b; font-size:14px; }
+    #dm-popup .title { font-weight:600; color:#2B2A26; font-size:16px; }
+    #dm-popup .sub   { color:#6B6A63; font-size:14px; }
     #dm-popup .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
-    #dm-popup .btn { 
-      border-radius:8px; padding:8px 16px; font-weight:500; 
-      cursor:pointer; font-size:14px; border:none;
+    #dm-popup .btn {
+      border-radius:8px; padding:8px 16px; font-weight:500; font-family:inherit;
+      cursor:pointer; font-size:14px; border:1px solid transparent;
       display:inline-flex; align-items:center; justify-content:center;
     }
-    #dm-popup .btn.sec { background:#f8fafc; border:1px solid #e2e8f0; color:#374151; }
-    #dm-popup .btn.sec:hover { background:#f1f5f9; }
-    #dm-popup .btn.pri { background:#3b82f6; color:#fff; }
-    #dm-popup .btn.pri:hover { background:#2563eb; }
-    #dm-popup .btn.ok  { background:#10b981; color:#fff; }
-    #dm-popup .btn.ok:hover { background:#059669; }
+    #dm-popup .btn.sec { background:#F7F5F0; border-color:#D6D2C7; color:#2B2A26; }
+    #dm-popup .btn.sec:hover { background:#EFECE4; }
+    #dm-popup .btn.pri { background:#6B6A63; color:#fff; }
+    #dm-popup .btn.pri:hover { background:#55544E; }
+    #dm-popup .btn.ok  { background: var(--elcm-accent-bg, #EAF6EC); color: var(--elcm-accent-text, #166534); }
+    #dm-popup .btn.ok:hover { background: var(--elcm-accent-bg-hover, #D1EEDA); }
+    #dm-popup .btn.ok:active { background: var(--elcm-accent-bg-active, #B8E6C8); }
+    #dm-popup .btn:focus-visible { outline:none; box-shadow:0 0 0 .2em var(--elcm-accent-focus-ring, #86EFAC); }
     /* ADDED 2026-10-24 (ELCM): the clickable user name, as in the ECWS tables. */
     /* REVISED 2026-10-27: green accent of the ELCM theme (theme-override.css), no underline. */
     .clickable-user-name { color: #166534; cursor: pointer; text-decoration: none; }
     .clickable-user-name:hover { color: #14532D; text-decoration: none; }
     #dm-popup textarea {
       width:100%; min-height:80px; resize:vertical; padding:10px;
-      border:1px solid #e5e7eb; border-radius:8px; outline:none; margin-top:10px;
-      font:inherit; box-sizing:border-box;
+      border:1px solid #D6D2C7; border-radius:8px; outline:none; margin-top:10px;
+      background:#fff; color:#2B2A26; font:inherit; box-sizing:border-box;
     }
     #dm-popup textarea:focus {
-      border-color:#3b82f6;
-      box-shadow:0 0 0 3px rgba(59,130,246,0.1);
+      border-color: var(--elcm-accent-border, #86EFAC);
+      box-shadow:0 0 0 3px rgba(134,239,172,0.35);
     }
-    #dm-popup .composer-bar { 
-      display:flex; align-items:center; justify-content:space-between; 
-      margin-top:8px; gap:10px; 
+    #dm-popup .composer-bar {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-top:8px; gap:10px;
     }
-    #dm-popup .status { font-size:12px; color:#6b7280; }
+    #dm-popup .status { font-size:12px; color:#6B6A63; }
     #dm-popup .channel-indicator {
       display:flex; align-items:center; gap:8px;
       margin-bottom:8px; padding:8px 12px;
-      background:#f8fafc; border-radius:6px;
+      background:#F7F5F0; border:1px solid #E7E3D9; border-radius:6px;
     }
+    #dm-popup .channel-indicator .ch-label { font-size:13px; color:#6B6A63; }
+    #dm-popup .channel-indicator .ch-label strong { color:#2B2A26; }
     .task-msg-wrap { margin-left: 8px; vertical-align: middle; }
     .task-msg-btn {
       display: inline-flex; align-items: center; justify-content: center;
       width: 30px; height: 30px; border-radius: 50%;
-      color: #64748b; text-decoration: none; cursor: pointer;
+      color: #6B6A63; text-decoration: none; cursor: pointer;
     }
-    .task-msg-btn:hover { background: #eef2ff; color: #3b82f6; }
+    .task-msg-btn:hover { background: var(--elcm-accent-bg, #EAF6EC); color: var(--elcm-accent-text, #166534); }
     @keyframes dmFadeIn { 
       from { opacity:0; transform:translateY(-6px) scale(.98); } 
       to { opacity:1; transform:none; } 
@@ -202,7 +212,7 @@
     }
     window.open(url, '_blank', 'noopener');
     if (statusEl) {
-      statusEl.style.color = '#16a34a';
+      statusEl.style.color = '#166534';
       statusEl.textContent = copied
           ? 'Opened in Teams. If the text is not there, paste it (Ctrl+V) and press Enter.'
           : 'Opened in Teams. Press Enter there to send.';
@@ -304,7 +314,7 @@
       // Handle success
       if (args && args.success) {
         if (s) {
-          s.style.color = '#16a34a';
+          s.style.color = '#166534';
           const channelName = channelInfo.name;
           s.innerHTML = `<i class="pi ${channelInfo.icon}" style="margin-right:4px;"></i>Sent via ${channelName} ✔`;
         }
@@ -427,9 +437,9 @@
       </div>
 
       <div id="dm-composer" style="display:${openComposer ? 'block' : 'none'};">
-        <div class="channel-indicator" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px 12px;background:#f8fafc;border-radius:6px;">
+        <div class="channel-indicator">
           <i class="pi ${channelInfo.icon}" style="color:${channelInfo.color};font-size:16px;"></i>
-          <span style="font-size:13px;color:#64748b;">${linkMode ? 'Opens in' : 'Sending via'} <strong style="color:#1e293b;">${escapeHtml(channelDisplay)}</strong></span>
+          <span class="ch-label">${linkMode ? 'Opens in' : 'Sending via'} <strong>${escapeHtml(channelDisplay)}</strong></span>
         </div>
         <label class="sub">Message to <strong>${escapeHtml(loginId || '')}</strong></label>
         <textarea id="dm-text" placeholder="Type your message… (Ctrl/⌘+Enter to send)" maxlength="1000"></textarea>
@@ -437,7 +447,7 @@
           <span class="status" id="dm-count">0 / 1000</span>
           <div class="row" style="gap:8px;">
             <button class="btn sec" id="dm-cancel">Cancel</button>
-            <button class="btn ok" id="dm-send" style="background:${channelInfo.color};">
+            <button class="btn ok" id="dm-send">
               <i class="pi ${channelInfo.icon}" style="margin-right:4px;"></i>${linkMode ? 'Open in Teams' : 'Send'}
             </button>
           </div>
