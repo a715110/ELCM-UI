@@ -153,7 +153,7 @@
             <p:outputPanel rendered="#{systemMessagingConfigHelper.isTeams(systemMessagingConfigHelper.selectedConfig)}">
               <div class="formgrid grid">
                 <div class="field col-12">
-                  <label for="teamsTenant" class="block font-medium mb-2">Tenant ID <span class="text-red-500">*</span></label>
+                  <label for="configDetailForm:teamsTenant" class="block font-medium mb-2">Tenant ID <span class="text-red-500">*</span></label>
                   <p:inputText id="teamsTenant"
                                value="#{systemMessagingConfigHelper.selectedConfig.tenantId}"
                                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
@@ -161,7 +161,7 @@
                   <small class="block mt-2 text-color-secondary">Azure AD Tenant ID from your Microsoft 365 admin portal</small>
                 </div>
                 <div class="field col-12">
-                  <label for="teamsClientId" class="block font-medium mb-2">Client ID <span class="text-red-500">*</span></label>
+                  <label for="configDetailForm:teamsClientId" class="block font-medium mb-2">Client ID <span class="text-red-500">*</span></label>
                   <p:inputText id="teamsClientId"
                                value="#{systemMessagingConfigHelper.selectedConfig.clientId}"
                                placeholder="Application (client) ID"
@@ -169,7 +169,7 @@
                   <small class="block mt-2 text-color-secondary">Application ID from Azure App Registration</small>
                 </div>
                 <div class="field col-12">
-                  <label for="teamsClientSecret" class="block font-medium mb-2">Client Secret</label>
+                  <label for="configDetailForm:teamsClientSecret" class="block font-medium mb-2">Client Secret</label>
                   <p:password id="teamsClientSecret"
                               value="#{systemMessagingConfigHelper.selectedConfig.clientSecret}"
                               toggleMask="true"
@@ -177,7 +177,7 @@
                               styleClass="w-full" />
                 </div>
                 <div class="field col-12">
-                  <label for="teamsWebhook" class="block font-medium mb-2">Webhook URL (Optional)</label>
+                  <label for="configDetailForm:teamsWebhook" class="block font-medium mb-2">Webhook URL (Optional)</label>
                   <p:inputText id="teamsWebhook"
                                value="#{systemMessagingConfigHelper.selectedConfig.webhookUrl}"
                                placeholder="https://outlook.office.com/webhook/..."
@@ -191,20 +191,20 @@
             <p:outputPanel rendered="#{systemMessagingConfigHelper.isSkype(systemMessagingConfigHelper.selectedConfig)}">
               <div class="formgrid grid">
                 <div class="field col-12">
-                  <label for="skypeApiEndpoint" class="block font-medium mb-2">API Endpoint</label>
+                  <label for="configDetailForm:skypeApiEndpoint" class="block font-medium mb-2">API Endpoint</label>
                   <p:inputText id="skypeApiEndpoint"
                                value="#{systemMessagingConfigHelper.selectedConfig.apiEndpoint}"
                                placeholder="https://api.skype.com"
                                styleClass="w-full" />
                 </div>
                 <div class="field col-12">
-                  <label for="skypeClientId" class="block font-medium mb-2">App ID <span class="text-red-500">*</span></label>
+                  <label for="configDetailForm:skypeClientId" class="block font-medium mb-2">App ID <span class="text-red-500">*</span></label>
                   <p:inputText id="skypeClientId"
                                value="#{systemMessagingConfigHelper.selectedConfig.clientId}"
                                styleClass="w-full" />
                 </div>
                 <div class="field col-12">
-                  <label for="skypeClientSecret" class="block font-medium mb-2">App Secret</label>
+                  <label for="configDetailForm:skypeClientSecret" class="block font-medium mb-2">App Secret</label>
                   <p:password id="skypeClientSecret"
                               value="#{systemMessagingConfigHelper.selectedConfig.clientSecret}"
                               toggleMask="true"
@@ -227,7 +227,7 @@
             <p:outputPanel rendered="#{systemMessagingConfigHelper.isSlack(systemMessagingConfigHelper.selectedConfig)}">
               <div class="formgrid grid">
                 <div class="field col-12">
-                  <label for="slackWorkspace" class="block font-medium mb-2">Workspace ID <span class="text-red-500">*</span></label>
+                  <label for="configDetailForm:slackWorkspace" class="block font-medium mb-2">Workspace ID <span class="text-red-500">*</span></label>
                   <p:inputText id="slackWorkspace"
                                value="#{systemMessagingConfigHelper.selectedConfig.tenantId}"
                                placeholder="T0XXXXXXX"
@@ -235,13 +235,13 @@
                   <small class="block mt-2 text-color-secondary">Found in Slack workspace settings</small>
                 </div>
                 <div class="field col-12">
-                  <label for="slackClientId" class="block font-medium mb-2">Client ID <span class="text-red-500">*</span></label>
+                  <label for="configDetailForm:slackClientId" class="block font-medium mb-2">Client ID <span class="text-red-500">*</span></label>
                   <p:inputText id="slackClientId"
                                value="#{systemMessagingConfigHelper.selectedConfig.clientId}"
                                styleClass="w-full" />
                 </div>
                 <div class="field col-12">
-                  <label for="slackClientSecret" class="block font-medium mb-2">Client Secret <span class="text-red-500">*</span></label>
+                  <label for="configDetailForm:slackClientSecret" class="block font-medium mb-2">Client Secret <span class="text-red-500">*</span></label>
                   <p:password id="slackClientSecret"
                               value="#{systemMessagingConfigHelper.selectedConfig.clientSecret}"
                               toggleMask="true"
@@ -249,7 +249,7 @@
                               styleClass="w-full" />
                 </div>
                 <div class="field col-12">
-                  <label for="slackBotToken" class="block font-medium mb-2">Bot Token <span class="text-red-500">*</span></label>
+                  <label for="configDetailForm:slackBotToken" class="block font-medium mb-2">Bot Token <span class="text-red-500">*</span></label>
                   <p:password id="slackBotToken"
                               value="#{systemMessagingConfigHelper.selectedConfig.webhookUrl}"
                               toggleMask="true"
@@ -265,13 +265,13 @@
             <p:outputPanel rendered="#{systemMessagingConfigHelper.isZoom(systemMessagingConfigHelper.selectedConfig)}">
               <div class="formgrid grid">
                 <div class="field col-12">
-                  <label for="zoomClientId" class="block font-medium mb-2">Client ID <span class="text-red-500">*</span></label>
+                  <label for="configDetailForm:zoomClientId" class="block font-medium mb-2">Client ID <span class="text-red-500">*</span></label>
                   <p:inputText id="zoomClientId"
                                value="#{systemMessagingConfigHelper.selectedConfig.clientId}"
                                styleClass="w-full" />
                 </div>
                 <div class="field col-12">
-                  <label for="zoomClientSecret" class="block font-medium mb-2">Client Secret <span class="text-red-500">*</span></label>
+                  <label for="configDetailForm:zoomClientSecret" class="block font-medium mb-2">Client Secret <span class="text-red-500">*</span></label>
                   <p:password id="zoomClientSecret"
                               value="#{systemMessagingConfigHelper.selectedConfig.clientSecret}"
                               toggleMask="true"
@@ -279,7 +279,7 @@
                               styleClass="w-full" />
                 </div>
                 <div class="field col-12">
-                  <label for="zoomAccountId" class="block font-medium mb-2">Account ID <span class="text-red-500">*</span></label>
+                  <label for="configDetailForm:zoomAccountId" class="block font-medium mb-2">Account ID <span class="text-red-500">*</span></label>
                   <p:inputText id="zoomAccountId"
                                value="#{systemMessagingConfigHelper.selectedConfig.tenantId}"
                                styleClass="w-full" />
@@ -293,28 +293,28 @@
               <p:fieldset legend="SMTP Server Settings" styleClass="mb-4">
                 <div class="formgrid grid">
                   <div class="field col-12 md:col-8">
-                    <label for="smtpHost" class="block font-medium mb-2">SMTP Host <span class="text-red-500">*</span></label>
+                    <label for="configDetailForm:smtpHost" class="block font-medium mb-2">SMTP Host <span class="text-red-500">*</span></label>
                     <p:inputText id="smtpHost"
                                  value="#{systemMessagingConfigHelper.selectedConfig.smtpHost}"
                                  placeholder="smtp.company.com"
                                  styleClass="w-full" />
                   </div>
                   <div class="field col-12 md:col-4">
-                    <label for="smtpPort" class="block font-medium mb-2">Port <span class="text-red-500">*</span></label>
+                    <label for="configDetailForm:smtpPort_input" class="block font-medium mb-2">Port <span class="text-red-500">*</span></label>
                     <p:spinner id="smtpPort"
                                value="#{systemMessagingConfigHelper.selectedConfig.smtpPort}"
                                min="1" max="65535"
                                styleClass="w-full" />
                   </div>
                   <div class="field col-12">
-                    <label for="smtpUsername" class="block font-medium mb-2">Username</label>
+                    <label for="configDetailForm:smtpUsername" class="block font-medium mb-2">Username</label>
                     <p:inputText id="smtpUsername"
                                  value="#{systemMessagingConfigHelper.selectedConfig.smtpUsername}"
                                  placeholder="noreply@company.com"
                                  styleClass="w-full" />
                   </div>
                   <div class="field col-12">
-                    <label for="smtpPassword" class="block font-medium mb-2">Password</label>
+                    <label for="configDetailForm:smtpPassword" class="block font-medium mb-2">Password</label>
                     <p:password id="smtpPassword"
                                 value="#{systemMessagingConfigHelper.selectedConfig.smtpPassword}"
                                 toggleMask="true"
@@ -325,7 +325,7 @@
                     <div class="flex align-items-center">
                       <p:selectBooleanCheckbox id="smtpTls"
                                                value="#{systemMessagingConfigHelper.selectedConfig.smtpUseTls}" />
-                      <label for="smtpTls" class="ml-2">Use TLS/SSL</label>
+                      <label for="configDetailForm:smtpTls_input" class="ml-2">Use TLS/SSL</label>
                     </div>
                   </div>
                 </div>
@@ -334,14 +334,14 @@
               <p:fieldset legend="Sender Information">
                 <div class="formgrid grid">
                   <div class="field col-12">
-                    <label for="fromAddress" class="block font-medium mb-2">From Address <span class="text-red-500">*</span></label>
+                    <label for="configDetailForm:fromAddress" class="block font-medium mb-2">From Address <span class="text-red-500">*</span></label>
                     <p:inputText id="fromAddress"
                                  value="#{systemMessagingConfigHelper.selectedConfig.emailFromAddress}"
                                  placeholder="noreply@company.com"
                                  styleClass="w-full" />
                   </div>
                   <div class="field col-12">
-                    <label for="fromName" class="block font-medium mb-2">From Name <span class="text-red-500">*</span></label>
+                    <label for="configDetailForm:fromName" class="block font-medium mb-2">From Name <span class="text-red-500">*</span></label>
                     <p:inputText id="fromName"
                                  value="#{systemMessagingConfigHelper.selectedConfig.emailFromName}"
                                  placeholder="ELCM System"

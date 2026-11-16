@@ -220,8 +220,8 @@
                                     <!-- ADDED 2026-11-08 - The approver is chosen here on the review screen.
                                          It starts as the person ELCM would pick; the reviewer may
                                          type a name or open the list to choose someone else. -->
-                                    <h:outputLabel for="reviewApprover" value="Approver"
-                                                   style="margin: 0 0.4rem 0 0.5rem; font-weight: 600;"/>
+                                    <!-- REVISED 2026-11-16: plain label pointing at the rendered input, since the generated for did not match an input id -->
+                                    <label for="extractionForm:reviewApprover_input" style="margin: 0 0.4rem 0 0.5rem; font-weight: 600;">Approver</label>
                                     <p:autoComplete id="reviewApprover"
                                                     value="#{extractionBean.selectedApprover}"
                                                     completeMethod="#{extractionBean.completeApproverCandidates}"

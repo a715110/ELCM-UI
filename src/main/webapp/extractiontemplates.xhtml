@@ -323,7 +323,7 @@
         <p:inputText id="fLabel" value="#{extractionTemplatesBean.editing.label}" maxlength="200" styleClass="et-wide"/>
         <div class="et-help">The name people see on the review screen.</div>
 
-        <label class="et-label" for="fieldForm:fType">Data type</label>
+        <label class="et-label" for="fieldForm:fType_input">Data type</label>
         <p:selectOneMenu id="fType" value="#{extractionTemplatesBean.editing.dataType}" styleClass="et-wide">
           <f:selectItems value="#{extractionTemplatesBean.dataTypes}" var="o"
                          itemLabel="#{o.label}" itemValue="#{o.code}"/>
@@ -543,7 +543,7 @@
         <p:inputText id="nName" value="#{extractionTemplatesBean.newName}" maxlength="150" styleClass="et-wide"/>
         <div class="et-help">For example Equipment Lease. The name is shown in the list and cannot be reused.</div>
 
-        <label class="et-label" for="newForm:nType">Contract type</label>
+        <label class="et-label" for="newForm:nType_input">Contract type</label>
         <p:selectOneMenu id="nType" value="#{extractionTemplatesBean.newContractTypeId}" styleClass="et-wide">
           <f:selectItem itemLabel="Choose a contract type" itemValue="#{null}" noSelectionOption="true"/>
           <f:selectItems value="#{extractionTemplatesBean.contractTypes}" var="o"

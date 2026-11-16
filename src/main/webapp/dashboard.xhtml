@@ -362,7 +362,7 @@
                 <p:ajax listener="#{pipelineMetricsBean.onMineChanged}" process="@this"
                         update=":metricCards :stageDocumentsCard :contractPackagesCard :pipelineAlert"/>
             </p:toggleSwitch>
-            <h:outputLabel for="mineOnlySwitch" value="Mine only"/>
+            <p:outputLabel for="mineOnlySwitch" value="Mine only"/>
             <h:outputText styleClass="filter-hint" rendered="#{pipelineMetricsBean.mineOnly}"
                           value="Documents you uploaded and packages assigned to you. The red badge always counts everyone."/>
         </h:form>
@@ -558,7 +558,8 @@
 
                 <h:panelGroup id="setExistingPanel" layout="block" style="margin: 0.75rem 0;">
                     <h:panelGroup rendered="#{createDocumentSetBean.existingMode}">
-                        <p:outputLabel for="setExistingPackage" value="Package"/>
+                        <!-- REVISED 2026-11-16: plain label pointing at the rendered input, since the generated for did not match an input id -->
+                        <label for="createDocumentSetForm:setExistingPackage_input" class="ui-outputlabel ui-widget">Package</label>
                         <br/>
                         <p:selectOneMenu id="setExistingPackage"
                                          value="#{createDocumentSetBean.existingPackageId}"

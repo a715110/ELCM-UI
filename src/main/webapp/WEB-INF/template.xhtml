@@ -13,6 +13,7 @@
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
         <meta name="viewport"
               content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
+        <meta name="mobile-web-app-capable" content="yes"/>
         <meta name="apple-mobile-web-app-capable" content="yes"/>
         <link rel="icon" href="#{request.contextPath}/resources/elcm-custom/images/elcm-favicon-180.png"
               type="image/x-icon"/>
@@ -113,7 +114,7 @@
             <div class="layout-content">
                 <ui:insert name="content"/>
             </div>
-            <!--            <ui:include src="./footer.xhtml"/>-->
+            <ui:include src="./footer.xhtml"/>
         </div>
 
         <!--        <p:ajaxStatus style="width:32px;height:32px;position:fixed;right:7px;bottom:7px">-->
@@ -186,4 +187,4 @@
          rules each override replaces. -->
     <h:outputStylesheet name="css/theme-override.css" library="elcm-custom"/>
 </h:body>
-</html>
+</html>
