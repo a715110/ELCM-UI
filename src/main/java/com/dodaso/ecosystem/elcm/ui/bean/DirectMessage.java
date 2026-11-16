@@ -7,16 +7,23 @@ import com.dodaso.ecosystem.ecws.container.DirectMessageDTOContainer;
 import com.dodaso.ecosystem.ecws.dto.DirectMessageDTO;
 import com.dodaso.ecosystem.ecws.dto.SendResultDTO;
 import com.dodaso.ecosystem.ecws.dto.SystemMessagingConfigDTO;
+import com.dodaso.ecosystem.ecws.dto.TeamsNotifyDTO;
 import com.dodaso.ecosystem.elcm.ui.constant.MessagingChannelControllerAPIEnum;
+import com.dodaso.ecosystem.elcm.ui.helper.UserHelper;
 import com.dodaso.ecosystem.elcm.ui.teams.TeamsTokenStore;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.inject.Named;
 import jakarta.servlet.http.HttpSession;
 import java.io.Serial;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -78,6 +85,31 @@ public class DirectMessage implements java.io.Serializable {
 
   @Autowired
   private transient OAuth2AuthorizedClientService authorizedClientService;
+
+  /**
+   * ADDED 2026-11-15. How a Teams message is sent. {@code webhook} posts a card with an @mention
+   * through common-service and the Teams Workflows webhook, like the automatic notifications: no
+   * Microsoft sign-in, good for demos. {@code graph} (the default) sends a private chat message as
+   * the signed-in person and needs the Connect Microsoft account sign-in. {@code link} is handled
+   * in the browser and never reaches this bean.
+   */
+  @Value("${messaging.teams-mode:graph}")
+  private String teamsMode;
+
+  /**
+   * ADDED 2026-11-15. This product's own Teams webhook address for webhook mode. When set it is
+   * sent with each message and wins over the shared TEAMS row of the messaging settings, so the
+   * two products can post to different chats or channels without changing each other's settings.
+   * Empty (the default) uses the shared row.
+   */
+  @Value("${messaging.teams.webhook-url:}")
+  private String teamsWebhookUrl;
+
+  @Autowired
+  private transient UserHelper userHelper;
+
+  @Autowired
+  private transient ObjectMapper objectMapper;
 
   /** ADDED 2026-10-23. Graph tokens of the signed-in person, kept in the HTTP session. */
   @Autowired
@@ -202,6 +234,12 @@ public class DirectMessage implements java.io.Serializable {
       return;
     }
 
+    // ADDED 2026-11-15: webhook mode needs no Microsoft token at all.
+    if ("TEAMS".equalsIgnoreCase(effectiveChannel) && isWebhookMode()) {
+      sendTeamsByWebhook(faces, senderLoginId);
+      return;
+    }
+
     // Get access token if needed for OAuth-based channels
     String accessToken = null;
     if (requiresOAuthToken(effectiveChannel)) {
@@ -245,6 +283,117 @@ public class DirectMessage implements java.io.Serializable {
 
     // Handle result
     handleSendResult(faces, result, effectiveChannel);
+  }
+
+  private boolean isWebhookMode() {
+    return teamsMode != null && "webhook".equalsIgnoreCase(teamsMode.trim());
+  }
+
+  /**
+   * ADDED 2026-11-15. Posts the message as a card to the Teams Workflows webhook through
+   * common-service, naming the sender and @mentioning the recipient when their Microsoft 365
+   * address is mapped. The card goes to the chat or channel the workflow was made for, not to a
+   * private chat. Never throws; a refusal is shown to the sender.
+   */
+  private void sendTeamsByWebhook(final FacesContext faces, final String senderLoginId) {
+    final String recipientLogin = resolveRecipientLogin();
+    final String recipientName = userHelper.displayNameFor(recipientLogin);
+    final String senderName = userHelper.displayNameFor(senderLoginId);
+    final String upn = teamsAddressOf(recipientLogin);
+
+    final TeamsNotifyDTO request = new TeamsNotifyDTO();
+    request.setEventKey("ELCM-DM-" + UUID.randomUUID());
+    request.setEventType("ELCM direct message");
+    request.setRecipientLogin(recipientLogin);
+    if (StringUtils.isNotBlank(teamsWebhookUrl)) {
+      request.setWebhookOverride(teamsWebhookUrl.trim());
+    }
+    try {
+      request.setPayload(objectMapper.writeValueAsString(
+          card(senderName, recipientName, upn, message)));
+    } catch (final Exception e) {
+      log.warn("Could not build the Teams card: {}", e.getMessage());
+      failSend(faces, "The message could not be prepared.");
+      return;
+    }
+    try {
+      final SendResultDTO result = restServiceClient.post(
+          ServiceDiscoveryEnum.common_service.getServiceDiscoveryName(),
+          "/teamsNotificationController/post", request,
+          new ParameterizedTypeReference<SendResultDTO>() {
+          });
+      if (result != null && result.isSuccess()) {
+        final String note = upn == null
+            ? " (no Microsoft 365 address is mapped for this person, so they are named but not alerted)"
+            : "";
+        faces.addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO,
+            "Sent to " + recipientName + " in Teams" + note, null));
+        PrimeFaces.current().ajax().addCallbackParam("success", true);
+        PrimeFaces.current().ajax().addCallbackParam("channel", "TEAMS");
+        message = "";
+      } else {
+        failSend(faces, result == null ? "No answer from common-service." : result.getMessage());
+      }
+    } catch (final Exception e) {
+      log.warn("Teams webhook message could not reach common-service: {}", e.getMessage());
+      failSend(faces, "common-service is not reachable. Try again in a moment.");
+    }
+  }
+
+  /** The recipient's login id: what the popup sent, or the login of the name it sent. */
+  private String resolveRecipientLogin() {
+    final String resolved = userHelper.resolveLoginId(recipientId);
+    return StringUtils.isNotBlank(resolved) ? resolved : recipientId;
+  }
+
+  /** Teams (Microsoft 365) address of the login from common-service, or null when unmapped. */
+  private String teamsAddressOf(final String login) {
+    try {
+      final TeamsNotifyDTO request = new TeamsNotifyDTO();
+      request.setLoginId(login);
+      final TeamsNotifyDTO reply = restServiceClient.post(
+          ServiceDiscoveryEnum.common_service.getServiceDiscoveryName(),
+          "/teamsNotificationController/recipient", request,
+          new ParameterizedTypeReference<TeamsNotifyDTO>() {
+          });
+      return reply == null || StringUtils.isBlank(reply.getIdentifier()) ? null
+          : reply.getIdentifier();
+    } catch (final Exception e) {
+      log.warn("Teams address of {} not available: {}", login, e.getMessage());
+      return null;
+    }
+  }
+
+  private static void failSend(final FacesContext faces, final String text) {
+    faces.addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, text, null));
+    PrimeFaces.current().ajax().addCallbackParam("success", false);
+    PrimeFaces.current().ajax().addCallbackParam("detail", text);
+  }
+
+  /** The Adaptive Card message the Workflows webhook expects (same shape as the ECWS cards). */
+  private static Map<String, Object> card(final String senderName, final String recipientName,
+      final String upn, final String text) {
+    final String mention = upn != null ? "<at>" + recipientName + "</at>" : recipientName;
+    final List<Object> body = new ArrayList<>();
+    body.add(Map.of("type", "TextBlock", "text", "Message from " + senderName,
+        "weight", "Bolder", "size", "Medium", "color", "Accent", "wrap", true));
+    body.add(Map.of("type", "TextBlock", "text", "For " + mention, "wrap", true));
+    body.add(Map.of("type", "TextBlock", "text", text, "wrap", true));
+
+    final Map<String, Object> content = new LinkedHashMap<>();
+    content.put("$schema", "http://adaptivecards.io/schemas/adaptive-card.json");
+    content.put("type", "AdaptiveCard");
+    content.put("version", "1.4");
+    content.put("body", body);
+    if (upn != null) {
+      content.put("msteams", Map.of("entities", List.of(Map.of(
+          "type", "mention",
+          "text", "<at>" + recipientName + "</at>",
+          "mentioned", Map.of("id", upn, "name", recipientName)))));
+    }
+    return Map.of("type", "message", "attachments", List.of(Map.of(
+        "contentType", "application/vnd.microsoft.card.adaptive",
+        "content", content)));
   }
 
   /**
@@ -413,4 +562,4 @@ public class DirectMessage implements java.io.Serializable {
   public boolean isMessagingAvailable() {
     return defaultConfig != null && defaultConfig.getChannelType() != null;
   }
-}
+}
