@@ -87,7 +87,7 @@
                                            global="false"
                                            async="true"
                                            styleClass="task-rail-tab #{taskRailBean.closedTab ? 'task-rail-tab-active' : ''}">
-                                Closed
+                                #{taskRailBean.closedTitle}
                             </p:commandLink>
                             <ui:fragment rendered="#{taskRailBean.canSeeAll}">
                                 <span class="task-rail-scope">

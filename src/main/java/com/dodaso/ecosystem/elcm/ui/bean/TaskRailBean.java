@@ -209,6 +209,7 @@ public class TaskRailBean implements Serializable {
       }
     } else if (!openLoaded || now() - openLoadedAt >= REFRESH_MILLIS) {
       loadOpen();
+      primeClosedCount();
     }
     if (now() - badgeLoadedAt >= REFRESH_MILLIS) {
       refreshBadge();
@@ -219,6 +220,7 @@ public class TaskRailBean implements Serializable {
     activeTab = TAB_OPEN;
     if (!openLoaded || now() - openLoadedAt >= REFRESH_MILLIS) {
       loadOpen();
+      primeClosedCount();
     }
   }
 
@@ -244,6 +246,7 @@ public class TaskRailBean implements Serializable {
       loadClosedFirstPage();
     } else {
       loadOpen();
+      primeClosedCount();
     }
     refreshBadge();
   }
@@ -325,6 +328,18 @@ public class TaskRailBean implements Serializable {
   }
 
   /**
+   * ADDED 2026-11-16. The Closed tab title with its count once the list has been read, such as
+   * "Closed (0)". The service gives no total for Closed, so the count is the lines read so far, and
+   * "Closed (20+)" when more can be loaded.
+   */
+  public String getClosedTitle() {
+    if (!closedLoaded || closedFailed) {
+      return "Closed";
+    }
+    return "Closed (" + closedItems.size() + (closedNext != null ? "+" : "") + ")";
+  }
+
+  /**
    * ADDED 2026-10-18: link to the task's detail page in ECWS,
    * {ecws.base-url}/collaborationTask?taskId=N&Action=Update, or null while the task has not been
    * sent to ECWS yet (taskrail.xhtml then shows a greyed icon).
@@ -353,6 +368,19 @@ public class TaskRailBean implements Serializable {
       loadClosedFirstPage();
     } else {
       loadOpen();
+      primeClosedCount();
+    }
+  }
+
+  /**
+   * ADDED 2026-11-16. Reads the first page of Closed together with Open, so the Closed tab can show
+   * its count, such as "Closed (0)", before the tab is clicked. A failure here only leaves the title
+   * as plain "Closed"; the Open list is not affected.
+   */
+  private void primeClosedCount() {
+    if (openLoaded && !openFailed
+        && (!closedLoaded || now() - closedLoadedAt >= REFRESH_MILLIS)) {
+      loadClosedFirstPage();
     }
   }
 
