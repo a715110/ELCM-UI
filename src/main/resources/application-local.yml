@@ -94,4 +94,8 @@ messaging:
   teams:
     tenant-id: ${ELCM_ENTRA_TENANT_ID:82a21838-9e06-4e21-a581-00b512aa8d94}
     client-id: ${ELCM_ENTRA_CLIENT_ID:f16f24bb-b9df-467c-8699-2ea82cca9d5d}
-    webhook-url: https://default82a218389e064e21a58100b512aa8d.94.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/22/workflows/0c6e4e4885bb4c76b85706d72ae4cc91/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=R-0lA7dacdJuBluQ-JTnGjm9wT1toqAHnXgD7sYvF7M
+    webhook-url: ${ELCM_UI_TEAMS_WEBHOOK_URL:}
+    # Private chat to the person (the same flow ecws-service uses for task events).
+    direct-webhook-url: ${ELCM_UI_TEAMS_DIRECT_WEBHOOK_URL:}
+    # channel, direct or both. direct falls back to the channel when a private chat is not possible.
+    delivery: ${ELCM_UI_TEAMS_DELIVERY:direct}

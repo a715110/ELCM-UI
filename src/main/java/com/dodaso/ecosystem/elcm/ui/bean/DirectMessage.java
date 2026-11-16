@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -104,6 +105,21 @@ public class DirectMessage implements java.io.Serializable {
    */
   @Value("${messaging.teams.webhook-url:}")
   private String teamsWebhookUrl;
+
+  /**
+   * ADDED 2026-11-15. Where a webhook mode message goes: channel (the chat or channel of the
+   * webhook above, the default), direct (a private chat with the recipient, through the direct
+   * webhook below; the channel stands in when that is not possible) or both.
+   */
+  @Value("${messaging.teams.delivery:channel}")
+  private String teamsDelivery;
+
+  /**
+   * ADDED 2026-11-15. Address of the Workflows flow that sends a private chat to a person (the same
+   * flow ecws-service uses for task events). Empty means private messages are not set up.
+   */
+  @Value("${messaging.teams.direct-webhook-url:}")
+  private String teamsDirectWebhookUrl;
 
   @Autowired
   private transient UserHelper userHelper;
@@ -308,9 +324,22 @@ public class DirectMessage implements java.io.Serializable {
     if (StringUtils.isNotBlank(teamsWebhookUrl)) {
       request.setWebhookOverride(teamsWebhookUrl.trim());
     }
+    final String mode = deliveryMode();
+    final boolean wantsDirect = "direct".equals(mode) || "both".equals(mode);
+    final boolean directPossible = wantsDirect && upn != null
+        && StringUtils.isNotBlank(teamsDirectWebhookUrl);
+    request.setDelivery(mode);
+    request.setRecipientAddress(upn);
+    if (StringUtils.isNotBlank(teamsDirectWebhookUrl)) {
+      request.setDirectWebhookOverride(teamsDirectWebhookUrl.trim());
+    }
     try {
       request.setPayload(objectMapper.writeValueAsString(
           card(senderName, recipientName, upn, message)));
+      if (directPossible) {
+        request.setDirectPayload(objectMapper.writeValueAsString(
+            directCard(senderName, upn, message)));
+      }
     } catch (final Exception e) {
       log.warn("Could not build the Teams card: {}", e.getMessage());
       failSend(faces, "The message could not be prepared.");
@@ -323,11 +352,8 @@ public class DirectMessage implements java.io.Serializable {
           new ParameterizedTypeReference<SendResultDTO>() {
           });
       if (result != null && result.isSuccess()) {
-        final String note = upn == null
-            ? " (no Microsoft 365 address is mapped for this person, so they are named but not alerted)"
-            : "";
         faces.addMessage(null, new FacesMessage(FacesMessage.SEVERITY_INFO,
-            "Sent to " + recipientName + " in Teams" + note, null));
+            sentText(recipientName, mode, wantsDirect, directPossible, upn != null), null));
         PrimeFaces.current().ajax().addCallbackParam("success", true);
         PrimeFaces.current().ajax().addCallbackParam("channel", "TEAMS");
         message = "";
@@ -338,6 +364,32 @@ public class DirectMessage implements java.io.Serializable {
       log.warn("Teams webhook message could not reach common-service: {}", e.getMessage());
       failSend(faces, "common-service is not reachable. Try again in a moment.");
     }
+  }
+
+  /** channel, direct or both; anything else means channel. */
+  private String deliveryMode() {
+    final String mode = StringUtils.defaultIfBlank(teamsDelivery, "channel").trim()
+        .toLowerCase(Locale.ROOT);
+    return "direct".equals(mode) || "both".equals(mode) ? mode : "channel";
+  }
+
+  /** What the sender is told after a successful send, including why a private chat was not used. */
+  private String sentText(final String recipientName, final String mode, final boolean wantsDirect,
+      final boolean directPossible, final boolean addressMapped) {
+    if (directPossible) {
+      return "both".equals(mode)
+          ? "Sent privately to " + recipientName + " in Teams and posted to the channel"
+          : "Sent privately to " + recipientName + " in Teams";
+    }
+    if (wantsDirect) {
+      final String why = !addressMapped
+          ? "no Microsoft 365 address is mapped for this person"
+          : "no direct webhook address is set";
+      return "Sent to the Teams channel, not privately (" + why + ")";
+    }
+    return "Sent to " + recipientName + " in Teams"
+        + (addressMapped ? ""
+        : " (no Microsoft 365 address is mapped for this person, so they are named but not alerted)");
   }
 
   /** The recipient's login id: what the popup sent, or the login of the name it sent. */
@@ -394,6 +446,33 @@ public class DirectMessage implements java.io.Serializable {
     return Map.of("type", "message", "attachments", List.of(Map.of(
         "contentType", "application/vnd.microsoft.card.adaptive",
         "content", content)));
+  }
+
+  /**
+   * ADDED 2026-11-15. The card of a private chat: the person is the reader, so there is no "For"
+   * line and no mention. The top level recipient field is read by the direct flow (the Recipient of
+   * its Post card action) and ignored by the card itself, as in the ecws-service task events.
+   */
+  private static Map<String, Object> directCard(final String senderName, final String upn,
+      final String text) {
+    final List<Object> body = new ArrayList<>();
+    body.add(Map.of("type", "TextBlock", "text", "Message from " + senderName,
+        "weight", "Bolder", "size", "Medium", "color", "Accent", "wrap", true));
+    body.add(Map.of("type", "TextBlock", "text", text, "wrap", true));
+
+    final Map<String, Object> content = new LinkedHashMap<>();
+    content.put("$schema", "http://adaptivecards.io/schemas/adaptive-card.json");
+    content.put("type", "AdaptiveCard");
+    content.put("version", "1.4");
+    content.put("body", body);
+
+    final Map<String, Object> message = new LinkedHashMap<>();
+    message.put("type", "message");
+    message.put("attachments", List.of(Map.of(
+        "contentType", "application/vnd.microsoft.card.adaptive",
+        "content", content)));
+    message.put("recipient", upn);
+    return message;
   }
 
   /**
