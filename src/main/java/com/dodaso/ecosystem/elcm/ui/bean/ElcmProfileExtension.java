@@ -96,6 +96,7 @@ public class ElcmProfileExtension implements ProfileExtension {
       list.add(new ProfileChoice("/workqueue?Source=Menu", "Work Queue"));
     }
     list.add(new ProfileChoice("/contractrecords?Source=Menu", "Contract Records"));
+    list.add(new ProfileChoice("/criticaldates?Source=Menu", "Critical Dates"));
     return list;
   }
 

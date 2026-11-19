@@ -1,0 +1,114 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                template="/WEB-INF/template.xhtml">
+  <!--
+      ADDED 2026-11-16 - Critical Dates screen: the rules that turn contract dates into ECWS tasks,
+      and the dates being watched with where each one stands. Read only.
+  -->
+  <ui:define name="title">Critical Dates</ui:define>
+
+  <ui:define name="head">
+    <style>
+      .cd-card { background: #FFFFFF; border: 1px solid #E5E2D9; border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0; }
+      .cd-card h2 { font-size: 1.15rem; margin: 0 0 0.25rem 0; }
+      .cd-sub { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+      .cd-facts { display: flex; flex-wrap: wrap; gap: 0.4rem 2rem; font-size: 0.9rem; margin-bottom: 0.75rem; }
+      .cd-facts span.k { color: #6B6A63; margin-right: 0.35rem; }
+      .cd-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+      .cd-chip { border: 1px solid #D6D2C7; border-radius: 999px; padding: 0.2rem 0.8rem; font-size: 0.85rem; background: #FDFCFA; }
+      .cd-chip b { margin-left: 0.3rem; }
+      .cd-note { color: #6B6A63; font-size: 0.85rem; margin-top: 0.5rem; }
+      .cd-warn { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+      .cd-bar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+    </style>
+  </ui:define>
+
+  <ui:define name="content">
+    <h1>Critical Dates</h1>
+    <p class="cd-sub">Dates written in contracts become tasks in ECWS ahead of time, so nobody has to remember them.</p>
+
+    <h:form id="cdForm">
+      <h:panelGroup layout="block" styleClass="cd-warn" rendered="#{criticalDatesBean.loadFailed}">
+        <h:outputText value="The critical dates could not be loaded. Try again in a moment."/>
+      </h:panelGroup>
+
+      <div class="cd-card">
+        <h2>How it works</h2>
+        <div class="cd-sub">Each morning, and after each Apply, ELCM looks at the dates of active contract records. When a date is within its lead time, one task is requested in ECWS, due on that date.</div>
+        <div class="cd-facts">
+          <span><span class="k">Critical dates</span>
+            <p:tag value="#{criticalDatesBean.enabled ? 'On' : 'Off'}" severity="#{criticalDatesBean.enabled ? 'success' : 'secondary'}"/></span>
+          <span><span class="k">ECWS tasks</span>
+            <p:tag value="#{criticalDatesBean.ecwsEnabled ? 'On' : 'Off'}" severity="#{criticalDatesBean.ecwsEnabled ? 'success' : 'secondary'}"/></span>
+          <span><span class="k">Daily check</span><h:outputText value="#{criticalDatesBean.checkTimeText}"/></span>
+          <span><span class="k">Today</span><h:outputText value="#{criticalDatesBean.today}"/></span>
+        </div>
+        <h:panelGroup layout="block" styleClass="cd-warn" rendered="#{!criticalDatesBean.loadFailed and !criticalDatesBean.running}">
+          <h:outputText value="Tasks are not being made: both Critical dates and ECWS tasks must be On. The list below shows what would happen."/>
+        </h:panelGroup>
+        <div class="cd-note">Who gets the task: the person in charge of the package that supplied the date, otherwise the approver with the fewest open tasks. A task is closed when a later Apply replaces the date or the record is no longer active.</div>
+      </div>
+
+      <div class="cd-card">
+        <h2>Rules (#{criticalDatesBean.rules.size()})</h2>
+        <div class="cd-sub">Each rule watches one contract field. Rules are set up by an administrator.</div>
+        <p:dataTable id="rulesTable" var="r" value="#{criticalDatesBean.rules}" emptyMessage="No rules.">
+          <p:column headerText="Date"><h:outputText value="#{r.label}"/></p:column>
+          <p:column headerText="Contract field"><h:outputText value="#{r.fieldKey}"/></p:column>
+          <p:column headerText="Notice field"><h:outputText value="#{r.noticeText}"/></p:column>
+          <p:column headerText="Task made ahead"><h:outputText value="#{r.leadDays} days before due"/></p:column>
+          <p:column headerText="Priority"><h:outputText value="#{r.priority}"/></p:column>
+          <p:column headerText="Active">
+            <p:tag value="#{r.enabled ? 'Yes' : 'No'}" severity="#{r.enabled ? 'success' : 'secondary'}"/>
+          </p:column>
+        </p:dataTable>
+      </div>
+
+      <div class="cd-card">
+        <h2>Dates being watched (#{criticalDatesBean.shownDates.size()})</h2>
+        <div class="cd-chips">
+          <span class="cd-chip">Waiting<b>#{criticalDatesBean.countOf('WAITING')}</b></span>
+          <span class="cd-chip">Task due to be made<b>#{criticalDatesBean.countOf('READY')}</b></span>
+          <span class="cd-chip">Task requested<b>#{criticalDatesBean.countOf('TASK_REQUESTED')}</b></span>
+          <span class="cd-chip">Overdue<b>#{criticalDatesBean.countOf('OVERDUE')}</b></span>
+          <span class="cd-chip">Past, no task<b>#{criticalDatesBean.countOf('PAST')}</b></span>
+        </div>
+        <div class="cd-bar">
+          <p:selectOneMenu id="statusFilter" value="#{criticalDatesBean.statusFilter}">
+            <f:selectItem itemLabel="All statuses" itemValue=""/>
+            <f:selectItem itemLabel="Waiting" itemValue="WAITING"/>
+            <f:selectItem itemLabel="Task due to be made" itemValue="READY"/>
+            <f:selectItem itemLabel="Task requested" itemValue="TASK_REQUESTED"/>
+            <f:selectItem itemLabel="Overdue" itemValue="OVERDUE"/>
+            <f:selectItem itemLabel="Past, no task" itemValue="PAST"/>
+            <p:ajax process="@this" update="datesTable"/>
+          </p:selectOneMenu>
+          <p:commandButton value="Refresh" icon="pi pi-refresh" styleClass="ui-button-outlined"
+                           process="@this" update="@form" actionListener="#{criticalDatesBean.reload}"/>
+          <p:commandButton value="Export CSV" icon="pi pi-download" styleClass="ui-button-outlined"
+                           ajax="false" title="Download the listed dates as a CSV file">
+            <p:fileDownload value="#{criticalDatesBean.datesCsv}"/>
+          </p:commandButton>
+        </div>
+        <p:dataTable id="datesTable" var="d" value="#{criticalDatesBean.shownDates}"
+                     paginator="true" rows="15" paginatorPosition="bottom"
+                     emptyMessage="No dates are being watched yet. A date appears here after a package with that date is applied to an active record.">
+          <p:column headerText="Record" sortBy="#{d.recordCode}"><h:outputText value="#{d.recordCode}"/></p:column>
+          <p:column headerText="Counterparty" sortBy="#{d.counterparty}"><h:outputText value="#{d.counterparty}"/></p:column>
+          <p:column headerText="Date" sortBy="#{d.ruleLabel}"><h:outputText value="#{d.ruleLabel}"/></p:column>
+          <p:column headerText="Contract date" sortBy="#{d.contractDate}"><h:outputText value="#{d.contractDate}"/></p:column>
+          <p:column headerText="Due" sortBy="#{d.dueDate}" sortOrder="asc"><h:outputText value="#{d.dueDate}"/></p:column>
+          <p:column headerText="Task made from" sortBy="#{d.createOn}"><h:outputText value="#{d.createOn}"/></p:column>
+          <p:column headerText="When" sortBy="#{d.daysLeft}"><h:outputText value="#{d.daysText}"/></p:column>
+          <p:column headerText="Status" sortBy="#{d.status}">
+            <p:tag value="#{d.statusText}" severity="#{d.severity}"/>
+          </p:column>
+        </p:dataTable>
+        <div class="cd-note">Due is the contract date less any notice days. Times and days follow #{criticalDatesBean.zone}.</div>
+      </div>
+    </h:form>
+  </ui:define>
+</ui:composition>
