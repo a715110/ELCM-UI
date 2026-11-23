@@ -32,9 +32,8 @@ dodaso:
 
 # Secrets that come from Key Vault in the cloud (dev values only).
 elcm-ui-oauth-client-secret: ${ELCM_UI_OAUTH_CLIENT_SECRET:jsf-client-secret}
-# Same value as before, so local token handling keeps working. It has been in
-# git, so it must never be used outside local development.
-elcm-ui-jwt-secret: ${ELCM_UI_JWT_SECRET:9a4f2c8d3b7a1e6f45c8a0b3f267d8b1d4e6f3c8a9d2b5f8e3a9c8b5f6v8a3d9}
+# Same shared secret as every local service (PLATFORM_JWT_SECRET, no default: the old value was committed to git).
+elcm-ui-jwt-secret: ${PLATFORM_JWT_SECRET}
 
 spring:
   main:

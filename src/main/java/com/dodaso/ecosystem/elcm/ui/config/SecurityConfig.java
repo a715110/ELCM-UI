@@ -157,8 +157,6 @@ public class SecurityConfig {
       // Add debugging
       log.trace("=== CUSTOM TOKEN REQUEST ===");
       log.trace("Client ID: {}", clientRegistration.getClientId());
-      log.trace("Authorization header being set: Basic {}", encodedCredentials);
-      log.trace("Headers: {}", headers);
       log.trace("Form parameters: {}", formParameters);
 
       URI uri = UriComponentsBuilder.fromUriString(
@@ -166,7 +164,7 @@ public class SecurityConfig {
 
       RequestEntity<?> requestEntity = new RequestEntity<>(formParameters, headers, HttpMethod.POST,
           uri);
-      log.info("Final RequestEntity headers: {}", requestEntity.getHeaders());
+      log.debug("Token request built for client {}", clientRegistration.getClientId());
 
       return requestEntity;
     });
