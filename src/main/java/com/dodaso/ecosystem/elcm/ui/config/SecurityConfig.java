@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
@@ -96,6 +97,14 @@ public class SecurityConfig {
   /** This app's public base URL (ends at the context path); where the SSO logout sends users back. */
   @Value("${dodaso.instance.elcm-base-url}")
   private String elcmBaseUrl;
+
+  /** ADDED 2026-11-23. Other origins allowed to post to this app, comma separated (rarely needed). */
+  @Value("${dodaso.security.allowed-origins:}")
+  private String extraAllowedOrigins;
+
+  /** ADDED 2026-11-23. Cross-site request check: enforce (default), report or off. */
+  @Value("${dodaso.security.origin-check:enforce}")
+  private String originCheckMode;
 
   /** Secret shared by ELCM and ECWS to sign the shared idle clock cookie (same value in both). */
   @Value("${dodaso.session.idle-secret:}")
@@ -197,6 +206,21 @@ public class SecurityConfig {
     RETURN_CACHE.setMatchingRequestParameterName(null);
   }
 
+  /** ADDED 2026-11-23. Builds the cross-site request check from this app's own base URL. */
+  private OriginCheckFilter originCheckFilter() {
+    List<String> urls = new ArrayList<>();
+    urls.add(elcmBaseUrl);
+    for (String extra : extraAllowedOrigins.split(",")) {
+      if (!extra.isBlank()) {
+        urls.add(extra.trim());
+      }
+    }
+    OriginPolicy policy = new OriginPolicy(urls);
+    OriginCheckFilter.Mode mode = OriginCheckFilter.Mode.parse(originCheckMode);
+    log.info("Origin check {}: allowed origins {}", mode, policy.allowedOrigins());
+    return new OriginCheckFilter(policy, mode);
+  }
+
   @Bean
   SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     // ADDED 2026-10-20: remembers the page asked for before the SSO login so the login can return
@@ -205,6 +229,8 @@ public class SecurityConfig {
     final HttpSessionRequestCache requestCache = RETURN_CACHE; // REVISED 2026-10-23, shared
     http
         .addFilterBefore(oauth2DebugFilter(), OAuth2LoginAuthenticationFilter.class)
+        // ADDED 2026-11-23: refuses state changing requests sent from another site (CSRF).
+        .addFilterBefore(originCheckFilter(), SecurityContextHolderFilter.class)
         // Ends a session created before the shared logout marker (see LogoutMarkerFilter).
         .addFilterBefore(new LogoutMarkerFilter(), SecurityContextHolderFilter.class)
         // Idle limit judged from the clock both apps share (see IdleClockFilter).
@@ -232,7 +258,9 @@ public class SecurityConfig {
         // redirect to the SSO login page (a cross-origin redirect it cannot follow).
         .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
             new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED), sessionApiMatcher()))
-        .csrf(csrf -> csrf.disable()) // Temporarily disable for testing
+        // Spring's token based CSRF stays off (JSF forms carry no token); OriginCheckFilter above
+        // is the cross-site protection.
+        .csrf(csrf -> csrf.disable())
         .requestCache(cache -> cache.requestCache(requestCache)) // ADDED 2026-10-20
         // ADDED 2026-10-02 -- without this, Spring Security's own default
         // X-Frame-Options header-writer runs AFTER SimpleCORSFilter (which
