@@ -1,0 +1,191 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="http://java.sun.com/jsf/html"
+                xmlns:ui="http://java.sun.com/jsf/facelets"
+                xmlns:p="http://primefaces.org/ui"
+                xmlns:f="http://xmlns.jcp.org/jsf/core"
+                template="/WEB-INF/template.xhtml">
+  <!--
+      ADDED 2026-11-21 - Critical Date Rules: add, change, switch on or off and delete the rules
+      that turn contract dates into ECWS tasks. System Admin and Super Admin only.
+  -->
+  <ui:define name="title">Critical Date Rules</ui:define>
+
+  <ui:define name="head">
+    <style>
+      .cr-card { background: #FFFFFF; border: 1px solid #E5E2D9; border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0; }
+      .cr-card h2 { font-size: 1.15rem; margin: 0 0 0.25rem 0; }
+      .cr-sub { color: #6B6A63; font-size: 0.9rem; margin-bottom: 1rem; }
+      .cr-facts { display: flex; flex-wrap: wrap; gap: 0.4rem 2rem; font-size: 0.9rem; margin-bottom: 0.75rem; align-items: center; }
+      .cr-facts span.k { color: #6B6A63; margin-right: 0.35rem; }
+      .cr-bar { display: flex; gap: 0.75rem; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 1rem; }
+      .cr-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+      .cr-warn { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; }
+      .cr-note { color: #6B6A63; font-size: 0.85rem; margin-top: 0.75rem; }
+      .cr-code { color: #6B6A63; font-size: 0.8rem; }
+      .cr-field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.9rem; }
+      .cr-field label { font-size: 0.85rem; color: #6B6A63; }
+      .cr-help { color: #6B6A63; font-size: 0.8rem; }
+    </style>
+  </ui:define>
+
+  <ui:define name="content">
+    <h1>Critical Date Rules</h1>
+    <p class="cr-sub">Choose which dates written in contracts turn into ECWS tasks, and how many days ahead each task is made.</p>
+
+    <h:panelGroup layout="block" styleClass="cr-card" rendered="#{!messagingAccessBean.admin}">
+      <h:outputText value="Only a System Admin or Super Admin can open this page."/>
+    </h:panelGroup>
+
+    <h:panelGroup rendered="#{messagingAccessBean.admin}">
+      <p:growl id="crGrowl" globalOnly="true" showDetail="true" life="6000"/>
+      <p:confirmDialog global="true" showEffect="fade" hideEffect="fade">
+        <p:commandButton value="Yes" type="button" styleClass="ui-confirmdialog-yes"/>
+        <p:commandButton value="No" type="button" styleClass="ui-button-flat ui-confirmdialog-no"/>
+      </p:confirmDialog>
+
+      <h:panelGroup id="rulesPanel" layout="block">
+        <h:form id="rulesForm">
+          <h:panelGroup layout="block" styleClass="cr-warn" rendered="#{criticalDateRulesBean.loadFailed}">
+            <h:outputText value="The rules could not be loaded. Try again in a moment."/>
+          </h:panelGroup>
+
+          <div class="cr-card">
+            <h2>Status</h2>
+            <div class="cr-facts">
+              <span><span class="k">Critical dates</span>
+                <p:tag value="#{criticalDateRulesBean.view.enabled ? 'On' : 'Off'}" severity="#{criticalDateRulesBean.view.enabled ? 'success' : 'secondary'}"/></span>
+              <span><span class="k">ECWS tasks</span>
+                <p:tag value="#{criticalDateRulesBean.view.ecwsEnabled ? 'On' : 'Off'}" severity="#{criticalDateRulesBean.view.ecwsEnabled ? 'success' : 'secondary'}"/></span>
+              <p:commandButton value="Check now" icon="pi pi-play" styleClass="ui-button-outlined"
+                               process="@this" update=":rulesPanel :crGrowl"
+                               actionListener="#{criticalDateRulesBean.checkNow}"
+                               title="Look at every contract record now instead of waiting for the daily check"/>
+            </div>
+            <h:panelGroup layout="block" styleClass="cr-warn" rendered="#{!criticalDateRulesBean.loadFailed and !criticalDateRulesBean.running}">
+              <h:outputText value="Tasks are not being made: both Critical dates and ECWS tasks must be On in the service settings. Rules can still be edited here."/>
+            </h:panelGroup>
+            <div class="cr-note">Changes are picked up by the daily check, or at once with Check now.</div>
+          </div>
+
+          <div class="cr-card">
+            <div class="cr-bar">
+              <div>
+                <h2>Rules (#{criticalDateRulesBean.rules.size()})</h2>
+                <div class="cr-sub" style="margin-bottom:0">Each rule watches one date field of the contracts.</div>
+              </div>
+              <p:commandButton value="New rule" icon="pi pi-plus" process="@this"
+                               update=":ruleForm" resetValues="true"
+                               actionListener="#{criticalDateRulesBean.prepareNew}"
+                               oncomplete="PF('ruleDlg').show()"/>
+            </div>
+            <p:dataTable id="rulesTable" var="r" value="#{criticalDateRulesBean.rules}" emptyMessage="No rules yet.">
+              <p:column headerText="Date">
+                <h:outputText value="#{r.label}" style="font-weight:600"/>
+                <br/>
+                <h:outputText value="#{r.code}" styleClass="cr-code"/>
+              </p:column>
+              <p:column headerText="Contract field"><h:outputText value="#{r.fieldKey}"/></p:column>
+              <p:column headerText="Notice field"><h:outputText value="#{r.noticeText}"/></p:column>
+              <p:column headerText="Task made ahead"><h:outputText value="#{r.leadDays} days before due"/></p:column>
+              <p:column headerText="Priority"><h:outputText value="#{r.priority}"/></p:column>
+              <p:column headerText="Active">
+                <p:tag value="#{r.enabled ? 'Yes' : 'No'}" severity="#{r.enabled ? 'success' : 'secondary'}"/>
+              </p:column>
+              <p:column headerText="Open tasks"><h:outputText value="#{r.openTasks}"/></p:column>
+              <p:column headerText="Last changed"><h:outputText value="#{r.changedText}"/></p:column>
+              <p:column headerText="">
+                <div class="cr-actions">
+                  <p:commandButton value="Edit" icon="pi pi-pencil" process="@this"
+                                   update=":ruleForm" resetValues="true"
+                                   actionListener="#{criticalDateRulesBean.prepareEdit(r.id)}"
+                                   oncomplete="PF('ruleDlg').show()"/>
+                  <p:commandButton value="Switch off" icon="pi pi-ban" styleClass="ui-button-flat"
+                                   rendered="#{r.enabled and r.openTasks gt 0}" process="@this"
+                                   update=":rulesPanel :crGrowl"
+                                   actionListener="#{criticalDateRulesBean.toggle(r.id, false)}">
+                    <p:confirm header="Switch off this rule?"
+                               message="Its open tasks are closed in ECWS at the next check. Switch it off?"
+                               icon="pi pi-exclamation-triangle"/>
+                  </p:commandButton>
+                  <p:commandButton value="Switch off" icon="pi pi-ban" styleClass="ui-button-flat"
+                                   rendered="#{r.enabled and r.openTasks eq 0}" process="@this"
+                                   update=":rulesPanel :crGrowl"
+                                   actionListener="#{criticalDateRulesBean.toggle(r.id, false)}"/>
+                  <p:commandButton value="Switch on" icon="pi pi-check-circle" styleClass="ui-button-flat"
+                                   rendered="#{!r.enabled}" process="@this"
+                                   update=":rulesPanel :crGrowl"
+                                   actionListener="#{criticalDateRulesBean.toggle(r.id, true)}"/>
+                  <p:commandButton value="Delete" icon="pi pi-trash" styleClass="ui-button-flat ui-button-danger"
+                                   rendered="#{r.deletable}" process="@this"
+                                   update=":rulesPanel :crGrowl"
+                                   actionListener="#{criticalDateRulesBean.delete(r.id)}">
+                    <p:confirm header="Delete this rule?"
+                               message="The rule is removed for good. Continue?"
+                               icon="pi pi-exclamation-triangle"/>
+                  </p:commandButton>
+                </div>
+              </p:column>
+            </p:dataTable>
+            <div class="cr-note">A rule that has already made a task cannot be deleted. Switch it off instead; the history stays.</div>
+          </div>
+        </h:form>
+      </h:panelGroup>
+
+      <p:dialog widgetVar="ruleDlg" header="Critical date rule" modal="true" width="560"
+                resizable="false" draggable="false">
+        <h:form id="ruleForm">
+          <h:panelGroup layout="block" styleClass="cr-warn" rendered="#{not empty criticalDateRulesBean.impactText}">
+            <h:outputText value="#{criticalDateRulesBean.impactText}"/>
+          </h:panelGroup>
+          <div class="cr-field">
+            <label for="ruleForm:rcode">Code</label>
+            <p:inputText id="rcode" value="#{criticalDateRulesBean.code}" maxlength="40"
+                         disabled="#{criticalDateRulesBean.editing}"/>
+            <span class="cr-help">A short name in capital letters, such as RENEWAL_NOTICE. It cannot be changed later.</span>
+          </div>
+          <div class="cr-field">
+            <label for="ruleForm:rlabel">Name of the date</label>
+            <p:inputText id="rlabel" value="#{criticalDateRulesBean.label}" maxlength="100"/>
+            <span class="cr-help">Used in the task title, for example Lease expiration.</span>
+          </div>
+          <div class="cr-field">
+            <label for="ruleForm:rfield_input">Contract field that holds the date</label>
+            <p:selectOneMenu id="rfield" value="#{criticalDateRulesBean.fieldKey}" style="width:100%">
+              <f:selectItem itemLabel="Pick a field" itemValue=""/>
+              <f:selectItems value="#{criticalDateRulesBean.dateOptions}" var="o" itemValue="#{o.key}" itemLabel="#{o.display}"/>
+            </p:selectOneMenu>
+          </div>
+          <div class="cr-field">
+            <label for="ruleForm:rnotice_input">Notice period field (optional)</label>
+            <p:selectOneMenu id="rnotice" value="#{criticalDateRulesBean.noticeFieldKey}" style="width:100%">
+              <f:selectItem itemLabel="None" itemValue=""/>
+              <f:selectItems value="#{criticalDateRulesBean.numberOptions}" var="o" itemValue="#{o.key}" itemLabel="#{o.display}"/>
+            </p:selectOneMenu>
+            <span class="cr-help">A number field of days. The task is then due that many days before the date.</span>
+          </div>
+          <div class="cr-field">
+            <label for="ruleForm:rlead">Make the task this many days before it is due</label>
+            <p:inputNumber id="rlead" value="#{criticalDateRulesBean.leadDays}" decimalPlaces="0"
+                           minValue="0" maxValue="1095" thousandSeparator=""/>
+          </div>
+          <div class="cr-field">
+            <label for="ruleForm:rprio_input">ECWS priority</label>
+            <p:selectOneMenu id="rprio" value="#{criticalDateRulesBean.priority}" style="width:100%">
+              <f:selectItems value="#{criticalDateRulesBean.view.priorities}"/>
+            </p:selectOneMenu>
+          </div>
+          <div class="cr-field">
+            <p:selectBooleanCheckbox value="#{criticalDateRulesBean.ruleEnabled}" itemLabel="The rule is active"/>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+            <p:commandButton value="Cancel" styleClass="ui-button-flat" type="button"
+                             onclick="PF('ruleDlg').hide()"/>
+            <p:commandButton value="Save" icon="pi pi-check" process="@form"
+                             update=":rulesPanel :crGrowl"
+                             actionListener="#{criticalDateRulesBean.save}"/>
+          </div>
+        </h:form>
+      </p:dialog>
+    </h:panelGroup>
+  </ui:define>
+</ui:composition>
