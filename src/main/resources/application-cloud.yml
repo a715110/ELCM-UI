@@ -5,7 +5,9 @@
 # TLS ends at the instance ingress; the app itself serves plain HTTP inside
 # the private network. No keystore, no truststore in this profile.
 # =====================================================================
-
+dodaso:
+  tls:
+    trust-all: false
 spring:
   cloud:
     azure:
