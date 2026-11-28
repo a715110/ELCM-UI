@@ -27,7 +27,7 @@
 
   <ui:define name="content">
     <h1>Performance Incidents</h1>
-    <p class="pf-sub">Calls that ran slowly, used a lot of CPU, or were still running when checked. Times are UTC.</p>
+    <p class="pf-sub">Calls that ran slowly, used a lot of CPU, or were still running when checked. Times are shown in your time zone.</p>
 
     <h:panelGroup layout="block" styleClass="pf-card" rendered="#{!messagingAccessBean.admin}">
       <h:outputText value="Only a System Admin or Super Admin can open this page."/>
@@ -100,7 +100,7 @@
           <h:form id="listForm">
             <p:dataTable id="incidentTable" var="i" value="#{perfIncidentsBean.items}"
                          emptyMessage="No incidents match.">
-              <p:column headerText="Time (UTC)"><h:outputText value="#{i.occurredAtText}"/></p:column>
+              <p:column headerText="Time"><h:outputText value="#{i.occurredAtText}"/></p:column>
               <p:column headerText="App"><h:outputText value="#{i.service}"/></p:column>
               <p:column headerText="Reason"><h:outputText value="#{i.reason}"/></p:column>
               <p:column headerText="Call"><h:outputText value="#{i.callName}"/></p:column>
@@ -136,7 +136,7 @@
           </h:panelGroup>
           <h:panelGroup rendered="#{perfIncidentsBean.selected != null}">
             <div class="pf-grid">
-              <span class="k">Time (UTC)</span><span>#{perfIncidentsBean.selected.occurredAtText}</span>
+              <span class="k">Time</span><span>#{perfIncidentsBean.selected.occurredAtText}</span>
               <span class="k">App</span><span>#{perfIncidentsBean.selected.service}</span>
               <span class="k">Reason</span><span>#{perfIncidentsBean.selected.reason}</span>
               <span class="k">Layer</span><span>#{perfIncidentsBean.selected.layer}</span>

@@ -143,9 +143,9 @@
                 if (cur === tz) { return; }
                 document.cookie = 'dodaso_tz=' + encodeURIComponent(tz) + '; path=/; max-age=31536000; SameSite=Lax';
                 var seen = null;
-                try { seen = window.sessionStorage.getItem('dodaso_tz_reload'); } catch (e) { seen = '1'; }
-                if (seen !== '1') {
-                    try { window.sessionStorage.setItem('dodaso_tz_reload', '1'); } catch (e) { }
+                try { seen = window.sessionStorage.getItem('dodaso_tz_reload'); } catch (e) { seen = tz; }
+                if (seen !== tz) {
+                    try { window.sessionStorage.setItem('dodaso_tz_reload', tz); } catch (e) { }
                     window.location.reload();
                 }
             } catch (e) { }

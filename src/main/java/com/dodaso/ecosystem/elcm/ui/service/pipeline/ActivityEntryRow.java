@@ -1,5 +1,6 @@
 package com.dodaso.ecosystem.elcm.ui.service.pipeline;
 
+import com.dodaso.ecosystem.elcm.ui.service.ShownTime;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.io.Serializable;
 import lombok.Getter;
@@ -22,13 +23,17 @@ public class ActivityEntryRow implements Serializable {
   private String event;
   private String message;
 
-  /** 2026-10-14T14:03:22.123Z shown as 2026-10-14 14:03 UTC. */
+  /** 2026-10-14T14:03:22.123Z shown as 2026-10-14 10:03 AM EDT (the viewer's zone). */
   public String getOccurredAtText() {
     if (occurredAt == null) {
       return "";
     }
-    final String t = occurredAt.replace('T', ' ');
-    return (t.length() >= 16 ? t.substring(0, 16) : t) + " UTC";
+    return ShownTime.text(occurredAt);
+  }
+
+  /** The same time in UTC, for exports. */
+  public String getOccurredAtUtc() {
+    return ShownTime.utc(occurredAt);
   }
 
   /** The display name, or the login id, or a dash. */

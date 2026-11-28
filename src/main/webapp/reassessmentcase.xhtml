@@ -266,7 +266,7 @@
       <div class="rc-card">
         <h2>History</h2>
         <p:dataTable var="e" value="#{reassessmentCaseBean.detail.events}" emptyMessage="No history yet.">
-          <p:column headerText="When (UTC)" style="width:11rem"><h:outputText value="#{e.occurredAtText}"/></p:column>
+          <p:column headerText="When" style="width:11rem"><h:outputText value="#{e.occurredAtText}"/></p:column>
           <p:column headerText="Who" style="width:14rem">
             <ui:include src="/WEB-INF/popup/userName.xhtml">
               <ui:param name="popupName" value="#{e.actor}"/>

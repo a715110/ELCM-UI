@@ -1,5 +1,6 @@
 package com.dodaso.ecosystem.elcm.ui.service.quality;
 
+import com.dodaso.ecosystem.elcm.ui.service.ShownTime;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -51,22 +52,20 @@ public class ExtractionControlView implements Serializable {
       };
     }
 
-    /** The time without the fraction of a second, "T" replaced by a space (UTC). */
+    /** The time without the fraction of a second, "T" replaced by a space (shown in your time zone). */
     public String getAtText() {
       if (at == null) {
         return "";
       }
-      final String text = at.replace('T', ' ');
-      return text.length() > 16 ? text.substring(0, 16) + " UTC" : text + " UTC";
+      return ShownTime.text(at);
     }
   }
 
-  /** The pause time for display, "2026-10-18 09:30 UTC". */
+  /** The pause time for display, "2026-10-18 05:30 AM EDT". */
   public String getPausedAtText() {
     if (pausedAt == null) {
       return "";
     }
-    final String text = pausedAt.replace('T', ' ');
-    return text.length() > 16 ? text.substring(0, 16) + " UTC" : text + " UTC";
+    return ShownTime.text(pausedAt);
   }
 }

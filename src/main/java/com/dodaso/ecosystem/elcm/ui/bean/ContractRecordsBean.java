@@ -135,7 +135,7 @@ public class ContractRecordsBean implements Serializable {
         for (final TermRow t : terms) {
             csv.row(code, t.getLabel(), t.getValue(), t.isCurrent() ? "Current" : "Replaced",
                 t.getPackageCode(), t.isCorrected() ? "Yes" : "No", t.getAppliedBy(),
-                blankDash(t.getAppliedAtText()), blankDash(t.getSupersededAtText()));
+                blankDash(t.getAppliedAtUtc()), blankDash(t.getSupersededAtUtc()));
         }
         return download("contract-terms-" + safeName(code), csv);
     }

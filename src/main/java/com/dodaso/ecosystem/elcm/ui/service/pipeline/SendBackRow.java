@@ -1,5 +1,6 @@
 package com.dodaso.ecosystem.elcm.ui.service.pipeline;
 
+import com.dodaso.ecosystem.elcm.ui.service.ShownTime;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.io.Serializable;
 import lombok.Getter;
@@ -19,12 +20,11 @@ public class SendBackRow implements Serializable {
   private String sentBy;
   private String sentAt;
 
-  /** 2026-10-14T14:03:22.123 shown as 2026-10-14 14:03 UTC. */
+  /** 2026-10-14T14:03:22.123 shown in the viewer's time zone. */
   public String getSentAtText() {
     if (sentAt == null) {
       return "";
     }
-    final String t = sentAt.replace('T', ' ');
-    return (t.length() >= 16 ? t.substring(0, 16) : t) + " UTC";
+    return ShownTime.text(sentAt);
   }
 }

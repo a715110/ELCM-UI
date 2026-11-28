@@ -1,11 +1,11 @@
 package com.dodaso.ecosystem.elcm.ui.service.reassessment;
 
+import com.dodaso.ecosystem.elcm.ui.service.ShownTime;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
@@ -15,17 +15,15 @@ import lombok.Setter;
 /**
  * Rows the reassessment screens bind to. Field names match the JSON of elcm-service's
  * ReassessmentDtos, and unknown fields are ignored, so a field added on the service side does not
- * break the screens. Times are shown as text in UTC like the other ELCM screens.
+ * break the screens. Times are shown as text in the viewer's time zone like the other ELCM screens.
  */
 public final class ReassessmentRows {
-
-  private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
   private ReassessmentRows() {
   }
 
   static String stamp(final LocalDateTime t) {
-    return t == null ? "-" : STAMP.format(t);
+    return ShownTime.textOf(t, "-");
   }
 
   /** A lookup choice. */

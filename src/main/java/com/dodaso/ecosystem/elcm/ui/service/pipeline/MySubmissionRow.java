@@ -1,5 +1,6 @@
 package com.dodaso.ecosystem.elcm.ui.service.pipeline;
 
+import com.dodaso.ecosystem.elcm.ui.service.ShownTime;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.io.Serializable;
 import lombok.Getter;
@@ -77,7 +78,6 @@ public class MySubmissionRow implements Serializable {
     if (iso == null || iso.isBlank()) {
       return "";
     }
-    final String spaced = iso.replace('T', ' ');
-    return spaced.length() > 16 ? spaced.substring(0, 16) : spaced;
+    return ShownTime.text(iso);
   }
 }

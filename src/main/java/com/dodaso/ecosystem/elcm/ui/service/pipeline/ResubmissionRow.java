@@ -1,5 +1,6 @@
 package com.dodaso.ecosystem.elcm.ui.service.pipeline;
 
+import com.dodaso.ecosystem.elcm.ui.service.ShownTime;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.io.Serializable;
 import lombok.Getter;
@@ -35,7 +36,6 @@ public class ResubmissionRow implements Serializable {
     if (iso == null) {
       return "";
     }
-    final String t = iso.replace('T', ' ');
-    return (t.length() >= 16 ? t.substring(0, 16) : t) + " UTC";
+    return ShownTime.text(iso);
   }
 }

@@ -120,7 +120,7 @@ public class ActivityLogBean implements Serializable {
           break;
         }
         for (final ActivityEntryRow a : chunk.getEntries()) {
-          csv.row(code, a.getOccurredAtText(), a.getWho(), a.getActor(), a.getEvent(), a.getMessage());
+          csv.row(code, a.getOccurredAtUtc(), a.getWho(), a.getActor(), a.getEvent(), a.getMessage());
         }
         if (p + 1 >= chunk.getTotalPages()) {
           break;

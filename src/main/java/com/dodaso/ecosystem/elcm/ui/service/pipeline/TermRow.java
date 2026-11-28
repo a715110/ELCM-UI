@@ -1,5 +1,6 @@
 package com.dodaso.ecosystem.elcm.ui.service.pipeline;
 
+import com.dodaso.ecosystem.elcm.ui.service.ShownTime;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.io.Serializable;
 import lombok.Getter;
@@ -33,16 +34,22 @@ public class TermRow implements Serializable {
         return timeText(supersededAt);
     }
 
+    /** The applied time in UTC, for exports. */
+    public String getAppliedAtUtc() {
+        return ShownTime.utc(appliedAt);
+    }
+
+    /** The superseded time in UTC, for exports. */
+    public String getSupersededAtUtc() {
+        return ShownTime.utc(supersededAt);
+    }
+
     /** True when the reviewer corrected the value before it was applied (revision above zero). */
     public boolean isCorrected() {
         return revisionNo != null && revisionNo > 0;
     }
 
     static String timeText(final String iso) {
-        if (iso == null || iso.isBlank()) {
-            return "-";
-        }
-        final String t = iso.replace('T', ' ');
-        return t.length() > 16 ? t.substring(0, 16) : t;
+        return ShownTime.text(iso, "-");
     }
 }

@@ -1,5 +1,6 @@
 package com.dodaso.ecosystem.elcm.ui.service.perf;
 
+import com.dodaso.ecosystem.elcm.ui.service.ShownTime;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,13 +40,12 @@ public final class PerfRows {
     private String callChain;
     private String stackText;
 
-    /** Time for the table: date and minutes, T replaced by a space. */
+    /** Time for the table, in the viewer's time zone. */
     public String getOccurredAtText() {
       if (occurredAt == null) {
         return "";
       }
-      final String t = occurredAt.replace('T', ' ');
-      return t.length() > 19 ? t.substring(0, 19) : t;
+      return ShownTime.text(occurredAt);
     }
 
     /** Short name of the class with its method. */

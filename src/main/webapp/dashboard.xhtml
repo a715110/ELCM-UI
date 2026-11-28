@@ -666,7 +666,7 @@
         </p:dialog>
 
         <!-- ADDED 2026-10-20 - Activity Log of one package: who did what and when, newest first,
-             25 lines a page. The lines are kept by EARS. Times are UTC. The CSV holds the whole log. -->
+             25 lines a page. The lines are kept by EARS. Times are shown in your time zone. The CSV holds the whole log. -->
         <p:dialog widgetVar="activityDialog"
                   header="Activity log"
                   modal="true"
@@ -677,7 +677,7 @@
             <h:form id="activityForm">
                 <p style="margin-top: 0;">
                     <strong><h:outputText value="#{activityLogBean.packageCode}"/></strong>
-                    <h:outputText value=" - newest first, times in UTC"/>
+                    <h:outputText value=" - newest first, times in your time zone"/>
                 </p>
                 <h:panelGroup layout="block"
                               rendered="#{activityLogBean.loadFailed}"

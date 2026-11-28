@@ -1,5 +1,6 @@
 package com.dodaso.ecosystem.elcm.ui.service.template;
 
+import com.dodaso.ecosystem.elcm.ui.service.ShownTime;
 import com.dodaso.ecosystem.elcm.ui.service.pipeline.PackageOutcome;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -380,12 +381,9 @@ public final class TemplateRows {
     }
   }
 
-  /** "2026-10-14 21:30" from an ISO time, or a dash. */
+  /** An ISO time in the viewer's time zone, or a dash. */
   static String timeText(final String iso) {
-    if (iso == null || iso.length() < 16) {
-      return "-";
-    }
-    return iso.substring(0, 16).replace('T', ' ');
+    return ShownTime.text(iso, "-");
   }
 
   private static boolean notBlank(final String s) {

@@ -111,11 +111,11 @@
               </div>
             </div>
             <div>
-              <div class="pd-label">Created (UTC)</div>
+              <div class="pd-label">Created</div>
               <div class="pd-value"><h:outputText value="#{packageDetailBean.detail.createdAtText}"/></div>
             </div>
             <div>
-              <div class="pd-label">Last change (UTC)</div>
+              <div class="pd-label">Last change</div>
               <div class="pd-value">
                 <h:outputText value="#{packageDetailBean.detail.updatedAtText}"/>
                 <h:panelGroup rendered="#{not empty packageDetailBean.detail.updatedBy}"
@@ -170,7 +170,7 @@
                     <ui:param name="popupName" value="#{s.submittedBy}"/>
                   </ui:include>
                 </p:column>
-                <p:column headerText="Submitted (UTC)">
+                <p:column headerText="Submitted">
                   <h:outputText value="#{s.submittedAtText}"/>
                 </p:column>
                 <p:column headerText="Reviewed by">
@@ -178,7 +178,7 @@
                     <ui:param name="popupName" value="#{s.reviewedBy}"/>
                   </ui:include>
                 </p:column>
-                <p:column headerText="Reviewed (UTC)">
+                <p:column headerText="Reviewed">
                   <h:outputText value="#{s.reviewedAtText}"/>
                 </p:column>
                 <p:column headerText="Notes">
@@ -234,7 +234,7 @@
                                    actionListener="#{packageDetailBean.older}"/>
                 </div>
               </div>
-              <div class="pd-note">Times are UTC, newest first.</div>
+              <div class="pd-note">Times are shown in your time zone, newest first.</div>
               </h:panelGroup>
             </p:tab>
           </p:tabView>

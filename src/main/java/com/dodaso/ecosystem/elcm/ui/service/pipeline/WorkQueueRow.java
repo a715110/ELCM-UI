@@ -1,5 +1,6 @@
 package com.dodaso.ecosystem.elcm.ui.service.pipeline;
 
+import com.dodaso.ecosystem.elcm.ui.service.ShownTime;
 import java.io.Serializable;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -31,7 +32,7 @@ public class WorkQueueRow implements Serializable {
   private String since;
   private String submittedAt;
 
-  /** The time in the state, as "yyyy-MM-dd HH:mm" (UTC). */
+  /** The time in the state, in the viewer's time zone. */
   public String getSinceText() {
     return text(since);
   }
@@ -44,7 +45,6 @@ public class WorkQueueRow implements Serializable {
     if (iso == null || iso.isBlank()) {
       return "";
     }
-    final String spaced = iso.replace('T', ' ');
-    return spaced.length() > 16 ? spaced.substring(0, 16) : spaced;
+    return ShownTime.text(iso);
   }
 }

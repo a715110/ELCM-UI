@@ -1,5 +1,6 @@
 package com.dodaso.ecosystem.elcm.ui.service.pipeline;
 
+import com.dodaso.ecosystem.elcm.ui.service.ShownTime;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -11,7 +12,7 @@ import lombok.Setter;
 /**
  * ADDED 2026-10-25. Everything the Package Details screen shows about one package. Mirrors
  * elcm-service's PackageDetail. statusCode is ASSEMBLY (draft), VALIDATED (submitted) or COMPLETED
- * (closed); relation is ASSIGNED, APPROVER, CREATED, SUBMITTER, REVIEWER or OTHER. Times are UTC.
+ * (closed); relation is ASSIGNED, APPROVER, CREATED, SUBMITTER, REVIEWER or OTHER. Times are shown in the viewer's time zone.
  */
 @Getter
 @Setter
@@ -99,8 +100,7 @@ public class PackageDetailRow implements Serializable {
     if (iso == null || iso.isBlank()) {
       return "";
     }
-    final String spaced = iso.replace('T', ' ');
-    return spaced.length() > 16 ? spaced.substring(0, 16) : spaced;
+    return ShownTime.text(iso);
   }
 
   /** One document of the package. fileUploadId opens it in the document viewer. */

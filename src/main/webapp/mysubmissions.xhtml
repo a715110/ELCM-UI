@@ -59,10 +59,10 @@
               <p:column headerText="Status" sortBy="#{s.statusText}">
                 <p:tag value="#{s.statusText}" severity="#{s.severity}"/>
               </p:column>
-              <p:column headerText="Submitted (UTC)" sortBy="#{s.submittedAt}">
+              <p:column headerText="Submitted" sortBy="#{s.submittedAt}">
                 <h:outputText value="#{s.submittedAtText}"/>
               </p:column>
-              <p:column headerText="Last change (UTC)" sortBy="#{s.updatedAt}">
+              <p:column headerText="Last change" sortBy="#{s.updatedAt}">
                 <h:outputText value="#{s.updatedAtText}"/>
               </p:column>
               <p:column headerText="Details">
@@ -102,7 +102,7 @@
               <p:column headerText="Package" sortBy="#{d.packageCode}">
                 <h:outputText value="#{d.packageCode}"/>
               </p:column>
-              <p:column headerText="Committed (UTC)" sortBy="#{d.appliedAt}">
+              <p:column headerText="Committed" sortBy="#{d.appliedAt}">
                 <h:outputText value="#{d.appliedAtText}"/>
               </p:column>
               <p:column headerText="" style="width:4rem" exportable="false">
